@@ -3,7 +3,6 @@ import lxml
 import time
 import logging
 import os
-import subprocess
 import sys
 import yaml
 from lxml.etree import HTML
@@ -17,6 +16,8 @@ class Command(BaseCommand):
     logger = logging.getLogger('log')
 
     def handle(self, *args, **options):
+        os.system('test -d community && rm -rf community')
+        os.system('git clone https://gitee.com/openeuler/community.git')
         access_token = settings.CI_BOT_TOKEN
         genegroup_auth = os.getenv('GENEGROUP_AUTH', '')
         if not access_token:
@@ -37,13 +38,8 @@ class Command(BaseCommand):
             sys.exit(1)
         if r.status_code == 200:
             mail_lists = [x['fqdn_listname'] for x in r.json()['entries']]
-        if os.path.exists('sigs.yaml'):
-            os.remove('sigs.yaml')
-        subprocess.call('wget https://gitee.com/openeuler/community/raw/master/sig/sigs.yaml', shell=True)
-        if not os.path.exists('sigs.yaml'):
-            self.logger.error('can not download sigs.yaml, exit...')
-            sys.exit(1)
-        f = open('sigs.yaml', 'r')
+
+        f = open('community/sig/sigs.yaml', 'r')
         sigs = yaml.load(f.read(), Loader=yaml.Loader)['sigs']
         f.close()
         sigs_list = []
@@ -63,25 +59,12 @@ class Command(BaseCommand):
         maintainer_dict = {}
         for sig in sigs_list:
             maintainers = []
-            a = 0
-            while a < 3:
-                try:
-                    url = 'https://gitee.com/openeuler/community/blob/master/sig/{}/OWNERS'.format(sig[0])
-                    r = requests.get(url, timeout=5)
-                    html = HTML(r.text)
-                    assert isinstance(html, lxml.etree._Element)
-                    res = html.xpath('//div[@class="line"]/text()')
-                    for i in res[1:]:
-                        maintainer = i.strip().split('-')[-1].strip()
-                        maintainers.append(maintainer)
-                        owners.add(maintainer)
-                    maintainer_dict[sig[0]] = maintainers
-                    break
-                except Exception as e:
-                    self.logger.info(e)
-                    a += 1
-                # 去除owners中为''的元素
-        owners.remove('')
+            with open('community/sig/{}/OWNERS'.format(sig[0]), 'r') as f:
+                user_infos = yaml.load(f.read(), Loader=yaml.Loader)['maintainers']
+            for maintainer in user_infos:
+                maintainers.append(maintainer)
+                owners.add(maintainer)
+            maintainer_dict[sig[0]] = maintainers
         # 初始化owners_sigs
         for owner in owners:
             owners_sigs[owner] = []
@@ -134,14 +117,11 @@ class Command(BaseCommand):
             sig.append(irc)
 
             # 获取owners
-            url = 'https://gitee.com/openeuler/community/blob/master/sig/{}/OWNERS'.format(sig[0])
-            r = requests.get(url)
-            html = HTML(r.text)
-            assert isinstance(html, lxml.etree._Element)
-            res = html.xpath('//div[@class="line"]/text()')
+            f = open('community/sig/{}/OWNERS'.format(sig[0]), 'r', encoding='utf-8')
+            maintainers = yaml.load(f.read(), Loader=yaml.Loader)['maintainers']
+            f.close()
             owners = []
-            for i in res[1:]:
-                maintainer = i.strip().split('-')[-1].strip()
+            for maintainer in maintainers:
                 params = {
                     'access_token': access_token
                 }
@@ -154,9 +134,9 @@ class Command(BaseCommand):
                     owner['sigs'] = owners_sigs[maintainer]
                     if r.json()['email']:
                         owner['email'] = r.json()['email']
+                    owners.append(owner)
                 if r.status_code == 404:
                     pass
-                owners.append(owner)
             sig.append(owners)
             sig[5] = str(sig[5]).replace("'", '"')
             group_name = sig[0]

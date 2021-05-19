@@ -2,6 +2,7 @@ def get_html_with_summary_with_recordings():
     html = """
     <!DOCTYPE html>
     <html lang="en">
+
     <head>
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -26,6 +27,7 @@ def get_html_with_summary_with_recordings():
             }
         </style>
     </head>
+
     <body style="text-align: center;">
         <div class='section' style="display: inline-block; margin: auto">
             <div class='email_head' ,
@@ -73,6 +75,7 @@ def get_html_with_summary_with_recordings():
             </div>
         </div>
     </body>
+
     </html>
     """
     return html
@@ -82,6 +85,7 @@ def get_html_with_summary_without_recordings():
     html = """
     <!DOCTYPE html>
     <html lang="en">
+
     <head>
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -106,6 +110,7 @@ def get_html_with_summary_without_recordings():
             }
         </style>
     </head>
+
     <body style="text-align: center;">
         <div class='section' style="display: inline-block; margin: auto">
             <div class='email_head' ,
@@ -153,6 +158,7 @@ def get_html_with_summary_without_recordings():
             </div>
         </div>
     </body>
+
     </html>
     """
     return html
@@ -162,6 +168,7 @@ def get_html_without_summary_with_recordings():
     html = """
     <!DOCTYPE html>
     <html lang="en">
+
     <head>
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -186,6 +193,7 @@ def get_html_without_summary_with_recordings():
             }
         </style>
     </head>
+
     <body style="text-align: center;">
         <div class='section' style="display: inline-block; margin: auto">
             <div class='email_head' ,
@@ -231,6 +239,7 @@ def get_html_without_summary_with_recordings():
             </div>
         </div>
     </body>
+
     </html>
     """
     return html
@@ -240,6 +249,7 @@ def get_html_without_summary_without_recordings():
     html = """
     <!DOCTYPE html>
     <html lang="en">
+
     <head>
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -264,6 +274,7 @@ def get_html_without_summary_without_recordings():
             }
         </style>
     </head>
+
     <body style="text-align: center;">
         <div class='section' style="display: inline-block; margin: auto">
             <div class='email_head' ,
@@ -309,6 +320,7 @@ def get_html_without_summary_without_recordings():
             </div>
         </div>
     </body>
+
     </html>
     """
     return html
@@ -324,6 +336,7 @@ def get_txt_with_summary_with_recordings():
     温馨提醒：建议接入会议后修改参会人的姓名，也可以使用您在gitee.com的ID
     更多资讯尽在：https://openeuler.org/zh/
     
+
     Hello!
     openEuler {{sig_name}} SIG invites you to attend the ZOOM conference(auto recording) will be held at {{start_time}},
     The subject of the conference is {{topic}},
@@ -344,6 +357,8 @@ def get_txt_with_summary_without_recordings():
     会议链接：{{join_url}}
     温馨提醒：建议接入会议后修改参会人的姓名，也可以使用您在gitee.com的ID
     更多资讯尽在：https://openeuler.org/zh/
+
+
     Hello!
     openEuler {{sig_name}} SIG invites you to attend the ZOOM conference will be held at {{start_time}},
     The subject of the conference is {{topic}},
@@ -363,6 +378,8 @@ def get_txt_without_summary_with_recordings():
     会议链接：{{join_url}}
     温馨提醒：建议接入会议后修改参会人的姓名，也可以使用您在gitee.com的ID
     更多资讯尽在：https://openeuler.org/zh/
+
+
     Hello!
     openEuler {{sig_name}} SIG invites you to attend the ZOOM conference(auto recording) will be held at {{start_time}},
     The subject of the conference is {{topic}},
@@ -381,6 +398,8 @@ def get_txt_without_summary_without_recordings():
     会议链接：{{join_url}}
     温馨提醒：建议接入会议后修改参会人的姓名，也可以使用您在gitee.com的ID
     更多资讯尽在：https://openeuler.org/zh/
+
+
     Hello!
     openEuler {{sig_name}} SIG invites you to attend the ZOOM conference will be held at {{start_time}},
     The subject of the conference is {{topic}},
