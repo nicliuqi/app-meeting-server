@@ -1,15 +1,12 @@
 import logging
 import os
-import random
 import re
 import smtplib
-import yaml
 from django.conf import settings
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
-from templates.get_templates import *
 
 logger = logging.getLogger('log')
 
@@ -29,89 +26,77 @@ def sendmail(topic, date, start, join_url, sig_name, toaddrs, summary=None, reco
     # 发送列表去重，排序
     toaddrs_list = sorted(list(set(toaddrs_list)))
 
-    texthtml = None
-    textplain = None
-    imagedir = 'templates/images'
+    # 构造邮件
+    msg = MIMEMultipart()
 
-    msg = MIMEMultipart('mixed')
-    alternative = MIMEMultipart('alternative')
-
+    # 添加邮件主体
+    body_of_email = None
     if not summary and not record:
-        html = get_html_without_summary_without_recordings()
-        text = get_txt_without_summary_without_recordings()
-        texthtml = html.replace('{{sig_name}}', sig_name).replace('{{start_time}}', start_time).replace('{{topic}}',
-                                                                                                        topic).replace(
-            '{{join_url}}', join_url)
-        textplain = text.replace('{{sig_name}}', sig_name).replace('{{start_time}}', start_time).replace('{{topic}}',
-                                                                                                         topic).replace(
-            '{{join_url}}', join_url)
+        with open('templates/template_without_summary_without_recordings.html') as fp:
+            body = fp.read()
+            body_of_email = body.replace('src="', 'src="cid:').replace("src='", "src='cid:").replace('{{sig_name}}',
+                                                                                                     '{0}').replace(
+                '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').format(sig_name,
+                                                                                                           start_time,
+                                                                                                           join_url,
+                                                                                                           topic)
     if summary and not record:
-        html = get_html_with_summary_without_recordings()
-        text = get_txt_with_summary_without_recordings()
-        texthtml = html.replace('{{sig_name}}', sig_name).replace('{{start_time}}', start_time).replace('{{topic}}',
-                                                                                                        topic).replace(
-            '{{join_url}}', join_url).replace('{{summary}}', summary)
-        textplain = text.replace('{{sig_name}}', sig_name).replace('{{start_time}}', start_time).replace('{{topic}}',
-                                                                                                         topic).replace(
-            '{{join_url}}', join_url).replace('{{summary}}', summary)
+        with open('templates/template_with_summary_without_recordings.html') as fp:
+            body = fp.read()
+            body_of_email = body.replace('src="', 'src="cid:').replace("src='", "src='cid:").replace('{{sig_name}}',
+                                                                                                     '{0}').replace(
+                '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace(
+                '{{summary}}', '{4}').format(sig_name,
+                                             start_time,
+                                             join_url,
+                                             topic,
+                                             summary)
     if not summary and record:
-        html = get_html_without_summary_with_recordings()
-        text = get_txt_without_summary_with_recordings()
-        texthtml = html.replace('{{sig_name}}', sig_name).replace('{{start_time}}', start_time).replace('{{topic}}',
-                                                                                                        topic).replace(
-            '{{join_url}}', join_url)
-        textplain = text.replace('{{sig_name}}', sig_name).replace('{{start_time}}', start_time).replace('{{topic}}',
-                                                                                                         topic).replace(
-            '{{join_url}}', join_url)
+        with open('templates/template_without_summary_with_recordings.html') as fp:
+            body = fp.read()
+            body_of_email = body.replace('src="', 'src="cid:').replace("src='", "src='cid:").replace('{{sig_name}}',
+                                                                                                     '{0}').replace(
+                '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').format(sig_name,
+                                                                                                           start_time,
+                                                                                                           join_url,
+                                                                                                           topic)
     if summary and record:
-        html = get_html_with_summary_with_recordings()
-        text = get_txt_with_summary_with_recordings()
-        texthtml = html.replace('{{sig_name}}', sig_name).replace('{{start_time}}', start_time).replace('{{topic}}',
-                                                                                                        topic).replace(
-            '{{join_url}}', join_url).replace('{{summary}}', summary)
-        textplain = text.replace('{{sig_name}}', sig_name).replace('{{start_time}}', start_time).replace('{{topic}}',
-                                                                                                         topic).replace(
-            '{{join_url}}', join_url).replace('{{summary}}', summary)
+        with open('templates/template_with_summary_with_recordings.html') as fp:
+            body = fp.read()
+            body_of_email = body.replace('src="', 'src="cid:').replace("src='", "src='cid:").replace('{{sig_name}}',
+                                                                                                     '{0}').replace(
+                '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace(
+                '{{summary}}', '{4}').format(sig_name,
+                                             start_time,
+                                             join_url,
+                                             topic,
+                                             summary)
+    content = MIMEText(body_of_email, 'html', 'utf-8')
+    msg.attach(content)
 
-    with open('templates/images.yaml', 'r') as f:
-        images = yaml.load(f.read(), Loader=yaml.Loader)['images']
-    if len(images) < 3:
-        return
-    random.shuffle(images)
-    h1 = images[0]['href']
-    s1 = images[0]['src']
-    h2 = images[1]['href']
-    s2 = images[1]['src']
-    h3 = images[2]['href']
-    s3 = images[2]['src']
+    # 添加图片
+    for file in os.listdir('templates/images'):
+        if os.path.join('images', file) in body_of_email:
+            f = open(os.path.join('templates', 'images', file), 'rb')
+            msgImage = MIMEImage(f.read())
+            f.close()
+            msgImage.add_header('Content-ID', '<{}>'.format(os.path.join('images', file)))
+            msg.attach(msgImage)
 
-    texthtml = texthtml.replace('{{sig_name}}', sig_name).replace('{{start_time}}', start_time).replace('{{topic}}',
-                                                                                                        topic).replace(
-        '{{join_url}}', join_url).replace('{{h1}}', h1).replace('{{s1}}', s1).replace('{{h2}}', h2).replace('{{s2}}',
-                                                                                                            s2).replace(
-        '{{h3}}', h3).replace('{{s3}}', s3)
+    # 添加邮件附件
+    paths = enclosure_paths
+    if paths:
+        for file_path in paths:
+            file = MIMEApplication(open(file_path, 'rb').read())
+            file.add_header('Content-Disposition', 'attachment', filename=file_path)
+            msg.attach(file)
 
-    for i in [s1, s2, s3]:
-        f = open(os.path.join('templates', 'images', 'activities', i), 'rb')
-        msgImage = MIMEImage(f.read())
-        f.close()
-        msgImage.add_header('Content-ID', os.path.join('templates', 'images', 'activities', i))
-        msg.attach(msgImage)
-
-    f = open('templates/images/foot.png', 'rb')
-    msgImage = MIMEImage(f.read())
-    f.close()
-    msgImage.add_header('Content-ID', 'templates/images/foot.png')
-    msg.attach(msgImage)
-
-    alternative.attach(MIMEText(textplain, 'plain', 'utf-8'))
-    alternative.attach(MIMEText(texthtml, 'html', 'utf-8'))
-    msg.attach(alternative)
-
+    # 完善邮件信息
     msg['Subject'] = topic
     msg['From'] = 'openEuler conference'
     msg['To'] = toaddrs_string
 
+    # 登录服务器发送邮件
     try:
         gmail_username = settings.GMAIL_USERNAME
         gmail_password = settings.GMAIL_PASSWORD
