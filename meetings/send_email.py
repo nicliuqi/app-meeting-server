@@ -93,7 +93,7 @@ def sendmail(topic, date, start, join_url, sig_name, toaddrs, summary=None, reco
 
     # 完善邮件信息
     msg['Subject'] = topic
-    msg['From'] = 'openEuler conference'
+    msg['From'] = 'openEuler conference<public@openeuler.org>'
     msg['To'] = toaddrs_string
 
     # 登录服务器发送邮件

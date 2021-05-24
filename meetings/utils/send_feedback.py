@@ -21,10 +21,10 @@ def run(feedback_type, feedback_email, feedback_content):
     # 完善邮件信息
     mailto = 'contact@openeuler.io'
     msg['Subject'] = 'openEuler小程序意见反馈'
-    msg['From'] = 'openEuler MiniProgram'
+    msg['From'] = 'openEuler MiniProgram<public@openeuler.org>'
     msg['To'] = mailto
     reply_msg['Subject'] = 'openEuler小程序意见反馈'
-    reply_msg['From'] = 'openEuler MiniProgram'
+    reply_msg['From'] = 'openEuler MiniProgram<public@openeuler.org>'
     reply_msg['To'] = feedback_email
 
     # 登录服务器发送邮件
