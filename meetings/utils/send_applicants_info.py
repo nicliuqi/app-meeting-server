@@ -49,7 +49,7 @@ def send_csv(csv_file, mailto):
 
     # 完善邮件信息
     msg['Subject'] = '活动报名表单'
-    msg['From'] = 'openEuler MiniProgram'
+    msg['From'] = 'openEuler MiniProgram<public@openeuler.org>'
     msg['To'] = mailto
 
     # 登录服务器发送邮件
