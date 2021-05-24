@@ -98,6 +98,7 @@ def sendmail(topic, date, start, join_url, sig_name, toaddrs, summary=None, reco
 
     # 登录服务器发送邮件
     try:
+        gmail_username = settings.GMAIL_USERNAME
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.sendmail(gmail_username, toaddrs_list, msg.as_string())
         logger.info('email string: {}'.format(toaddrs))

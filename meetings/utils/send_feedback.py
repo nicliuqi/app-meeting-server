@@ -29,6 +29,7 @@ def run(feedback_type, feedback_email, feedback_content):
 
     # 登录服务器发送邮件
     try:
+        gmail_username = settings.GMAIL_USERNAME
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.sendmail(gmail_username, mailto.split(','), msg.as_string())
         server.sendmail(gmail_username, feedback_email.split(','), reply_msg.as_string())
