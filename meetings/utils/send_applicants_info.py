@@ -54,6 +54,7 @@ def send_csv(csv_file, mailto):
 
     # 登录服务器发送邮件
     try:
+        gmail_username = settings.GMAIL_USERNAME
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.sendmail(gmail_username, [mailto], msg.as_string())
         print('发送成功')
