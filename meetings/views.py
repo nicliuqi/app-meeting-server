@@ -17,21 +17,24 @@ from rest_framework.mixins import ListModelMixin, CreateModelMixin, RetrieveMode
     UpdateModelMixin
 from rest_framework_simplejwt import authentication
 from meetings.models import User, Group, Meeting, GroupUser, Collect, Video, Record, Activity, ActivityCollect, \
-    ActivityRegister, Feedback
+    ActivityRegister, Feedback, ActivitySign
 from meetings.permissions import MaintainerPermission, AdminPermission, ActivityAdminPermission, SponsorPermission
 from meetings.serializers import LoginSerializer, GroupsSerializer, MeetingSerializer, UsersSerializer, \
     UserSerializer, GroupUserAddSerializer, GroupSerializer, UsersInGroupSerializer, UserGroupSerializer, \
     MeetingListSerializer, GroupUserDelSerializer, UserInfoSerializer, SigsSerializer, MeetingsDataSerializer, \
     AllMeetingsSerializer, CollectSerializer, SponsorSerializer, SponsorInfoSerializer, ActivitySerializer, \
     ActivitiesSerializer, ActivityDraftUpdateSerializer, ActivityUpdateSerializer,  ActivityCollectSerializer, \
-    ActivityRegisterSerializer, ApplicantInfoSerializer,  FeedbackSerializer, ActivityRetrieveSerializer
+    ActivityRegisterSerializer, ApplicantInfoSerializer,  FeedbackSerializer, ActivityRetrieveSerializer, \
+    ActivitySignSerializer
 from rest_framework.response import Response
 from multiprocessing import Process
 from meetings.send_email import sendmail
 from rest_framework import permissions
-from meetings.utils import gene_wx_code, send_applicants_info, send_feedback
+from meetings.utils import gene_wx_code, send_applicants_info, send_feedback, invite, send_start_url, gene_sign_code
 
 logger = logging.getLogger('log')
+offline = 1
+online = 2
 
 
 class LoginView(GenericAPIView, CreateModelMixin, ListModelMixin):
@@ -777,7 +780,7 @@ class ActivityView(GenericAPIView, CreateModelMixin):
         user_id = self.request.user.id
         enterprise = User.objects.get(id=user_id).enterprise
         # 线下活动
-        if activity_type == 1:
+        if activity_type == offline:
             address = data['address']
             detail_address = data['detail_address']
             longitude = data['longitude']
@@ -798,14 +801,16 @@ class ActivityView(GenericAPIView, CreateModelMixin):
                 enterprise=enterprise
             )
         # 线上活动
-        if activity_type == 2:
-            live_address = data['live_address']
+        if activity_type == online:
+            start = data['start']
+            end = data['end']
             Activity.objects.create(
                 title=title,
                 date=date,
+                start=start,
+                end=end,
                 activity_type=activity_type,
                 synopsis=synopsis,
-                live_address=live_address,
                 schedules=json.dumps(data['schedules']),
                 poster=poster,
                 user_id=user_id,
@@ -903,6 +908,10 @@ class ActivityUpdateView(GenericAPIView, UpdateModelMixin):
 
     @swagger_auto_schema(operation_summary='修改活动')
     def put(self, request, *args, **kwargs):
+        activity_id = self.kwargs.get('pk')
+        mid = Activity.objects.get(id=activity_id).mid
+        schedules = self.request.data['schedules']
+        invite.add_panelists(mid, schedules)
         return self.update(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -926,8 +935,60 @@ class ActivityPublishView(GenericAPIView, UpdateModelMixin):
         appid = settings.APP_CONF['appid']
         secret = settings.APP_CONF['secret']
         if activity_id in self.queryset.values_list('id', flat=True):
+            logger.info('活动id: {}'.format(activity_id))
             img_url = gene_wx_code.run(appid, secret, activity_id)
-            Activity.objects.filter(id=activity_id, status=2).update(status=3, wx_code=img_url)
+            logger.info('生成活动页面二维码: {}'.format(img_url))
+            sign_url = gene_sign_code.run(appid, secret, activity_id)
+            logger.info('生成活动签到二维码: {}'.format(sign_url))
+            Activity.objects.filter(id=activity_id, status=2).update(status=3, wx_code=img_url, sign_url=sign_url)
+            logger.info('活动通过审核')
+            activity = Activity.objects.get(id=activity_id)
+            if activity.activity_type == online:
+                date = activity.date
+                title = activity.title
+                start = activity.start
+                end = activity.end
+                synopsis = activity.synopsis
+                # 创建网络研讨会
+                start_time = (datetime.datetime.strptime(date + start, '%Y-%m-%d%H:%M') - datetime.timedelta(hours=8)).strftime('%Y-%m-%dT%H:%M:%SZ')
+                duration = int((datetime.datetime.strptime(end, '%H:%M') - datetime.datetime.strptime(start, '%H:%M')).seconds / 60)
+                data = {
+                    "topic": title,
+                    "start_time": start_time,
+                    "duration": duration,
+                    "agenda": synopsis,
+                    "template_id": settings.WEBINAR_TEMPLATE_ID,
+                    "settings": {
+                        "host_video": True,
+                        "panelists_video": True,
+                        "request_permission_to_unmute_participants": True
+                    }
+                }
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer {}".format(settings.ZOOM_TOKEN)
+                }
+                r = requests.post('https://api.zoom.us/v2/users/{}/webinars'.format(settings.WEBINAR_HOST), headers=headers, data=json.dumps(data))
+                if r.status_code == 201:
+                    logger.info('创建网络研讨会')
+                    start_url = r.json()['start_url']
+                    join_url = r.json()['join_url']
+                    mid = r.json()['id']
+                    Activity.objects.filter(id=activity_id).update(start_url=start_url, join_url=join_url, mid=mid)
+                    # 发送start_url给sponsor
+                    activity = Activity.objects.get(id=activity_id)
+                    date = activity.date
+                    start = activity.start
+                    topic = activity.title
+                    start_url = activity.start_url
+                    password = r.json()['password']
+                    summary = activity.synopsis,
+                    user = User.objects.get(id=activity.user_id)
+                    email = user.email
+                    send_start_url.run(date, start, topic, start_url, password, summary, email)
+                    logger.info('成功发送主持人地址邮件')
+                    invite.invite_panelists(mid)
+                    logger.info('成功发送嘉宾邀请邮件')
             return JsonResponse({'code': 201, 'msg': '活动通过审核，已发布'})
         else:
             return JsonResponse({'code': 404, 'msg': '无此数据'})
@@ -982,7 +1043,7 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
         user_id = self.request.user.id
         enterprise = User.objects.get(id=user_id).enterprise
         # 线下活动
-        if activity_type == 1:
+        if activity_type == offline:
             address = data['address']
             detail_address = data['detail_address']
             longitude = data['longitude']
@@ -1002,14 +1063,16 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
                 enterprise=enterprise
             )
         # 线上活动
-        if activity_type == 2:
-            live_address = data['live_address']
+        if activity_type == online:
+            start = data['start']
+            end = data['end']
             Activity.objects.create(
                 title=title,
                 date=date,
+                start=start,
+                end=end,
                 activity_type=activity_type,
                 synopsis=synopsis,
-                live_address=live_address,
                 schedules=json.dumps(data['schedules']),
                 poster=poster,
                 user_id=user_id,
@@ -1070,7 +1133,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
         synopsis = data['synopsis'] if 'synopsis' in data else None
         poster = data['poster']
         user_id = self.request.user.id
-        if activity_type == 1:
+        if activity_type == offline:
             address = data['address']
             detail_address = data['detail_address']
             longitude = data['longitude']
@@ -1087,14 +1150,16 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
                 schedules=json.dumps(data['schedules']),
                 poster=poster
             )
-        if activity_type == 2:
-            live_address = data['live_address']
+        if activity_type == online:
+            start = data['start']
+            end = data['end']
             Activity.objects.filter(id=activity_id, user_id=user_id).update(
                 title=title,
                 date=date,
+                start=start,
+                end=end,
                 activity_type=activity_type,
                 synopsis=synopsis,
-                live_address=live_address,
                 schedules=json.dumps(data['schedules']),
                 poster=poster
             )
@@ -1117,7 +1182,7 @@ class DraftPublishView(GenericAPIView, UpdateModelMixin):
         synopsis = data['synopsis'] if 'synopsis' in data else None
         poster = data['poster']
         user_id = self.request.user.id
-        if activity_type == 1:
+        if activity_type == offline:
             address = data['address']
             detail_address = data['detail_address']
             longitude = data['longitude']
@@ -1135,14 +1200,16 @@ class DraftPublishView(GenericAPIView, UpdateModelMixin):
                 poster=poster,
                 status=2
             )
-        if activity_type == 2:
-            live_address = data['live_address']
+        if activity_type == online:
+            start = data['start']
+            end = data['end']
             Activity.objects.filter(id=activity_id, user_id=user_id).update(
                 title=title,
                 date=date,
+                start=start,
+                end=end,
                 activity_type=activity_type,
                 synopsis=synopsis,
-                live_address=live_address,
                 schedules=json.dumps(data['schedules']),
                 poster=poster,
                 status=2
@@ -1447,3 +1514,20 @@ class TicketView(GenericAPIView, RetrieveModelMixin):
             'telephone': User.objects.get(id=user_id).telephone
         }
         return JsonResponse(res)
+
+
+class ActivitySignView(GenericAPIView, CreateModelMixin):
+    """活动签到"""
+    serializer_class = ActivitySignSerializer
+    queryset = ActivitySign.objects.all()
+    permission_classes = (permissions.IsAuthenticated,)
+    authentication_classes = (authentication.JWTAuthentication,)
+
+    def post(self, request, *args, **kwargs):
+        user_id = self.request.user.id
+        activity_id = self.request.data['activity']
+        if not ActivityRegister.objects.filter(activity_id=activity_id, user_id=user_id):
+            return JsonResponse({'code': 404, 'msg': '用户还没有报名这个活动'})
+        if not ActivitySign.objects.filter(activity_id=activity_id, user_id=user_id):
+            ActivitySign.objects.create(activity_id=activity_id, user_id=user_id)
+        return JsonResponse({'code': 201, 'msg': '活动签到'})

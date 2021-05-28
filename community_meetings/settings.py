@@ -16,6 +16,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 ZOOM_TOKEN = os.getenv('ZOOM_TOKEN', '')
 
+WEBINAR_HOST = os.getenv('WEBINAR_HOST', '')
+
+WEBINAR_TEMPLATE_ID = os.getenv('WEBINAR_TEMPLATE_ID', '')
+
 CI_BOT_TOKEN = os.getenv('CI_BOT_TOKEN')
 
 AUTH_USER_MODEL = 'meetings.User'

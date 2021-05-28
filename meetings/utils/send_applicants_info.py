@@ -19,7 +19,7 @@ def run(queryset, mailto):
     target_name = tmpdir + '活动报名表单.csv'
     f = codecs.open(target_name, 'w')
     writer = csv.writer(f)
-    writer.writerow(['姓名', '电话', '邮箱', '单位', '职业', 'giteeID'])
+    writer.writerow(['姓名', '电话', '邮箱', '单位', '职业', 'giteeID', '签到'])
     for applicant_info in queryset:
         user_id = applicant_info.user_id
         user = User.objects.get(id=user_id)
@@ -29,7 +29,12 @@ def run(queryset, mailto):
         company = user.company
         profession = user.profession
         gitee_name = user.gitee_name
-        writer.writerow([name, telephone, email, company, profession, gitee_name])
+        activity_id = applicant_info.activity_id
+        if user_id in ActivitySign.objects.filter(activity_id=activity_id).values_list('user_id'):
+            is_sign = '是'
+        else:
+            is_sign = '否'
+        writer.writerow([name, telephone, email, company, profession, gitee_name, is_sign])
     f.close()
     send_csv(target_name, mailto)
 
