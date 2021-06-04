@@ -160,3 +160,30 @@ def applicants_info_template():
     </html>
     """
     return body
+
+
+def webinar_start_url_template(date, start, topic, start_url, password, summary):
+    body = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title></title>
+    </head>
+    <body>
+        <p>Hi,</p>
+        <br />
+        <p>Thank you for creating meetup by using openEuler MiniProgram.</p>
+        <br />
+        <p>Start Time: {0} {1} Beijing,Shanghai</p>
+        <p>Topic: {2}</p>
+        <br />
+        <p>Join from a PC,Mac,iPad,iPhone or Android devide:</p>
+        <p style="margin-left:20px"><a href="{3}">Click Here to Host</a></p>
+        <p style="margin-left:20px">Note: This link should not be shared with others; it is unique to you.</p>
+        <p>Passcode: {4}</p>
+        <p>Description: {5}</p>
+    </body>
+    </html>
+    """.format(date, start, topic, start_url, password, summary)
+    return body

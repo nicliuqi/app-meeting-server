@@ -126,6 +126,13 @@ class Activity(models.Model):
     wx_code = models.TextField(verbose_name='微信二维码', null=True, blank=True)
     is_delete = models.SmallIntegerField(verbose_name='是否删除', choices=((0, '未删除'), (1, '已删除')), default=0)
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True)
+    start = models.CharField(verbose_name='开始时间', max_length=10, null=True, blank=True)
+    end = models.CharField(verbose_name='结束时间', max_length=10, null=True, blank=True)
+    start_url = models.TextField(verbose_name='主持人入口', null=True, blank=True)
+    join_url = models.CharField(verbose_name='观众入口', max_length=255, null=True, blank=True)
+    sign_url = models.CharField(verbose_name='签到二维码', max_length=255, null=True, blank=True)
+    mid = models.CharField(verbose_name='网络研讨会id', max_length=20, null=True, blank=True)
+    replay_url = models.CharField(verbose_name='回放地址', max_length=255, null=True, blank=True)
 
 
 class Feedback(models.Model):
@@ -145,5 +152,11 @@ class ActivityCollect(models.Model):
 
 class ActivityRegister(models.Model):
     """用户活动报名表"""
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+
+class ActivitySign(models.Model):
+    """用户活动签到表"""
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)

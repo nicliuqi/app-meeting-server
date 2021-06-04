@@ -78,7 +78,7 @@ class UsersSerializer(ModelSerializer):
 class UserSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'gitee_name']
+        fields = ['id', 'gitee_name', 'email', 'telephone']
 
 
 class MeetingSerializer(ModelSerializer):
@@ -269,7 +269,7 @@ class ActivitiesSerializer(ModelSerializer):
         model = Activity
         fields = ['id', 'collection_id', 'register_id', 'title', 'date', 'activity_type', 'synopsis', 'live_address',
                   'address', 'detail_address', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user',
-                  'enterprise', 'register_count']
+                  'enterprise', 'register_count', 'start', 'end', 'join_url', 'replay_url']
 
     def get_collection_id(self, obj):
         user = None
@@ -301,7 +301,7 @@ class ActivityRetrieveSerializer(ActivitiesSerializer):
         model = Activity
         fields = ['id', 'collection_id', 'register_id', 'title', 'date', 'activity_type', 'synopsis', 'live_address',
                   'address', 'detail_address', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user',
-                  'enterprise', 'register_count', 'wx_code']
+                  'enterprise', 'register_count', 'wx_code', 'sign_url', 'start', 'end', 'join_url', 'replay_url']
 
 
 class ActivityUpdateSerializer(ModelSerializer):
@@ -338,3 +338,9 @@ class FeedbackSerializer(ModelSerializer):
     class Meta:
         model = Feedback
         fields = ['feedback_type', 'feedback_email', 'feedback_content']
+
+
+class ActivitySignSerializer(ModelSerializer):
+    class Meta:
+        model = ActivitySign
+        fields = ['activity']
