@@ -6,7 +6,7 @@ from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from meetings.models import Collect, Group, User, Meeting, GroupUser, Record, Activity, ActivityCollect, \
-    ActivityRegister, Feedback
+    ActivityRegister, Feedback, ActivitySign
 
 logger = logging.getLogger('log')
 
