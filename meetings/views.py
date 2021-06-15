@@ -76,7 +76,7 @@ class GiteeBackView(GenericAPIView, ListModelMixin):
                     User.objects.create(gid=gid, gitee_id=gitee_id, name=name, avatar=avatar)
                 else:
                     User.objects.filter(gid=gid).update(gitee_id=gitee_id, name=name, avatar=avatar)
-                response = redirect('http://159.138.57.39/zh/#')
+                response = redirect('http://159.138.57.39/zh/#meetings')
                 user_id = User.objects.get(gid=gid).id
                 access_token = cryptos.encrypt(str(user_id))
                 response.set_cookie('access_token', access_token)
@@ -300,7 +300,6 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
 
         # 获取data
         data = self.request.data
-        mid = data['mid']
         topic = data['topic']
         sponsor = data['sponsor']
         date = data['date']
@@ -309,7 +308,7 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         group_name = data['group_name']
         community = 'opengauss'
         summary = data['agenda'] if 'agenda' in data else None
-        emaillist = data['agenda'] if 'emaillist' in data else None
+        emaillist = data['emaillist'] if 'emaillist' in data else None
         record = data['record'] if 'record' in data else None
         etherpad = data['etherpad'] if 'etherpad' in data else 'https://etherpad.opengauss.org/p/{}-meetings'.format(
             group_name)
@@ -356,7 +355,6 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         new_data['start_time'] = start_time
         new_data['duration'] = duration
         new_data['topic'] = topic
-        new_data['password'] = password
         new_data['settings']['waiting_room'] = False
         new_data['settings']['auto_recording'] = record
         headers = {
@@ -367,10 +365,7 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         # 发送post请求，创建会议
         response = requests.patch(url, data=json.dumps(new_data), headers=headers)
         if response.status_code != 204:
-            logger.error(response.json())
-            # logger.info('code: {}, fail to create.'.format(response.status_code))
             return JsonResponse({'code': response.status_code, 'msg': '修改会议失败', 'en_msg': 'Fail to update.'})
-        response = response.json()
 
         # 数据库更新数据
         Meeting.objects.filter(mid=mid).update(
@@ -401,6 +396,12 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         if Video.objects.filter(mid=mid) and record != 'cloud':
             Video.objects.filter(mid=mid).delete()
             logger.info('remove video obj of meeting {}'.format(mid))
+        meeting = Meeting.objects.get(mid=mid)
+        join_url = meeting.join_url
+        if not emaillist:
+            emaillist = meeting.emaillist
+        p1 = Process(target=sendmail, args=(topic, date, start, join_url, group_name, emaillist, summary, record))
+        p1.start()
         # 返回请求数据
         resp = {'code': 204, 'msg': '修改成功', 'en_msg': 'Update successfully', 'id': mid}
         return JsonResponse(resp)
