@@ -26,6 +26,7 @@ def sendmail(topic, date, start, join_url, sig_name, toaddrs, summary=None, reco
     if sig_name in maillists.keys():
         maillist = maillists[sig_name]
         toaddrs_list.append(maillist) 
+        logger.info('BCC to {}'.format(maillist))
 
     # 构造邮件
     msg = MIMEMultipart()

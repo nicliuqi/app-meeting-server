@@ -26,6 +26,8 @@ GITEE_OAUTH_CLIENT_SECRET = os.getenv('GITEE_OAUTH_CLIENT_SECRET', '')
 
 GITEE_OAUTH_REDIRECT = os.getenv('GITEE_OAUTH_REDIRECT', '')
 
+REDIRECT_HOME_PAGE = os.getenv('REDIRECT_HOME_PAGE', '')
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
@@ -116,10 +118,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'opengauss_meetings',
-        'USER': os.getenv('DB_USER', ''),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', ''),
-        'PORT': os.getenv('DB_PORT', ''),
+        'USER': os.getenv('DB_USER', 'root'),
+        'PASSWORD': os.getenv('DB_PASSWORD', '123456'),
+        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+        'PORT': os.getenv('DB_PORT', '3306'),
     }
 }
 

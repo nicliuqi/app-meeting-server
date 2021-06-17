@@ -76,7 +76,7 @@ class GiteeBackView(GenericAPIView, ListModelMixin):
                     User.objects.create(gid=gid, gitee_id=gitee_id, name=name, avatar=avatar)
                 else:
                     User.objects.filter(gid=gid).update(gitee_id=gitee_id, name=name, avatar=avatar)
-                response = redirect('http://159.138.57.39/zh/#meetings')
+                response = redirect(settings.REDIRECT_HOME_PAGE)
                 user_id = User.objects.get(gid=gid).id
                 access_token = cryptos.encrypt(str(user_id))
                 response.set_cookie('access_token', access_token)
@@ -235,8 +235,6 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         join_url = response['join_url']
         sig_name = data['group_name']
         toaddrs = emaillist
-
-        # sendmail需要定制openGauss的模板以及默认发送的邮件列表
         p1 = Process(target=sendmail, args=(topic, date, start, join_url, sig_name, toaddrs, summary, record))
         p1.start()
 
@@ -348,7 +346,6 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         duration = (int(end.split(':')[0]) - int(start.split(':')[0])) * 60 + (
                 int(end.split(':')[1]) - int(start.split(':')[1]))
 
-        # 向zoom发送PATCH请求
         # 准备好调用zoom api的data
         new_data = {}
         new_data['settings'] = {}
@@ -362,7 +359,7 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
             "authorization": "Bearer {}".format(settings.ZOOM_TOKEN)
         }
         url = "https://api.zoom.us/v2/meetings/{}".format(mid)
-        # 发送post请求，创建会议
+        # 发送patch请求，修改会议
         response = requests.patch(url, data=json.dumps(new_data), headers=headers)
         if response.status_code != 204:
             return JsonResponse({'code': response.status_code, 'msg': '修改会议失败', 'en_msg': 'Fail to update.'})
@@ -381,7 +378,7 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
             user_id=user_id,
             group_id=group_id
         )
-        logger.info('{} has updated a meeting which mid is {}.'.format(data['sponsor'], response['id']))
+        logger.info('{} has updated a meeting which mid is {}.'.format(sponsor, mid))
         logger.info('meeting info: {},{}-{},{}'.format(date, start, end, topic))
         # 如果开启录制功能，则在Video表中创建一条数据
         if not Video.objects.filter(mid=mid) and record == 'cloud':
@@ -467,7 +464,6 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
     search_fields = ['group_name']
 
     def get(self, request, *args, **kwargs):
-        import datetime
         self.queryset = self.queryset.filter(
             date__gte=(datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'),
             date__lte=(datetime.datetime.now() + datetime.timedelta(days=14)).strftime('%Y-%m-%d'))
