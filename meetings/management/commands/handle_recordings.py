@@ -56,7 +56,7 @@ def get_recordings(mid):
         logger.info('meeting {}: no recordings yet'.format(mid))
         return
     if mids.count(int(mid)) == 1:
-        record = list(filter(lambda x:x if x['id'] == int(mid) else None, response.json()['meetings']))[0]
+        record = list(filter(lambda x: x if x['id'] == int(mid) else None, response.json()['meetings']))[0]
         return record
     if mids.count(int(mid)) > 1:
         records = list(filter(lambda x: x if x['id'] == int(mid) else None, response.json()['meetings']))
@@ -77,7 +77,7 @@ def get_participants(mid):
     }
     response = requests.get(url, headers=headers)
     if response.status_code != 200:
-        logger.error('mid: {}, get participants {} {}:'.format(mid, response.status_code, response.json()['message']))
+        logger.error('mid: {}, get participants {} {}'.format(mid, response.status_code, response.json()['message']))
         return
     return response.json()['participants']
 
@@ -142,7 +142,7 @@ def download_upload_recordings(start, end, zoom_download_url, mid, total_size, v
     # 下载录像
     filename = download_recordings(zoom_download_url, str(mid))
     print()
-    logger.info('meeting {}: 从OBS下载视频，本地保存为{}'.format(mid, filename))
+    logger.info('meeting {}: 从ZOOM下载视频，本地保存为{}'.format(mid, filename))
     try:
         # 若下载录像的大小和total_size相等，则继续
         download_file_size = os.path.getsize(filename)
@@ -278,7 +278,7 @@ def run(mid):
                     "%b").lower()
                 group_name = video.group_name
                 video_name = mid + '.mp4'
-                object_key = 'openeuler/{}/{}/{}/{}'.format(group_name, month, mid, video_name)
+                object_key = 'opengauss/{}/{}/{}/{}'.format(group_name, month, mid, video_name)
                 logger.info('meeting {}: object_key is {}'.format(mid, object_key))
                 # 收集录像信息待用
                 end = recordings_list[0]['recording_end']
