@@ -17,7 +17,7 @@ from rest_framework.response import Response
 from meetings.send_email import sendmail
 from meetings.models import Meeting, Video, User, Group, Record
 from meetings.serializers import MeetingsSerializer, MeetingUpdateSerializer, MeetingDeleteSerializer, \
-    MeetingDetailSerializer, GGroupsSerializer
+    MeetingDetailSerializer, GroupsSerializer
 from meetings.utils import cryptos
 
 logger = logging.getLogger('log')
@@ -448,7 +448,7 @@ class GroupsView(GenericAPIView, ListModelMixin):
     """
     Groups info
     """
-    serializer_class = GGroupsSerializer
+    serializer_class = GroupsSerializer
     queryset = Group.objects.all()
 
     def get(self, request, *args, **kwargs):

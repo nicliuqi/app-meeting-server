@@ -34,7 +34,7 @@ class MeetingDetailSerializer(ModelSerializer):
                   'join_url', 'emaillist']
 
 
-class GGroupsSerializer(ModelSerializer):
+class GroupsSerializer(ModelSerializer):
     class Meta:
         model = Group
         fields = ['id', 'name']
