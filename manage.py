@@ -6,7 +6,7 @@ from community_meetings import settings
 
 
 def main():
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'opengauss_meetings.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'community_meetings.settings')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

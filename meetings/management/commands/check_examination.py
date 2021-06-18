@@ -45,7 +45,7 @@ class Command(BaseCommand):
             else:
                 logger.info('meeting {}: bvid为{}'.format(mid, metadata_dict['bvid']))
                 if metadata_dict['bvid'] not in bvs:
-                    logger.info('meetings: {}: 上传至B站，还未过审或已被删除'.format(mid))
+                    logger.info('meetings: {}: 上传至B站，还未过审'.format(mid))
                 else:
                     bili_url = 'https://www.bilibili.com/{}'.format(metadata_dict['bvid'])
                     Record.objects.filter(mid=mid, platform='bilibili').update(url=bili_url)

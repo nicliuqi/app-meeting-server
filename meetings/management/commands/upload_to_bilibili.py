@@ -143,7 +143,7 @@ def upload(topic, date, videoFile, imageFile, mid, sig, community):
     data = {
         "copyright": 1,
         "cover": cover_url,
-        "desc": "openGauss meeting record for {}".format(sig),
+        "desc": "openEuler meeting record for {}".format(sig),
         "desc_format_id": 0,
         "dynamic": "",
         "interactive": 0,
