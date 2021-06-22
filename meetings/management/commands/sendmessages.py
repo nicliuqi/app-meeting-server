@@ -22,8 +22,8 @@ class Command(BaseCommand):
             logger.error(e)
 
     def get_token(self):
-        appid = settings.APP_CONF['appid']
-        secret = settings.APP_CONF['secret']
+        appid = settings.MINDSPORE_APP_CONF['appid']
+        secret = settings.MINDSPORE_APP_CONF['secret']
         url = 'https://api.weixin.qq.com/cgi-bin/token?appid={}&secret={}&grant_type=client_credential'.format(appid,
                                                                                                                secret)
         r = requests.get(url)
@@ -44,8 +44,9 @@ class Command(BaseCommand):
             topic = topic[:20]
         content = {
             "touser": openid,
-            "template_id": "2xSske0tAcOVKNG9EpBjlb1I-cjPWSZrpwPDTgqAmWI",
-            "page": "/pages/meeting/detail?id={}".format(meeting_id),
+            "template_id": settings.MINDSPORE_MEETING_ATTENTION_TEMPLATE,
+            "page": "/package-meeting/meeting/detail?id={}".format(meeting_id),
+            "miniprogram_state": "trial",
             "lang": "zh-CN",
             "data": {
                 "thing7": {
