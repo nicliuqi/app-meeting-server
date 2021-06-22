@@ -127,6 +127,7 @@ DATABASES = {
 
 OPENGAUSS_MEETING_HOSTS = {
     os.getenv('HOST1', ''): 'public@cla.opengauss.org'
+    os.getenv('HOST2', ''): 'public@certificate.opengauss.org'
 }
 
 # Password validation
