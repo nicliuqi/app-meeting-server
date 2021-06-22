@@ -93,11 +93,12 @@ def sendmail(topic, date, start, join_url, sig_name, toaddrs, summary=None, reco
     try:
         gmail_username = settings.GMAIL_USERNAME
         gmail_password = settings.GMAIL_PASSWORD
+        sender = 'public@opengauss.org'
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.ehlo()
         server.starttls()
         server.login(gmail_username, gmail_password)
-        server.sendmail(gmail_username, toaddrs_list, msg.as_string())
+        server.sendmail(sender, toaddrs_list, msg.as_string())
         logger.info('email string: {}'.format(toaddrs))
         logger.info('error addrs: {}'.format(error_addrs))
         logger.info('email sent: {}'.format(toaddrs_string))

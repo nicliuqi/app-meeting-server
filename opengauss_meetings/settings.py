@@ -79,6 +79,8 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ORIGIN_ALLOW_ALL = True
 
+SESSION_COOKIE_HTTPONLY = True
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -127,6 +129,7 @@ DATABASES = {
 
 OPENGAUSS_MEETING_HOSTS = {
     os.getenv('HOST1', ''): 'public@cla.opengauss.org'
+    os.getenv('HOST2', ''): 'public@certificate.opengauss.org'
 }
 
 # Password validation
