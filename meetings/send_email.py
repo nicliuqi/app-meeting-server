@@ -16,7 +16,7 @@ def sendmail(topic, date, start, join_url, sig_name, toaddrs, summary=None, reco
     toaddrs_list = toaddrs.split(',')
     error_addrs = []
     for addr in toaddrs_list:
-        if not re.match(r'^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$', addr):
+        if not re.match(r'^[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]*)*@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$', addr):
             error_addrs.append(addr)
             toaddrs_list.remove(addr)
     toaddrs_string = ','.join(toaddrs_list)
