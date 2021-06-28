@@ -42,8 +42,8 @@ class Command(BaseCommand):
             sig['sponsors'].append(maintainer)
         for commiiter in owners['committers']:
             sig['sponsors'].append(commiiter)
+        sigs.append(sig)
         if not Group.objects.filter(name='TC'):
-            sigs.append(sig)
             Group.objects.create(name='TC', members=sig['sponsors'])
             logger.info('Create sig: TC')
         else:
