@@ -28,6 +28,11 @@ def sendmail(topic, date, start, join_url, sig_name, toaddrs, summary=None, reco
         toaddrs_list.append(maillist) 
         logger.info('BCC to {}'.format(maillist))
 
+    if sig_name.lower = 'tc':
+        for k, v in maillists.items():
+            if v not in toaddrs_list:
+                toaddrs_list.append(v)
+
     # 构造邮件
     msg = MIMEMultipart()
 
