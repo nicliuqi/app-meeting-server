@@ -344,3 +344,30 @@ class ActivitySignSerializer(ModelSerializer):
     class Meta:
         model = ActivitySign
         fields = ['activity']
+
+
+class ActivityRegistrantsSerializer(ModelSerializer):
+    registrants = serializers.SerializerMethodField()
+    class Meta:
+        model = User
+        fields = ['registrants']
+
+    def get_registrants(self, obj):
+        user_ids = ActivityRegister.objects.filter(activity_id=obj.id).values_list('user_id', flat=True)
+        users = User.objects.filter(id__in=user_ids)
+        registrants =  [
+            {
+                'id': x.id,
+                'nickname': x.nickname,
+                'gitee_name': x.gitee_name,
+                'avatar': x.avatar,
+                'name': x.name,
+                'telephone': x.telephone,
+                'email': x.email,
+                'company': x.company,
+                'profession': x.profession,
+                'enterprise': x.enterprise
+            }
+            for x in users
+        ]
+        return registrants
