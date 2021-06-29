@@ -331,7 +331,7 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         # 查询待创建的会议与现有的预定会议是否冲突
         meeting = Meeting.objects.get(mid=mid)
         host_id = meeting.host_id
-        if Meeting.objects.filter(date=date, is_delete=0, host_id=host_id, end__gt=start_search, start__lt=end_search):
+        if Meeting.objects.filter(date=date, is_delete=0, host_id=host_id, end__gt=start_search, start__lt=end_search).exclude(mid=mid):
             logger.info('会议冲突！主持人在{}-{}已经创建了会议'.format(start_search, end_search))
             return JsonResponse({'code': 400, 'msg': '会议冲突！主持人在{}-{}已经创建了会议'.format(start_search, end_search),
                                  'en_msg': 'Schedule time conflict'})
