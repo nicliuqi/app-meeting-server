@@ -8,7 +8,7 @@ from django.conf import settings
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from meetings.models import User
+from meetings.models import User, ActivitySign
 from .email_templates import applicants_info_template
 
 logger = logging.getLogger('log')
