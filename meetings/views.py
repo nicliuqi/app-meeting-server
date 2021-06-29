@@ -24,8 +24,8 @@ from meetings.serializers import LoginSerializer, GroupsSerializer, MeetingSeria
     MeetingListSerializer, GroupUserDelSerializer, UserInfoSerializer, SigsSerializer, MeetingsDataSerializer, \
     AllMeetingsSerializer, CollectSerializer, SponsorSerializer, SponsorInfoSerializer, ActivitySerializer, \
     ActivitiesSerializer, ActivityDraftUpdateSerializer, ActivityUpdateSerializer,  ActivityCollectSerializer, \
-    ActivityRegisterSerializer, ApplicantInfoSerializer, FeedbackSerializer, ActivityRetrieveSerializer, \
-    ActivitySignSerializer, ActivityRegistrantsSerializer
+    ActivityRegisterSerializer, ApplicantInfoSerializer,  FeedbackSerializer, ActivityRetrieveSerializer, \
+    ActivitySignSerializer
 from rest_framework.response import Response
 from multiprocessing import Process
 from meetings.send_email import sendmail
@@ -1531,12 +1531,3 @@ class ActivitySignView(GenericAPIView, CreateModelMixin):
         if not ActivitySign.objects.filter(activity_id=activity_id, user_id=user_id):
             ActivitySign.objects.create(activity_id=activity_id, user_id=user_id)
         return JsonResponse({'code': 201, 'msg': '活动签到'})
-
-
-class ActivityRegistrantsView(GenericAPIView, RetrieveModelMixin):
-    """活动报名者信息"""
-    serializer_class = ActivityRegistrantsSerializer
-    queryset = Activity.objects.filter(is_delete=0)
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
