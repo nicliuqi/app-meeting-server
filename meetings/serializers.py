@@ -159,7 +159,7 @@ class LoginSerializer(serializers.ModelSerializer):
                     nickname=nickname,
                     avatar=avatar,
                     gender=gender,
-                    gitee_name=nickname,
+                    gitee_name='',
                     status=1,
                     password=make_password(openid),
                     openid=openid)
