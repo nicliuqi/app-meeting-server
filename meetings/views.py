@@ -235,7 +235,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         join_url = response['join_url']
         sig_name = data['group_name']
         toaddrs = emaillist
-        p1 = Process(target=sendmail, args=(topic, date, start, join_url, sig_name, toaddrs, summary, record))
+        p1 = Process(target=sendmail, args=(topic, date, start, join_url, sig_name, toaddrs, etherpad, summary, record))
         p1.start()
 
         # 数据库生成数据
@@ -397,7 +397,7 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         join_url = meeting.join_url
         if not emaillist:
             emaillist = meeting.emaillist
-        p1 = Process(target=sendmail, args=(topic, date, start, join_url, group_name, emaillist, summary, record))
+        p1 = Process(target=sendmail, args=(topic, date, start, join_url, group_name, emaillist, etherpad, summary, record))
         p1.start()
         # 返回请求数据
         resp = {'code': 204, 'msg': '修改成功', 'en_msg': 'Update successfully', 'id': mid}
