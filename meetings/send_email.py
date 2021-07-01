@@ -10,7 +10,7 @@ from email.mime.text import MIMEText
 logger = logging.getLogger('log')
 
 
-def sendmail(topic, date, start, join_url, sig_name, toaddrs, summary=None, record=None, enclosure_paths=None):
+def sendmail(topic, date, start, join_url, sig_name, toaddrs, etherpad, summary=None, record=None, enclosure_paths=None):
     start_time = ' '.join([date, start])
     toaddrs = toaddrs.replace(' ', '').replace('，', ',').replace(';', ',').replace('；', ',')
     toaddrs_list = toaddrs.split(',')
@@ -32,52 +32,44 @@ def sendmail(topic, date, start, join_url, sig_name, toaddrs, summary=None, reco
         for k, v in maillists.items():
             if v not in toaddrs_list:
                 toaddrs_list.append(v)
+    logger.info('toaddrs_list: {}'.format(toaddrs_list))
 
     # 构造邮件
     msg = MIMEMultipart()
 
     # 添加邮件主体
     body_of_email = None
+
     if not summary and not record:
         with open('templates/template_without_summary_without_recordings.html') as fp:
             body = fp.read()
             body_of_email = body.replace('src="', 'src="cid:').replace("src='", "src='cid:").replace('{{sig_name}}',
                                                                                                      '{0}').replace(
-                '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').format(sig_name,
-                                                                                                           start_time,
-                                                                                                           join_url,
-                                                                                                           topic)
+                '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace(
+                '{{etherpad}}', '{4}').format(sig_name, start_time, join_url, topic, etherpad)
     if summary and not record:
         with open('templates/template_with_summary_without_recordings.html') as fp:
             body = fp.read()
             body_of_email = body.replace('src="', 'src="cid:').replace("src='", "src='cid:").replace('{{sig_name}}',
                                                                                                      '{0}').replace(
                 '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace(
-                '{{summary}}', '{4}').format(sig_name,
-                                             start_time,
-                                             join_url,
-                                             topic,
-                                             summary)
+                '{{summary}}', '{4}').replace('{{etherpad}}', '{5}').format(sig_name, start_time, join_url, topic,
+                                                                            summary, etherpad)
     if not summary and record:
         with open('templates/template_without_summary_with_recordings.html') as fp:
             body = fp.read()
             body_of_email = body.replace('src="', 'src="cid:').replace("src='", "src='cid:").replace('{{sig_name}}',
                                                                                                      '{0}').replace(
-                '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').format(sig_name,
-                                                                                                           start_time,
-                                                                                                           join_url,
-                                                                                                           topic)
+                '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace(
+                '{{etherpad}}', '{4}').format(sig_name, start_time, join_url, topic, etherpad)
     if summary and record:
         with open('templates/template_with_summary_with_recordings.html') as fp:
             body = fp.read()
             body_of_email = body.replace('src="', 'src="cid:').replace("src='", "src='cid:").replace('{{sig_name}}',
                                                                                                      '{0}').replace(
                 '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace(
-                '{{summary}}', '{4}').format(sig_name,
-                                             start_time,
-                                             join_url,
-                                             topic,
-                                             summary)
+                '{{summary}}', '{4}').replace('{{etherpad}}', '{5}').format(sig_name, start_time, join_url, topic,
+                                                                            summary, etherpad)
     content = MIMEText(body_of_email, 'html', 'utf-8')
     msg.attach(content)
 
