@@ -17,7 +17,7 @@ from rest_framework.response import Response
 from meetings.send_email import sendmail
 from meetings.models import Meeting, Video, User, Group, Record
 from meetings.serializers import MeetingsSerializer, MeetingUpdateSerializer, MeetingDeleteSerializer, \
-    MeetingDetailSerializer, GroupsSerializer
+    MeetingDetailSerializer, GroupsSerializer, AllMeetingsSerializer
 from meetings.utils import cryptos
 
 logger = logging.getLogger('log')
@@ -532,3 +532,41 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
                     } for meeting in Meeting.objects.filter(is_delete=0, date=date)]
                 })
         return Response({'tableData': tableData})
+
+
+class AllMeetingsView(GenericAPIView, ListModelMixin):
+    """
+    List all meetings
+    """
+    serializer_class = AllMeetingsSerializer
+    queryset = Meeting.objects.all()
+    filter_backends = [SearchFilter]
+    search_fields = ['group_name', 'sponsor', 'date']
+
+    def get(self, request, *args, **kwargs):
+        is_delete = self.request.GET.get('delete')
+        if is_delete and is_delete in ['0', '1']:
+            self.queryset = self.queryset.filter(is_delete=int(is_delete))
+        return self.list(request, *args, **kwargs)
+
+
+
+class ParticipantsView(GenericAPIView, RetrieveModelMixin):
+    """
+    List all participants info of a meeting
+    """
+    def get(self, request, *args, **kwargs):
+        mid = kwargs.get('mid')
+        try:
+            url = "https://api.zoom.us/v2/past_meetings/{}/participants".format(mid)
+            headers = {
+                "authorization": "Bearer {}".format(settings.ZOOM_TOKEN)}
+            r = requests.get(url, headers=headers)
+            if r.status_code == 200:
+                return JsonResponse(
+                    {'total_records': r.json()['total_records'], 'participants': r.json()['participants']})
+            else:
+                return JsonResponse(r.json())
+        except Exception as e:
+            logger.error(e)
+            return JsonResponse({'msg': e})
