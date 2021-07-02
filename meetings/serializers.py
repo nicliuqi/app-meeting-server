@@ -38,3 +38,9 @@ class GroupsSerializer(ModelSerializer):
     class Meta:
         model = Group
         fields = ['id', 'name']
+
+
+class AllMeetingsSerializer(ModelSerializer):
+    class Meta:
+        model = Meeting
+        fiedls = '__all__'
