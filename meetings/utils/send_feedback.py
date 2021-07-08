@@ -19,21 +19,27 @@ def run(feedback_type, feedback_email, feedback_content):
     reply_msg.attach(reply_content)
 
     # 完善邮件信息
-    mailto = 'contact@openeuler.io'
-    msg['Subject'] = 'openEuler小程序意见反馈'
-    msg['From'] = 'openEuler MiniProgram<public@openeuler.org>'
+    mailto = 'contact@mindspore.cn'
+    msg['Subject'] = 'MindSpore小程序意见反馈'
+    msg['From'] = 'MindSpore MiniProgram'
     msg['To'] = mailto
-    reply_msg['Subject'] = 'openEuler小程序意见反馈'
-    reply_msg['From'] = 'openEuler MiniProgram<public@openeuler.org>'
+    reply_msg['Subject'] = 'MindSpore小程序意见反馈'
+    reply_msg['From'] = 'MindSpore MiniProgram'
     reply_msg['To'] = feedback_email
 
     # 登录服务器发送邮件
     try:
         gmail_username = settings.GMAIL_USERNAME
+        gmail_password = settings.GMAIL_PASSWORD
+        sender = 'public@mindspore.cn'
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
-        server.sendmail(gmail_username, mailto.split(','), msg.as_string())
-        server.sendmail(gmail_username, feedback_email.split(','), reply_msg.as_string())
-        print('发送成功')
+        server.ehlo()
+        server.starttls()
+        server.login(gmail_username, gmail_password)
+        server.sendmail(sender, mailto.split(','), msg.as_string())
+        logger.info('小程序回复邮件发送成功')
+        server.sendmail(sender, feedback_email.split(','), reply_msg.as_string())
+        logger.info('小程序反馈邮件发送成功')
         server.quit()
     except smtplib.SMTPException as e:
         logger.error(e)
