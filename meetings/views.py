@@ -18,7 +18,8 @@ from rest_framework.mixins import ListModelMixin, CreateModelMixin, RetrieveMode
 from rest_framework_simplejwt import authentication
 from meetings.models import User, Group, Meeting, GroupUser, Collect, Video, Record, Activity, ActivityCollect, \
     ActivityRegister, Feedback, ActivitySign
-from meetings.permissions import MaintainerPermission, AdminPermission, ActivityAdminPermission, SponsorPermission
+from meetings.permissions import MaintainerPermission, AdminPermission, ActivityAdminPermission, SponsorPermission, \
+        QueryPermission, ActivitiesQueryPermission
 from meetings.serializers import LoginSerializer, GroupsSerializer, MeetingSerializer, UsersSerializer, \
     UserSerializer, GroupUserAddSerializer, GroupSerializer, UsersInGroupSerializer, UserGroupSerializer, \
     MeetingListSerializer, GroupUserDelSerializer, UserInfoSerializer, SigsSerializer, MeetingsDataSerializer, \
@@ -592,6 +593,7 @@ class AllMeetingsView(GenericAPIView, ListModelMixin):
     queryset = Meeting.objects.all()
     filter_backends = [SearchFilter]
     search_fields = ['is_delete', 'group_name', 'sponsor', 'date', 'start', 'end']
+    permission_classes = (QueryPermission,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -650,6 +652,7 @@ class MyCollectionsView(GenericAPIView, ListModelMixin):
 
 class ParticipantsView(GenericAPIView, RetrieveModelMixin):
     """查询会议的参会者"""
+    permission_classes = (QueryPermission,)
 
     def get(self, request, *args, **kwargs):
         mid = kwargs.get('mid')
@@ -826,6 +829,7 @@ class ActivitiesView(GenericAPIView, ListModelMixin):
     queryset = Activity.objects.filter(is_delete=0, status__gt=2).order_by('-date', 'id')
     filter_backends = [SearchFilter]
     search_fields = ['title', 'enterprise']
+    permission_classes = (ActivitiesQueryPermission,)
 
     @swagger_auto_schema(operation_summary='活动列表')
     def get(self, request, *args, **kwargs):
@@ -1537,6 +1541,7 @@ class ActivityRegistrantsView(GenericAPIView, RetrieveModelMixin):
     """活动报名者信息"""
     serializer_class = ActivityRegistrantsSerializer
     queryset = Activity.objects.filter(is_delete=0)
+    permission_classes = (QueryPermission,)
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)

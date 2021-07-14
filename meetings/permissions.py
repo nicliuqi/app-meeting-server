@@ -1,3 +1,4 @@
+import os
 from rest_framework import permissions
 from meetings.models import User
 
@@ -56,3 +57,37 @@ class ActivityAdminPermission(SponsorPermission):
     """活动管理员权限"""
     message = '需要活动管理员权限！！！'
     activity_level = 3
+
+
+class QueryPermission(permissions.BasePermission):
+    """查询权限"""
+
+    def has_permission(self, request, view):
+        token = request.GET.get('token')
+        if token and token == os.getenv('QUERY_TOKEN'):
+            return True
+        else:
+            return False
+
+
+class ActivitiesQueryPermission(permissions.BasePermission):
+    """活动查询权限"""
+
+    def has_permission(self, request, view):
+        token = request.GET.get('token')
+        activity = request.GET.get('activity')
+        activity_type = request.GET.get('activity_type')
+        if not activity_type and activity and activity in ['registering', 'going', 'completed']:
+            return True
+        if not activity and activity_type and activity_type in ['1', '2']:
+            return True
+        if activity and activity_type:
+            if activity in ['registering', 'going', 'completed'] and activity_type in ['1', '2']:
+                return True
+            else:
+                return False
+        if not activity and not activity_type:
+            if token and token == os.getenv('QUERY_TOKEN'):
+                return True
+            else:
+                return False
