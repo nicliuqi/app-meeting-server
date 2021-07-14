@@ -52,7 +52,7 @@ def upload_to_obs(tmp_file, activity_id):
     access_key_id = os.getenv('ACCESS_KEY_ID', '')
     secret_access_key = os.getenv('SECRET_ACCESS_KEY', '')
     endpoint = os.getenv('OBS_ENDPOINT', '')
-    bucketName = os.getenv('OBS_BUCKETNAME', '')
+    bucketName = os.getenv('OBS_BUCKETNAME_SECOND', '')
     if not access_key_id or not secret_access_key or not endpoint or not bucketName:
         logger.error('losing required arguments for ObsClient')
         sys.exit(1)
