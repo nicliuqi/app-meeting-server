@@ -19,7 +19,7 @@ from rest_framework_simplejwt import authentication
 from meetings.models import User, Group, Meeting, GroupUser, Collect, Video, Record, Activity, ActivityCollect, \
     ActivityRegister, Feedback, ActivitySign
 from meetings.permissions import MaintainerPermission, AdminPermission, ActivityAdminPermission, SponsorPermission, \
-        QueryPermission, ActivitiesQueryPermission
+        QueryPermission
 from meetings.serializers import LoginSerializer, GroupsSerializer, MeetingSerializer, UsersSerializer, \
     UserSerializer, GroupUserAddSerializer, GroupSerializer, UsersInGroupSerializer, UserGroupSerializer, \
     MeetingListSerializer, GroupUserDelSerializer, UserInfoSerializer, SigsSerializer, MeetingsDataSerializer, \
@@ -829,7 +829,6 @@ class ActivitiesView(GenericAPIView, ListModelMixin):
     queryset = Activity.objects.filter(is_delete=0, status__gt=2).order_by('-date', 'id')
     filter_backends = [SearchFilter]
     search_fields = ['title', 'enterprise']
-    permission_classes = (ActivitiesQueryPermission,)
 
     @swagger_auto_schema(operation_summary='活动列表')
     def get(self, request, *args, **kwargs):
