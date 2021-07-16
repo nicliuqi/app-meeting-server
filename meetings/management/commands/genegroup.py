@@ -138,6 +138,15 @@ class Command(BaseCommand):
                 if r.status_code == 404:
                     pass
             sig.append(owners)
+
+            # 获取description
+            description = None
+            if 'sig-info.yaml' in os.listdir('community/sig/{}'.format(sig[0])):
+                with open('community/sig/{}/sig-info.yaml'.format(sig[0]), 'r') as f:
+                    sig_info = yaml.load(f.read(), Loader=yaml.Loader)
+                    if 'description' in sig_info.keys():
+                        description = sig_info['description']
+            sig.append(description)
             sig[5] = str(sig[5]).replace("'", '"')
             group_name = sig[0]
             home_page = sig[1]
@@ -145,14 +154,16 @@ class Command(BaseCommand):
             maillist = sig[3]
             irc = sig[4]
             owners = sig[5]
+            description = sig[6]
             # 查询数据库，如果sig_name不存在，则创建sig信息；如果sig_name存在,则更新sig信息
             if not Group.objects.filter(group_name=group_name):
                 Group.objects.create(group_name=group_name, home_page=home_page, maillist=maillist,
-                                     irc=irc, etherpad=etherpad, owners=owners)
+                                     irc=irc, etherpad=etherpad, owners=owners, description=description)
                 self.logger.info("Create sig: {}".format(group_name))
                 self.logger.info(sig)
             else:
-                Group.objects.filter(group_name=group_name).update(maillist=maillist, irc=irc, etherpad=etherpad, owners=owners)
+                Group.objects.filter(group_name=group_name).update(maillist=maillist, irc=irc, etherpad=etherpad,
+                                                                   owners=owners, description=description)
                 self.logger.info("Update sig: {}".format(group_name))
                 self.logger.info(sig)
         t4 = time.time()
