@@ -370,7 +370,7 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
             topic = topic[:20]
         content = {
             "touser": openid,
-            "template_id": settings.MINDSPORE_CANCLE_MEETING_TEMPLATE,
+            "template_id": settings.MINDSPORE_CANCEL_MEETING_TEMPLATE,
             "page": "/pages/index/index",
             "miniprogram_state": "trial",
             "lang": "zh-CN",
