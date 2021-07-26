@@ -17,7 +17,7 @@ from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, ListModelM
     DestroyModelMixin
 from rest_framework_simplejwt import authentication
 from meetings.models import Meeting, Record
-from meetings.permissions import MaintainerPermission, AdminPermission
+from meetings.permissions import MaintainerPermission, AdminPermission, QueryPermission
 from meetings.models import GroupUser, Group, User, Collect, Feedback
 from meetings.serializers import LoginSerializer, UsersInGroupSerializer, SigsSerializer, GroupsSerializer, \
      GroupUserAddSerializer, GroupUserDelSerializer, UserInfoSerializer, UserGroupSerializer, MeetingSerializer, \
@@ -643,6 +643,7 @@ class HandleRecordView(GenericAPIView):
 
 class ParticipantsView(GenericAPIView):
     """会议参会者信息"""
+    permission_classes = (QueryPermission,)
 
     def get(self, request, *args, **kwargs):
         mid = self.kwargs.get('mid')

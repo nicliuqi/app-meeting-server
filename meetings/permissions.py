@@ -28,3 +28,14 @@ class AdminPermission(MaintainerPermission):
     """管理员权限"""
     message = '需要管理员权限！！！'
     level = 3
+
+
+class QueryPermission(permissions.BasePermission):
+    """查询权限"""
+
+    def has_permission(self, request, view):
+        token = request.GET.get('token')
+        if token and token == os.getenv('QUERY_TOKEN'):
+            return True
+        else:
+            return False
