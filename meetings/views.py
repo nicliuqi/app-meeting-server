@@ -19,6 +19,7 @@ from meetings.models import Meeting, Video, User, Group, Record
 from meetings.serializers import MeetingsSerializer, MeetingUpdateSerializer, MeetingDeleteSerializer, \
     MeetingDetailSerializer, GroupsSerializer, AllMeetingsSerializer
 from meetings.utils import cryptos
+from meetings.permissions import QueryPermissions
 
 logger = logging.getLogger('log')
 
@@ -542,6 +543,7 @@ class AllMeetingsView(GenericAPIView, ListModelMixin):
     queryset = Meeting.objects.all()
     filter_backends = [SearchFilter]
     search_fields = ['group_name', 'sponsor', 'date']
+    permission_classes = (QueryPermission,)
 
     def get(self, request, *args, **kwargs):
         is_delete = self.request.GET.get('delete')
@@ -555,6 +557,8 @@ class ParticipantsView(GenericAPIView, RetrieveModelMixin):
     """
     List all participants info of a meeting
     """
+    permission_classes = (QueryPermission,)
+
     def get(self, request, *args, **kwargs):
         mid = kwargs.get('mid')
         try:
