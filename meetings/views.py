@@ -98,7 +98,7 @@ class UserInfoView(GenericAPIView):
                 return JsonResponse({'code': 400, 'msg': 'The user does not exist'})
             user = User.objects.get(id=user_id)
             gitee_id = user.gitee_id
-            with open('meetings/openGauss_sigs.yaml', 'r') as f:
+            with open('share/openGauss_sigs.yaml', 'r') as f:
                 sigs = yaml.load(f.read(), Loader=yaml.Loader)
             self_sigs = []
             for sig in sigs:
