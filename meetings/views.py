@@ -19,7 +19,7 @@ from meetings.models import Meeting, Video, User, Group, Record
 from meetings.serializers import MeetingsSerializer, MeetingUpdateSerializer, MeetingDeleteSerializer, \
     MeetingDetailSerializer, GroupsSerializer, AllMeetingsSerializer
 from meetings.utils import cryptos
-from meetings.permissions import QueryPermissions
+from meetings.permissions import QueryPermission
 
 logger = logging.getLogger('log')
 
