@@ -32,7 +32,7 @@ class Command(BaseCommand):
         headers = {
             'Authorization': os.getenv('GENEGROUP_AUTH', '')
         }
-        r = requests.get('https://openeuler.org/api/mail/list', headers=headers)
+        r = requests.get('https://www.openeuler.org/api/mail/list', headers=headers)
         if r.status_code == 401:
             self.logger.error('401 Unauthorized. Do check GENEGROUP_AUTH!')
             sys.exit(1)
