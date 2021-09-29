@@ -558,12 +558,16 @@ class HandleRecordView(GenericAPIView):
         real_data = json.loads(base64.b64decode(bdata.encode('utf-8')).decode('utf-8'))
         logger.info('completed recording payload: {}'.format(real_data))
         # 从real_data从获取会议的id, code, record_file_id
-        mmid = real_data['payload'][0]['meeting_info']['meeting_id']
-        meeting_code = real_data['payload'][0]['meeting_info']['meeting_code']
-        userid = real_data['payload'][0]['meeting_info']['creator']['userid']
-        record_file_id = real_data['payload'][0]['recording_files'][0]['record_file_id']
-        start_time = real_data['payload'][0]['meeting_info']['start_time']
-        end_time = real_data['payload'][0]['meeting_info']['end_time']
+        try:
+            mmid = real_data['payload'][0]['meeting_info']['meeting_id']
+            meeting_code = real_data['payload'][0]['meeting_info']['meeting_code']
+            userid = real_data['payload'][0]['meeting_info']['creator']['userid']
+            record_file_id = real_data['payload'][0]['recording_files'][0]['record_file_id']
+            start_time = real_data['payload'][0]['meeting_info']['start_time']
+            end_time = real_data['payload'][0]['meeting_info']['end_time']
+        except KeyError:
+            logger.info('HandleRecord: Not a completed event')
+            return HttpResponse('successfully received callback')
         # 根据code查询会议的日期、标题，拼接待上传的objectKey
         meeting = Meeting.objects.get(mid=meeting_code)
         meeting_type = meeting.meeting_type
