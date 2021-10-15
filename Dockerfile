@@ -21,7 +21,7 @@ RUN wget https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.3/wkh
     rm -f wkhtmltox-0.12.3_linux-generic-amd64.tar
 
 RUN cp /usr/bin/python3 /usr/bin/python
-ENV LANG=zh
+ENV LANG=en_US.UTF-8
 
 EXPOSE 8080
 ENTRYPOINT ["uwsgi", "--ini", "/work/app-meeting-server/deploy/production/uwsgi.ini"]
