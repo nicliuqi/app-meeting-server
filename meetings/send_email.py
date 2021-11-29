@@ -26,46 +26,28 @@ def sendmail(topic, date, start, join_url, sig_name, toaddrs, summary=None, reco
     # 添加邮件主体
     body_of_email = None
     if not summary and not record:
-        with open('templates/template_without_summary_without_recordings.html') as fp:
+        with open('templates/template_without_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
-            body_of_email = body.replace('src="', 'src="cid:').replace("src='", "src='cid:").replace('{{sig_name}}',
-                                                                                                     '{0}').replace(
-                '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').format(sig_name,
-                                                                                                           start_time,
-                                                                                                           join_url,
-                                                                                                           topic)
+            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
+                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').format(sig_name, start_time, join_url, topic)
     if summary and not record:
-        with open('templates/template_with_summary_without_recordings.html') as fp:
+        with open('templates/template_with_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
-            body_of_email = body.replace('src="', 'src="cid:').replace("src='", "src='cid:").replace('{{sig_name}}',
-                                                                                                     '{0}').replace(
-                '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace(
-                '{{summary}}', '{4}').format(sig_name,
-                                             start_time,
-                                             join_url,
-                                             topic,
-                                             summary)
+            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
+                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}').\
+                format(sig_name, start_time, join_url, topic, summary)
     if not summary and record:
-        with open('templates/template_without_summary_with_recordings.html') as fp:
+        with open('templates/template_without_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
-            body_of_email = body.replace('src="', 'src="cid:').replace("src='", "src='cid:").replace('{{sig_name}}',
-                                                                                                     '{0}').replace(
-                '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').format(sig_name,
-                                                                                                           start_time,
-                                                                                                           join_url,
-                                                                                                           topic)
+            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
+                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').format(sig_name, start_time, join_url, topic)
     if summary and record:
-        with open('templates/template_with_summary_with_recordings.html') as fp:
+        with open('templates/template_with_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
-            body_of_email = body.replace('src="', 'src="cid:').replace("src='", "src='cid:").replace('{{sig_name}}',
-                                                                                                     '{0}').replace(
-                '{{start_time}}', '{1}').replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace(
-                '{{summary}}', '{4}').format(sig_name,
-                                             start_time,
-                                             join_url,
-                                             topic,
-                                             summary)
-    content = MIMEText(body_of_email, 'html', 'utf-8')
+            body_of_email = body.replace('{{sig_name}}', '{0}').replace( '{{start_time}}', '{1}').\
+                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}').\
+                format(sig_name, start_time, join_url, topic, summary)
+    content = MIMEText(body_of_email, 'plain', 'utf-8')
     msg.attach(content)
 
     # 添加邮件附件
