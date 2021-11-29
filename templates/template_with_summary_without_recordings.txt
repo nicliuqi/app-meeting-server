@@ -1,0 +1,29 @@
+您好！
+  
+MindSpore {{sig_name}} 邀请您参加 {{start_time}} 召开的腾讯会议
+
+会议主题：{{topic}}
+
+会议内容：
+{{summary}}
+
+会议链接：{{join_url}}
+
+更多资讯尽在：https://mindspore.cn
+
+
+
+
+Hello!
+
+MindSpore {{sig_name}} invites you to attend the Tencent conference will be held at {{start_time}},
+
+The subject of the conference is {{topic}},
+
+Summary:
+{{summary}}
+
+You can join the meeting at {{join_url}}.
+
+More information: https://mindspore.cn/en
+
