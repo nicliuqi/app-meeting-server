@@ -363,6 +363,7 @@ class ActivityRegistrantsSerializer(ModelSerializer):
                 'email': x.email,
                 'company': x.company,
                 'profession': x.profession,
+                'sign': True if ActivitySign.objects.filter(activity_id=obj.id, user_id=x.id) else False
             }
             for x in users
         ]
