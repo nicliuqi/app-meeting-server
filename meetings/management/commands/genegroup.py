@@ -39,9 +39,11 @@ class Command(BaseCommand):
         if r.status_code == 200:
             mail_lists = [x['fqdn_listname'] for x in r.json()['entries']]
 
-        f = open('community/sig/sigs.yaml', 'r')
-        sigs = yaml.load(f.read(), Loader=yaml.Loader)['sigs']
-        f.close()
+        sigs = []
+        for i in os.listdir('community/sig'):
+            if i in ['README.md', 'sig-recycle', 'sig-template']:
+                continue
+            sigs.append({'name': i})
         sigs_list = []
         for sig in sigs:
             sig_name = sig['name']
@@ -180,7 +182,7 @@ class Command(BaseCommand):
                 for sig in db_sigs:
                     Group.objects.filter(group_name=sig).delete()
                     self.logger.info(
-                        'Sig {} had been removed from database because it does not exist in sigs.yaml.'.format(sig))
+                        'Sig {} had been removed from database because it does not exist in sig directory.'.format(sig))
                 cursor.execute('set foreign_key_checks=1')
                 self.logger.info('Turn on foreign_key_checks.')
             except Exception as e:
