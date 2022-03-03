@@ -21,6 +21,8 @@ RUN wget https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.3/wkh
     rm -f wkhtmltox-0.12.3_linux-generic-amd64.tar
 
 RUN cp /usr/bin/python3 /usr/bin/python
+RUN cd /work/app-meeting-server && pip3 install armorrasp.tar.gz
+
 ENV LANG=en_US.UTF-8
 
 EXPOSE 8080
