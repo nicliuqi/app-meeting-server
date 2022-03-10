@@ -30,3 +30,19 @@ def reply_email_template():
     </html>
     """
     return body
+
+
+def applicants_info_template():
+    body = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title></title>
+    </head>
+    <body>
+        <p>详细内容请查看csv附件</p>
+    </body>
+    </html>
+    """
+    return body
