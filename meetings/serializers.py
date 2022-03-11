@@ -245,13 +245,13 @@ class AllMeetingsSerializer(ModelSerializer):
 class SponsorSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'nickname', 'avatar', 'gitee_name', 'enterprise']
+        fields = ['id', 'nickname', 'avatar', 'gitee_name', 'enterprise', 'telephone', 'email']
 
 
 class SponsorInfoSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'gitee_name', 'enterprise']
+        fields = ['id', 'gitee_name', 'enterprise', 'telephone', 'email']
 
 
 class ActivitySerializer(ModelSerializer):

@@ -609,8 +609,12 @@ class CollectView(GenericAPIView, ListModelMixin, CreateModelMixin):
     def post(self, request, *args, **kwargs):
         user_id = self.request.user.id
         meeting_id = self.request.data['meeting']
-        Collect.objects.create(meeting_id=meeting_id, user_id=user_id)
-        resp = {'code': 201, 'msg': 'collect successfully'}
+        if not meeting_id:
+            return JsonResponse({'code': 400, 'msg': 'meeting不能为空'})
+        if not Collect.objects.filter(meeting_id=meeting_id, user_id=user_id):
+            Collect.objects.create(meeting_id=meeting_id, user_id=user_id)
+        collection_id = Collect.objects.get(meeting_id=meeting_id, user_id=user_id).id
+        resp = {'code': 201, 'msg': 'collect successfully', 'collection_id': collection_id}
         return JsonResponse(resp)
 
     def get_queryset(self):
