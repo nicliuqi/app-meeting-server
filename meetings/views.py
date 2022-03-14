@@ -530,7 +530,7 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
 
 class MeetingDetailView(GenericAPIView, RetrieveModelMixin):
     """会议详情"""
-    serializer_class = MeetingDetailSerializer
+    serializer_class = MeetingsListSerializer
     queryset = Meeting.objects.filter(is_delete=0)
 
     def get(self, request, *args, **kwargs):
