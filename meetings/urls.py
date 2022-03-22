@@ -58,7 +58,7 @@ urlpatterns = [
     path('mywaitingactivities/', WaitingPublishingActivitiesView.as_view()),  # 我的待发布活动列表
     path('activity/<int:pk>/', ActivityDetailView.as_view()),  # 活动详情
     path('drafts/', DraftsListView.as_view()),  # 活动草案列表
-    path('activity/action/collect/<int:pk>/', ActivityCollectView.as_view()),  # 收藏活动
+    path('activity/action/collect/', ActivityCollectView.as_view()),  # 收藏活动
     path('activitycollections/', ActivityCollectionsView.as_view()),  # 活动收藏列表
     path('activity/action/collectdel/<int:pk>/', ActivityCollectionDelView.as_view()),  # 取消收藏活动
     path('register/', ActivityRegisterView.as_view()),  # 活动报名
