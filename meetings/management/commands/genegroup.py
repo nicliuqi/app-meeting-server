@@ -61,11 +61,21 @@ class Command(BaseCommand):
         maintainer_dict = {}
         for sig in sigs_list:
             maintainers = []
-            with open('community/sig/{}/OWNERS'.format(sig[0]), 'r') as f:
-                user_infos = yaml.load(f.read(), Loader=yaml.Loader)['maintainers']
-            for maintainer in user_infos:
-                maintainers.append(maintainer)
-                owners.add(maintainer)
+            owner_file = 'community/sig/{}/OWNERS'.format(sig[0])
+            if os.path.exists(owner_file):
+                with open('community/sig/{}/OWNERS'.format(sig[0]), 'r') as f:
+                    user_infos = yaml.load(f.read(), Loader=yaml.Loader)['maintainers']
+                for maintainer in user_infos:
+                    maintainers.append(maintainer)
+                    owners.add(maintainer)
+            else:
+                sig_info_file = 'community/sig/{}/sig-info.yaml'.format(sig[0]
+                if not os.path.exists(sig_info_file):
+                    self.logger.error('sig-info.yaml is required when OWNERS file does not exist.')
+                    sys.exit(1)
+                with open(sig_info_file, 'r') as f:
+                    sig_ifno = yaml.load(f.read(), Loader=yaml.Loader)
+                    maintainers = [maintainer['gitee_id'] for maintainer in sig_info['maintainers']]
             maintainer_dict[sig[0]] = maintainers
         # 初始化owners_sigs
         for owner in owners:
