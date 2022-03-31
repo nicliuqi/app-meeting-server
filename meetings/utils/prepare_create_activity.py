@@ -11,7 +11,5 @@ def prepare(start_date, end_date, activity_category, activity_type, address, det
         return {'code': 400, 'msg': 'activity_category must be in 1-4'}
     if activity_type not in range(1, 4):
         return {'code': 400, 'msg': 'activity_type must be in 1-3'}
-    if activity_category == 2 and not (address and detail_address):
-        return {'code': 400, 'msg': 'MSG activity must have addresses'}
     if register_method == 2 and not register_url:
         return {'code': 400, 'msg': 'register_url is required to create the activity'}
