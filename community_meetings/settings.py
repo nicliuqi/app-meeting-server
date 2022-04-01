@@ -44,7 +44,12 @@ MEETING_HOSTS = {
     os.getenv('HOST_ZJ', ''): 'jun.zhongjun2@gmail.com',
     os.getenv('HOST_WH', ''): 'wanghaosqsq@gmail.com',
     os.getenv('HOST_LXL', ''): 'xiaoliwow@gmail.com',
-    os.getenv('HOST_ZD', ''): 'zhuwind2022@gmail.com'
+    os.getenv('HOST_ZD', ''): 'zhuwind2022@gmail.com',
+    os.getenv('HOST_ZC', ''): 'chaotomzhu@gmail.com',
+    os.getenv('HOST_HJC', ''): 'plusvolcano1@gmail.com',
+    os.getenv('HOST_WWL', ''): 'wangwenliang0401@gmail.com',
+    os.getenv('HOST_ZZY', ''): 'zhengzhenyulixi@gmail.com',
+    os.getenv('HOST_ZB', ''): 'bzhaojyathousandy@gmail.com'
 }
 
 # SECURITY WARNING: don't run with debug turned on in production!
