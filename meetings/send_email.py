@@ -17,7 +17,7 @@ from email.mime.image import MIMEImage
 logger = logging.getLogger('log')
 
 
-def sendmail(topic, date, start, join_url, sig_name, toaddrs, summary=None, record=None, enclosure_paths=None):
+def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, summary=None, record=None, enclosure_paths=None):
     start_time = ' '.join([date, start])
     toaddrs = toaddrs.replace(' ', '').replace('，', ',').replace(';', ',').replace('；', ',')
     toaddrs_list = toaddrs.split(',')
