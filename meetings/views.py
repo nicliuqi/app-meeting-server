@@ -522,7 +522,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         sig_name = data['group_name']
         toaddrs = emaillist
 
-        p1 = Process(target=sendmail, args=(topic, date, start, join_url, sig_name, toaddrs, summary, record))
+        p1 = Process(target=sendmail, args=(topic, date, start, end, join_url, sig_name, toaddrs, summary, record))
         p1.start()
 
         # 数据库生成数据
