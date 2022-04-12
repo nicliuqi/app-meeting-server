@@ -65,9 +65,6 @@ class Command(BaseCommand):
             if os.path.exists(owner_file):
                 with open('community/sig/{}/OWNERS'.format(sig[0]), 'r') as f:
                     user_infos = yaml.load(f.read(), Loader=yaml.Loader)['maintainers']
-                for maintainer in user_infos:
-                    maintainers.append(maintainer)
-                    owners.add(maintainer)
             else:
                 sig_info_file = 'community/sig/{}/sig-info.yaml'.format(sig[0])
                 if not os.path.exists(sig_info_file):
@@ -75,7 +72,10 @@ class Command(BaseCommand):
                     sys.exit(1)
                 with open(sig_info_file, 'r') as f:
                     sig_info = yaml.load(f.read(), Loader=yaml.Loader)
-                    maintainers = [maintainer['gitee_id'] for maintainer in sig_info['maintainers']]
+                    user_infos = [maintainer['gitee_id'] for maintainer in sig_info['maintainers']]
+            for maintainer in user_infos:
+                maintainers.append(maintainer)
+                owners.add(maintainer)
             maintainer_dict[sig[0]] = maintainers
         # 初始化owners_sigs
         for owner in owners:
