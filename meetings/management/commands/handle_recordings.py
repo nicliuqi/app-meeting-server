@@ -71,7 +71,7 @@ def get_participants(mid):
     :param mid: 会议ID
     :return: the json-encoded content of a response or none
     """
-    url = 'https://api.zoom.us/v2/past_meetings/{}/participants'.format(mid)
+    url = 'https://api.zoom.us/v2/past_meetings/{}/participants?page_size=300'.format(mid)
     headers = {
         'authorization': 'Bearer {}'.format(settings.ZOOM_TOKEN)
     }

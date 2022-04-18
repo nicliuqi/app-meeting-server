@@ -661,7 +661,7 @@ class ParticipantsView(GenericAPIView, RetrieveModelMixin):
     def get(self, request, *args, **kwargs):
         mid = kwargs.get('mid')
         try:
-            url = "https://api.zoom.us/v2/past_meetings/{}/participants".format(mid)
+            url = "https://api.zoom.us/v2/past_meetings/{}/participants?page_size=300".format(mid)
             headers = {
                 "authorization": "Bearer {}".format(settings.ZOOM_TOKEN)}
             r = requests.get(url, headers=headers)
