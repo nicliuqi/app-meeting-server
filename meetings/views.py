@@ -1,5 +1,6 @@
 import datetime
 import json
+import math
 import os
 import re
 import sys
@@ -14,6 +15,7 @@ from rest_framework.filters import SearchFilter
 from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, ListModelMixin, RetrieveModelMixin, \
     DestroyModelMixin
+from rest_framework.response import Response
 from rest_framework_simplejwt import authentication
 from meetings.models import Meeting, Record, Activity, ActivityCollect, ActivityRegister, ActivitySign
 from meetings.permissions import MaintainerPermission, AdminPermission, QueryPermission, SponsorPermission, \
@@ -1469,3 +1471,89 @@ class TicketView(GenericAPIView, RetrieveModelMixin):
             'telephone': User.objects.get(id=user_id).telephone
         }
         return JsonResponse(res)
+
+
+class MeetingsDataView(GenericAPIView, ListModelMixin):
+    """会议日历数据"""
+    queryset = Meeting.objects.filter(is_delete=0).order_by('start')
+
+    def get(self, request, *args, **kwargs):
+        self.queryset = self.queryset.filter(
+            date__gte=(datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'),
+            date__lte=(datetime.datetime.now() + datetime.timedelta(days=14)).strftime('%Y-%m-%d'))
+        queryset = self.filter_queryset(self.get_queryset()).values()
+        tableData = []
+        date_list = []
+        for query in queryset:
+            date_list.append(query.get('date'))
+        date_list = sorted(list(set(date_list)))
+        for date in date_list:
+            tableData.append(
+                {
+                    'date': date,
+                    'timeData': [{
+                        'id': meeting.id,
+                        'group_name': meeting.group_name,
+                        'meeting_type': meeting.meeting_type,
+                        'city': meeting.city,
+                        'startTime': meeting.start,
+                        'endTime': meeting.end,
+                        'duration': math.ceil(float(meeting.end.replace(':', '.'))) - math.floor(
+                            float(meeting.start.replace(':', '.'))),
+                        'duration_time': meeting.start.split(':')[0] + ':00' + '-' + str(
+                            math.ceil(float(meeting.end.replace(':', '.')))) + ':00',
+                        'name': meeting.topic,
+                        'creator': meeting.sponsor,
+                        'detail': meeting.agenda,
+                        'url': User.objects.get(id=meeting.user_id).avatar,
+                        'join_url': meeting.join_url,
+                        'meeting_id': meeting.mid,
+                        'etherpad': meeting.etherpad,
+                        'replay_url': meeting.replay_url
+                    } for meeting in Meeting.objects.filter(is_delete=0, date=date)]
+                })
+        return Response({'tableData': tableData})
+
+
+class ActivitiesDataView(GenericAPIView, ListModelMixin):
+    """活动日历数据"""
+    queryset = Activity.objects.filter(is_delete=0, status__in=[3, 4, 5])
+
+    def get(self, request, *args, **kwargs):
+        self.queryset = self.queryset.filter(
+            start_date__gte=(datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'),
+            start_date__lte=(datetime.datetime.now() + datetime.timedelta(days=14)).strftime('%Y-%m-%d'))
+        queryset = self.filter_queryset(self.get_queryset()).values()
+        tableData = []
+        date_list = []
+        for query in queryset:
+            date_list.append(query.get('start_date'))
+        date_list = sorted(list(set(date_list)))
+        for start_date in date_list:
+            tableData.append(
+                {
+                    'start_date': start_date,
+                    'timeData': [{
+                        'id': activity.id,
+                        'title': activity.title,
+                        'start_date': activity.start_date,
+                        'end_date': activity.end_date,
+                        'activity_category': activity.activity_category,
+                        'activity_type': activity.activity_type,
+                        'address': activity.address,
+                        'detail_address': activity.detail_address,
+                        'longitude': activity.longitude,
+                        'latitude': activity.latitude,
+                        'register_method': activity.register_method,
+                        'online_url': activity.online_url,
+                        'register_url': activity.register_url,
+                        'synopsis': activity.synopsis,
+                        'sign_url': activity.sign_url,
+                        'replay_url': activity.replay_url,
+                        'poster': activity.poster,
+                        'wx_code': activity.wx_code,
+                        'schedules': json.loads(activity.schedules)
+                    } for activity in Activity.objects.filter(is_delete=0, start_date=start_date)]
+                }
+            )
+        return Response({'tableData': tableData})
