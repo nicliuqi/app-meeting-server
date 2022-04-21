@@ -69,13 +69,13 @@ def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, summary=None,
     dt_end = (datetime.datetime.strptime(date + ' ' + end, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(tzinfo=pytz.utc)
 
     cal = icalendar.Calendar()
-    cal.add('prodid', '-//openeuler conference calendar')
+    cal.add('prodid', '-//mindspore conference calendar')
     cal.add('version', '2.0')
     cal.add('method', 'REQUEST')
 
     event = icalendar.Event()
     event.add('attendee', toaddrs_string)
-    event.add('organizer', 'public@openeuler.org')
+    event.add('organizer', 'public@mindspore.cn')
     event.add('summary', topic)
     event.add('dtstart', dt_start)
     event.add('dtend', dt_end)
