@@ -83,13 +83,13 @@ def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, etherpad, sum
     dt_end = (datetime.datetime.strptime(date + ' ' + end, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(tzinfo=pytz.utc)
 
     cal = icalendar.Calendar()
-    cal.add('prodid', '-//openeuler conference calendar')
+    cal.add('prodid', '-//opengauss conference calendar')
     cal.add('version', '2.0')
     cal.add('method', 'REQUEST')
 
     event = icalendar.Event()
     event.add('attendee', toaddrs_string)
-    event.add('organizer', 'public@openeuler.org')
+    event.add('organizer', 'public@opengauss.org')
     event.add('summary', topic)
     event.add('dtstart', dt_start)
     event.add('dtend', dt_end)
