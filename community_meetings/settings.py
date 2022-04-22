@@ -35,21 +35,32 @@ APP_CONF = {
 }
 
 MEETING_HOSTS = {
-    # os.getenv('HOST_GENEDNA', ''): 'genedna@hey.com',
-    os.getenv('HOST_TOMMYLIKE', ''): 'tommylikehu@gmail.com',
-    os.getenv('HOST_GEORGE', ''): 'caozhi1214@gmail.com',
-    os.getenv('HOST_NIC', ''): 'nicliuqi@gmail.com',
-    os.getenv('HOST_CY', ''): '775517776chng@gmail.com',
-    os.getenv('HOST_ZCJ', ''): 'dakangsiji@gmail.com',
-    os.getenv('HOST_ZJ', ''): 'jun.zhongjun2@gmail.com',
-    os.getenv('HOST_WH', ''): 'wanghaosqsq@gmail.com',
-    os.getenv('HOST_LXL', ''): 'xiaoliwow@gmail.com',
-    os.getenv('HOST_ZD', ''): 'zhuwind2022@gmail.com',
-    os.getenv('HOST_ZC', ''): 'chaotomzhu@gmail.com',
-    os.getenv('HOST_HJC', ''): 'plusvolcano1@gmail.com',
-    os.getenv('HOST_WWL', ''): 'wangwenliang0401@gmail.com',
-    os.getenv('HOST_ZZY', ''): 'zhengzhenyulixi@gmail.com',
-    os.getenv('HOST_ZB', ''): 'bzhaojyathousandy@gmail.com'
+    'zoom': {
+        os.getenv('HOST_TOMMYLIKE', ''): 'tommylikehu@gmail.com',
+        os.getenv('HOST_GEORGE', ''): 'caozhi1214@gmail.com',
+        os.getenv('HOST_NIC', ''): 'nicliuqi@gmail.com',
+        os.getenv('HOST_CY', ''): '775517776chng@gmail.com',
+        os.getenv('HOST_ZCJ', ''): 'dakangsiji@gmail.com',
+        os.getenv('HOST_ZJ', ''): 'jun.zhongjun2@gmail.com',
+        os.getenv('HOST_WH', ''): 'wanghaosqsq@gmail.com',
+        os.getenv('HOST_LXL', ''): 'xiaoliwow@gmail.com',
+        os.getenv('HOST_ZD', ''): 'zhuwind2022@gmail.com',
+        os.getenv('HOST_ZC', ''): 'chaotomzhu@gmail.com',
+        os.getenv('HOST_HJC', ''): 'plusvolcano1@gmail.com',
+        os.getenv('HOST_WWL', ''): 'wangwenliang0401@gmail.com',
+        os.getenv('HOST_ZZY', ''): 'zhengzhenyulixi@gmail.com',
+        os.getenv('HOST_ZB', ''): 'bzhaojyathousandy@gmail.com'
+    },
+    'welink': {
+        os.getenv('WELINK_HOST_1', ''): 'liuqi_451@d260459344'
+    }
+}
+
+WELINK_HOSTS = {
+    'WELINK_HOST_1': {
+        'account': os.getenv('WELINK_HOST_1_ACCOUNT', ''),
+        'pwd': os.getenv('WELINK_HOST_1_PWD', '')
+    }
 }
 
 # SECURITY WARNING: don't run with debug turned on in production!

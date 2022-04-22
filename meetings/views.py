@@ -31,7 +31,8 @@ from rest_framework.response import Response
 from multiprocessing import Process
 from meetings.send_email import sendmail
 from rest_framework import permissions
-from meetings.utils import gene_wx_code, send_applicants_info, send_feedback, invite, send_start_url, gene_sign_code
+from meetings.utils import gene_wx_code, send_applicants_info, send_feedback, invite, send_start_url, gene_sign_code, \
+        drivers
 
 logger = logging.getLogger('log')
 offline = 1
@@ -237,13 +238,22 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
     @swagger_auto_schema(operation_summary='删除会议')
     def delete(self, request, *args, **kwargs):
         mid = kwargs.get('mid')
-        try:
-            url = "https://api.zoom.us/v2/meetings/{}".format(mid)
-            headers = {
-                "authorization": "Bearer {}".format(settings.ZOOM_TOKEN)}
-            requests.request("DELETE", url, headers=headers)
-        except:
-            pass
+        if not Meeting.objects.filter(mid=mid):
+            resp = JsonResponse({'code': 404, 'msg': 'Not Found'})
+            resp.status_code = 404
+            return resp
+        if not (Meeting.objects.filter(mid=mid, user_id=self.request.user.id) or Meeting.objects.filter(mid=mid, level=3)):
+            resp = JsonResponse({'code': 401, 'msg': 'Unauthorized'})
+            resp.status_code = 401
+            return resp
+
+        mplatform = Meeting.objects.get(mid=mid).mplatform
+        status = drivers.cancelMeeting(mid)
+        if status not in [200, 204]:
+            resp = JsonResponse({'code': 400, 'msg': 'Fail to delete meeting'})
+            resp.status_code = 400
+            return resp
+
         # 会议作软删除
         meeting = Meeting.objects.get(mid=mid)
         Meeting.objects.filter(mid=mid).update(is_delete=1)
@@ -429,19 +439,26 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
     @swagger_auto_schema(operation_summary='创建会议')
     def post(self, request, *args, **kwargs):
         t1 = time.time()
-        host_dict = settings.MEETING_HOSTS
         # 获取data
         data = self.request.data
-        date = data['date']
-        start = data['start']
-        end = data['end']
-        topic = data['topic']
-        community = data['community'] if 'community' in data else 'openeuler'
-        emaillist = data['emaillist'] if 'emaillist' in data else ''
-        summary = data['agenda'] if 'agenda' in data else ''
-        user_id = request.user.id
-        group_id = data['group_id']
-        record = data['record'] if 'record' in data else ''
+        try:
+            platform = data['platform'] if 'platform' in data else 'zoom'
+            platform = platform.lower()
+            host_dict = settings.MEETING_HOSTS[platform]
+            date = data['date']
+            start = data['start']
+            end = data['end']
+            topic = data['topic']
+            sponsor = data['sponsor']
+            sig_name = data['group_name']
+            community = data['community'] if 'community' in data else 'openeuler'
+            emaillist = data['emaillist'] if 'emaillist' in data else ''
+            summary = data['agenda'] if 'agenda' in data else ''
+            user_id = request.user.id
+            group_id = data['group_id']
+            record = data['record'] if 'record' in data else ''
+        except KeyError:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         start_time = ' '.join([date, start])
         if start_time < datetime.datetime.now().strftime('%Y-%m-%d %H:%M'):
             logger.warning('The start time should not be earlier than the current time.')
@@ -458,7 +475,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         # 查询待创建的会议与现有的预定会议是否冲突
         unavailable_host_id = []
         available_host_id = []
-        meetings = Meeting.objects.filter(is_delete=0, date=date, end__gt=start_search, start__lt=end_search).values()
+        meetings = Meeting.objects.filter(is_delete=0, date=date, end__gt=start_search, start__lt=end_search, mplatform=platform).values()
         try:
             for meeting in meetings:
                 host_id = meeting['host_id']
@@ -480,54 +497,23 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         host = host_dict[host_id]
         logger.info('host_id:{}'.format(host_id))
         logger.info('host:{}'.format(host))
-        # start_time拼接
-        if int(start.split(':')[0]) >= 8:
-            start_time = date + 'T' + ':'.join([str(int(start.split(':')[0]) - 8), start.split(':')[1], '00Z'])
-        else:
-            d = datetime.datetime.strptime(date, '%Y-%m-%d') - datetime.timedelta(days=1)
-            d2 = datetime.datetime.strftime(d, '%Y-%m-%d %H%M%S')[:10]
-            start_time = d2 + 'T' + ':'.join([str(int(start.split(':')[0]) + 16), start.split(':')[1], '00Z'])
-        # 计算duration
-        duration = (int(end.split(':')[0]) - int(start.split(':')[0])) * 60 + (
-                int(end.split(':')[1]) - int(start.split(':')[1]))
-        # 准备好调用zoom api的data
-        password = ""
-        for i in range(6):
-            ch = chr(random.randrange(ord('0'), ord('9') + 1))
-            password += ch
-        new_data = {}
-        new_data['settings'] = {}
-        new_data['start_time'] = start_time
-        new_data['duration'] = duration
-        new_data['topic'] = topic
-        new_data['password'] = password
-        new_data['settings']['waiting_room'] = False
-        new_data['settings']['auto_recording'] = record
-        new_data['settings']['join_before_host'] = True
-        new_data['settings']['jbh_time'] = 5
-        headers = {
-            "content-type": "application/json",
-            "authorization": "Bearer {}".format(settings.ZOOM_TOKEN)
-        }
-        url = "https://api.zoom.us/v2/users/{}/meetings".format(host)
-        # 发送post请求，创建会议
-        response = requests.post(url, data=json.dumps(new_data), headers=headers)
-        if response.status_code != 201:
-            logger.info('code: {}, fail to create.'.format(response.status_code))
-            return JsonResponse({'code': response.status_code, 'msg': 'Fail to create.'})
-        response = response.json()
 
+        status, content = drivers.createMeeting(platform, date, start, end, topic, host, record)
+        if status not in [200, 201]:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        mid = content['mid']
+        start_url = content['start_url']
+        join_url = content['join_url']
+        host_id = content['host_id']
+        timezone = content['timezone'] if 'timezone' in content else 'Asia/Shanghai'
         # 发送email
-        join_url = response['join_url']
-        sig_name = data['group_name']
-        toaddrs = emaillist
-
-        p1 = Process(target=sendmail, args=(topic, date, start, end, join_url, sig_name, toaddrs, summary, record))
+        p1 = Process(target=sendmail, args=(topic, date, start, end, join_url, sig_name, emaillist,
+            platform.replace('zoom', 'Zoom').replace('welink', 'WeLink'), summary, record))
         p1.start()
 
         # 数据库生成数据
         Meeting.objects.create(
-            mid=response['id'],
+            mid=mid,
             topic=data['topic'],
             community=community,
             sponsor=data['sponsor'],
@@ -537,15 +523,16 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
             end=end,
             etherpad=data['etherpad'],
             emaillist=emaillist,
-            timezone=response['timezone'],
+            timezone=timezone,
             agenda=data['agenda'] if 'agenda' in data else '',
-            host_id=response['host_id'],
-            join_url=response['join_url'],
-            start_url=response['start_url'],
+            host_id=host_id,
+            join_url=join_url,
+            start_url=start_url,
             user_id=user_id,
-            group_id=group_id
+            group_id=group_id,
+            mplatform=platform
         )
-        logger.info('{} has created a meeting which mid is {}.'.format(data['sponsor'], response['id']))
+        logger.info('{} has created a {} meeting which mid is {}.'.format(sponsor, platform, mid))
         logger.info('meeting info: {},{}-{},{}'.format(date, start, end, topic))
 
         # 如果开启录制功能，则在Video表中创建一条数据
@@ -660,19 +647,13 @@ class ParticipantsView(GenericAPIView, RetrieveModelMixin):
 
     def get(self, request, *args, **kwargs):
         mid = kwargs.get('mid')
-        try:
-            url = "https://api.zoom.us/v2/past_meetings/{}/participants?page_size=300".format(mid)
-            headers = {
-                "authorization": "Bearer {}".format(settings.ZOOM_TOKEN)}
-            r = requests.get(url, headers=headers)
-            if r.status_code == 200:
-                return JsonResponse(
-                    {'total_records': r.json()['total_records'], 'participants': r.json()['participants']})
-            else:
-                return JsonResponse(r.json())
-        except Exception as e:
-            logger.error(e)
-            return JsonResponse({'msg': e})
+        status, res = drivers.getParticipants(mid)
+        if status == 200:
+            return JsonResponse(res)
+        else:
+            resp = JsonResponse(res)
+            resp.status_code = 400
+            return resp
 
 
 class SponsorsView(GenericAPIView, ListModelMixin):

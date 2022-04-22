@@ -17,7 +17,7 @@ from email.mime.image import MIMEImage
 logger = logging.getLogger('log')
 
 
-def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, summary=None, record=None, enclosure_paths=None):
+def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, platform, summary=None, record=None, enclosure_paths=None):
     start_time = ' '.join([date, start])
     toaddrs = toaddrs.replace(' ', '').replace('，', ',').replace(';', ',').replace('；', ',')
     toaddrs_list = toaddrs.split(',')
@@ -38,27 +38,33 @@ def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, summary=None,
     # 添加邮件主体
     body_of_email = None
     if not summary and not record:
+        print(platform)
         with open('templates/template_without_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
-                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').format(sig_name, start_time, join_url, topic)
+                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').\
+                replace('{{platform}}', '{4}').format(sig_name, start_time, join_url, topic, platform)
     if summary and not record:
+        print(platform)
         with open('templates/template_with_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
-                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}').\
-                format(sig_name, start_time, join_url, topic, summary)
+                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').\
+                replace('{{summary}}', '{4}').replace('{{platform}}', '{5}').\
+                format(sig_name, start_time, join_url, topic, summary, platform)
     if not summary and record:
         with open('templates/template_without_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
-                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').format(sig_name, start_time, join_url, topic)
+                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{platform}}', '{4}').\
+                format(sig_name, start_time, join_url, topic, platform)
     if summary and record:
         with open('templates/template_with_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace( '{{start_time}}', '{1}').\
-                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}').\
-                format(sig_name, start_time, join_url, topic, summary)
+                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').\
+                replace('{{summary}}', '{4}').replace('{{platform}}', '{5}').\
+                format(sig_name, start_time, join_url, topic, summary, platform)
     content = MIMEText(body_of_email, 'plain', 'utf-8')
     msg.attach(content)
 
