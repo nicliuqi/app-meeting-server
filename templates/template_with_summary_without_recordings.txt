@@ -1,6 +1,6 @@
 您好！
-
-{{sig_name}} SIG 邀请您参加 {{start_time}} 召开的ZOOM会议
+ 
+{{sig_name}} SIG 邀请您参加 {{start_time}} 召开的{{platform}}会议
 
 会议主题：{{topic}}
 
@@ -18,7 +18,7 @@
 
 Hello!
 
-openEuler {{sig_name}} SIG invites you to attend the ZOOM conference will be held at {{start_time}},
+openEuler {{sig_name}} SIG invites you to attend the {{platform}} conference will be held at {{start_time}},
 
 The subject of the conference is {{topic}},
 
