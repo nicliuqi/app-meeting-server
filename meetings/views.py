@@ -538,17 +538,17 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         # 如果开启录制功能，则在Video表中创建一条数据
         if record == 'cloud':
             Video.objects.create(
-                mid=response['id'],
+                mid=mid,
                 topic=data['topic'],
                 community=community,
                 group_name=data['group_name'],
                 agenda=data['agenda'] if 'agenda' in data else ''
             )
-            logger.info('meeting {} was created with auto recording.'.format(response['id']))
+            logger.info('meeting {} was created with auto recording.'.format(mid))
 
         # 返回请求数据
         resp = {'code': 201, 'message': '创建成功'}
-        meeting = Meeting.objects.get(mid=response['id'])
+        meeting = Meeting.objects.get(mid=mid)
         resp['id'] = meeting.id
         t3 = time.time()
         print('total waste: {}'.format(t3 - t1))
