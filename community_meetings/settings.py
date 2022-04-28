@@ -52,7 +52,7 @@ MEETING_HOSTS = {
         os.getenv('HOST_ZB', ''): 'bzhaojyathousandy@gmail.com'
     },
     'welink': {
-        os.getenv('WELINK_HOST_1', ''): 'liuqi_451@d260459344'
+        os.getenv('WELINK_HOST_1', ''): os.getenv('WELINK_HOST_1', '')
     }
 }
 
