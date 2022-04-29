@@ -1,6 +1,7 @@
 import datetime
 import logging
 import json
+import os
 import requests
 import subprocess
 import time
@@ -39,7 +40,8 @@ def createProxyToken(host_id):
 def createMeeting(date, start, end, topic, host, record):
     """预定会议"""
     access_token = createProxyToken(host)
-    startTime = date + ' ' + start
+    startTime = (datetime.datetime.strptime(date + start, '%Y-%m-%d%H:%M') - datetime.timedelta(hours=8)).strftime(
+        '%Y-%m-%d %H:%M')
     length = int((datetime.datetime.strptime(end, '%H:%M') - datetime.datetime.strptime(start, '%H:%M')).seconds / 60)
     url = 'https://api.meeting.huaweicloud.com/v1/mmc/management/conferences'
     headers = {
@@ -59,8 +61,8 @@ def createMeeting(date, start, end, topic, host, record):
         }
     }
     if record == 'cloud':
-        data['isAutoRecord'] = True
-        data['recordType'] = True
+        data['isAutoRecord'] = 1
+        data['recordType'] = 2
     response = requests.post(url, headers=headers, data=json.dumps(data))
     resp_dict = {}
     if response.status_code != 200:
@@ -127,23 +129,66 @@ def getParticipants(mid):
     url = 'https://api.meeting.huaweicloud.com/v1/mmc/management/conferences/history/confAttendeeRecord'
     meetings_lst = listHisMeetings(host_id)
     meetings_data = meetings_lst.get('data')
-    conf_uuid = None
+    participants = {
+        'total_records': 0,
+        'participants': []
+    }
+    status = 200
     for item in meetings_data:
         if item['conferenceID'] == str(mid):
             conf_uuid = item['confUUID']
-            break
+            params = {
+                'confUUID': conf_uuid,
+                'limit': 500
+            }
+            response = requests.get(url, headers=headers, params=params)
+            if response.status_code == 200:
+                participants['total_records'] += response.json()['count']
+                for participant_info in response.json()['data']:
+                    participants['participants'].append(participant_info)
+            else:
+                status = response.status_code
+                participants = response.json()
+                break
+    return status, participants
+
+
+def listRecordings(host_id):
+    """获取录像列表"""
+    access_token = createProxyToken(host_id)
+    tn = int(time.time())
+    endDate = tn * 1000
+    startDate = (tn - 3600 * 24) * 1000
+    url = 'https://api.meeting.huaweicloud.com/v1/mmc/management/record/files'
+    headers = {
+        'X-Access-Token': access_token
+    }
     params = {
-        'confUUID': conf_uuid,
-        'limit': 500
+        'startDate': startDate,
+        'endDate': endDate,
+        'limit': 100
     }
     response = requests.get(url, headers=headers, params=params)
-    if response.status_code == 200:
-        resp = {
-            'total_records': response.json()['count'],
-            'participants': response.json()['data']
-        }
-        return response.status_code, resp
-    logger.error('Fail to get participants of meeting {}'.format(mid))
-    logger.error(response.json())
     return response.status_code, response.json()
+
+
+def getDetailDownloadUrl(confUUID, host_id):
+    """获取录像下载地址"""
+    access_token = createProxyToken(host_id)
+    url = 'https://api.meeting.huaweicloud.com/v1/mmc/management/record/downloadurls'
+    headers = {
+        'X-Access-Token': access_token
+    }
+    params = {
+        'confUUID': confUUID
+    }
+    response = requests.get(url, headers=headers, params=params)
+    return response.status_code, response.json()
+
+
+def downloadHWCloudRecording(token, target_filename, download_url):
+    """下载云录制的视频"""
+    if os.path.exists(target_filename):
+        subprocess.call('rm -f {}'.format(target_filename), shell=True)
+    subprocess.call('wget --header="Authorization: {}" -O {} {}'.format(token, target_filename, download_url), shell=True)
 

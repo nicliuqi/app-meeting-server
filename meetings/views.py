@@ -242,7 +242,7 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
             resp = JsonResponse({'code': 404, 'msg': 'Not Found'})
             resp.status_code = 404
             return resp
-        if not (Meeting.objects.filter(mid=mid, user_id=self.request.user.id) or Meeting.objects.filter(mid=mid, level=3)):
+        if not (Meeting.objects.filter(mid=mid, user_id=self.request.user.id) or User.objects.filter(id=self.request.user.id, level=3)):
             resp = JsonResponse({'code': 401, 'msg': 'Unauthorized'})
             resp.status_code = 401
             return resp
@@ -353,7 +353,9 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
     queryset = Meeting.objects.filter(is_delete=0).order_by('start')
 
     def get(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).values()
+        queryset = self.filter_queryset(self.get_queryset()).filter(
+            date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
+            date__lte=(datetime.datetime.now() + datetime.timedelta(days=30)).strftime('%Y-%m-%d')).values()
         tableData = []
         date_list = []
         for query in queryset:
@@ -379,6 +381,7 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
                         'join_url': meeting.join_url,
                         'meeting_id': meeting.mid,
                         'etherpad': meeting.etherpad,
+                        'platform': meeting.mplatform,
                         'video_url': '' if not Record.objects.filter(mid=meeting.mid, platform='bilibili') else
                         Record.objects.filter(mid=meeting.mid, platform='bilibili').values()[0]['url']
                     } for meeting in Meeting.objects.filter(is_delete=0, date=date)]
@@ -490,7 +493,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
                 available_host_id.append(host_id)
         logger.info('avilable_host_id:{}'.format(available_host_id))
         if len(available_host_id) == 0:
-            logger.warning('暂无可用host')
+            logger.warning('{}暂无可用host'.format(platform))
             return JsonResponse({'code': 1000, 'message': '暂无可用host,请前往官网查看预定会议'})
         # 从available_host_id中随机生成一个host_id,并在host_dict中取出
         host_id = random.choice(available_host_id)
