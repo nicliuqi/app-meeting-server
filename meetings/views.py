@@ -460,6 +460,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
             user_id = request.user.id
             group_id = data['group_id']
             record = data['record'] if 'record' in data else ''
+            etherpad = data['etherpad']
         except KeyError:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         start_time = ' '.join([date, start])
