@@ -6,6 +6,8 @@
 
 会议链接：{{join_url}}
 
+会议纪要：{{etherpad}}
+
 温馨提醒：建议接入会议后修改参会人的姓名，也可以使用您在gitee.com的ID
 
 更多资讯尽在：https://openeuler.org/zh/
@@ -20,6 +22,8 @@ openEuler {{sig_name}} SIG invites you to attend the {{platform}} conference wil
 The subject of the conference is {{topic}},
 
 You can join the meeting at {{join_url}}.
+
+Add topics at {{etherpad}}.
 
 Note: You are advised to change the participant name after joining the conference or use your ID at gitee.com.
 

@@ -511,7 +511,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         timezone = content['timezone'] if 'timezone' in content else 'Asia/Shanghai'
         # 发送email
         p1 = Process(target=sendmail, args=(topic, date, start, end, join_url, sig_name, emaillist,
-            platform.replace('zoom', 'Zoom').replace('welink', 'WeLink'), summary, record))
+            platform.replace('zoom', 'Zoom').replace('welink', 'WeLink'), etherpad, summary, record))
         p1.start()
 
         # 数据库生成数据
