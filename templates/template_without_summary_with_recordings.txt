@@ -6,6 +6,8 @@ MindSpore {{sig_name}} 邀请您参加 {{start_time}} 召开的腾讯会议(自�
 
 会议链接：{{join_url}}
 
+会议纪要：{{etherpad}}
+
 更多资讯尽在：https://mindspore.cn
 
 
@@ -18,6 +20,8 @@ MindSpore {{sig_name}} invites you to attend the Tencent conference(auto recordi
 The subject of the conference is {{topic}},
 
 You can join the meeting at {{join_url}}.
+
+Add topics at {{etherpad}}.
 
 More information: https://mindspore.cn/en
 

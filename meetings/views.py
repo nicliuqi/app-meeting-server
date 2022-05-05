@@ -417,7 +417,8 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
             # 发送邮件
             if group_name == 'Tech':
                 group_name = '专家委员会'
-            p1 = Process(target=sendmail, args=(topic, date, start, end, join_url, group_name, emaillist, agenda, record))
+            p1 = Process(target=sendmail, args=(topic, date, start, end, join_url, group_name, emaillist, etherpad,
+                                                agenda, record))
             p1.start()
             meeting_id = Meeting.objects.get(mid=meeting_code).id
             return JsonResponse({'code': 201, 'msg': '创建成功', 'id': meeting_id})
