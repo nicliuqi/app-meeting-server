@@ -4,6 +4,7 @@ import logging
 import pytz
 import re
 import smtplib
+import subprocess
 import uuid
 import yaml
 from django.conf import settings
@@ -28,6 +29,8 @@ def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, etherpad,
             toaddrs_list.remove(addr)
     toaddrs_string = ','.join(toaddrs_list)
     # 发送列表默认添加该sig所在的邮件列表
+    newly_mapping = 'https://gitee.com/opengauss/tc/raw/master/maillist_mapping.yaml'
+    subprocess.call('wget {} -O meetings/utils/maillist_mapping.yaml'.format(newly_mapping), shell=True)
     with open('meetings/utils/maillist_mapping.yaml', 'r') as f:
         maillists = yaml.load(f.read(), Loader=yaml.Loader)
     if sig_name in maillists.keys():
