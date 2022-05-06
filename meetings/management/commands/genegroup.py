@@ -41,7 +41,7 @@ class Command(BaseCommand):
 
         sigs = []
         for i in os.listdir('community/sig'):
-            if i in ['README.md', 'sig-recycle', 'sig-template']:
+            if i in ['README.md', 'sig-recycle', 'sig-template', 'create_sig_info_template.py']:
                 continue
             sigs.append({'name': i})
         sigs_list = []
