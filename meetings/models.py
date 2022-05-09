@@ -94,6 +94,7 @@ class Meeting(models.Model):
                                             null=True, blank=True)
     mmid = models.CharField(verbose_name='腾讯会议id', max_length=20, null=True, blank=True)
     replay_url = models.CharField(verbose_name='回放地址', max_length=255, null=True, blank=True)
+    mplatform = models.CharField(verbose_name='第三方会议平台', max_length=20, null=True, blank=True, default='tencent')
 
 
 class Collect(models.Model):

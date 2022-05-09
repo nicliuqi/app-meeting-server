@@ -1,6 +1,6 @@
 您好！
 
-MindSpore {{sig_name}} 邀请您参加 {{start_time}} 召开的腾讯会议(自动录制)
+MindSpore {{sig_name}} 邀请您参加 {{start_time}} 召开的{{platform}}会议(自动录制)
 
 会议主题：{{topic}}
 
@@ -18,7 +18,7 @@ MindSpore {{sig_name}} 邀请您参加 {{start_time}} 召开的腾讯会议(自�
 
 Hello!
 
-MindSpore {{sig_name}} invites you to attend the Tencent conference(auto recording) will be held at {{start_time}},
+MindSpore {{sig_name}} invites you to attend the {{platform}} conference(auto recording) will be held at {{start_time}},
 
 The subject of the conference is {{topic}},
 
