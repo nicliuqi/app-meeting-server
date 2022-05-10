@@ -1,11 +1,13 @@
 import base64
 import hashlib
 import hmac
+import json
 import logging
 import random
 import requests
 import time
 from django.conf import settings
+from meetings.models import Meeting
 
 logger = logging.getLogger('log')
 
@@ -52,3 +54,72 @@ def get_video_download(record_file_id, userid):
 def get_url(uri):
     """获取请求url"""
     return 'https://api.meeting.qq.com' + uri
+
+
+def createMeeting(date, start, end, topic, host_id, record):
+    start_time = date + ' ' + start
+    end_time = date + ' ' + end
+    start_time = str(int(time.mktime(time.strptime(start_time, '%Y-%m-%d %H:%M'))))
+    end_time = str(int(time.mktime(time.strptime(end_time, '%Y-%m-%d %H:%M'))))
+    payload = {
+        "userid": host_id,
+        "instanceid": 1,
+        "subject": topic,
+        "type": 0,
+        "start_time": start_time,
+        "end_time": end_time,
+        "settings": {
+            "mute_enable_join": True
+        }
+    }
+    if record == 'cloud':
+        payload['settings']['auto_record_type'] = 'cloud'
+        payload['settings']['participant_join_auto_record'] = True
+        payload['settings']['enable_host_pause_auto_record'] = True
+    uri = '/v1/meetings'
+    url = get_url(uri)
+    payload = json.dumps(payload)
+    signature, headers = get_signature('POST', uri, payload)
+    r = requests.post(url, headers=headers, data=payload)
+    resp_dict = {
+        'host_id': host_id
+    }
+    if r.status_code != 200:
+        logger.error('Fail to create meeting, status_code is {}'.format(r.status_code))
+        return r.status_code, resp_dict
+    resp_dict['mid'] = r.json()['meeting_info_list'][0]['meeting_code']
+    resp_dict['mmid'] = r.json()['meeting_info_list'][0]['meeting_id']
+    resp_dict['join_url'] = r.json()['meeting_info_list'][0]['join_url']
+    return r.status_code, resp_dict
+
+
+def cancelMeeting(mid):
+    meeting = Meeting.objects.get(mid=mid)
+    host_id = meeting.host_id
+    mmid = meeting.mmid
+    payload = json.dumps({
+        "userid": host_id,
+        "instanceid": 1,
+        "reason_code": 1
+    })
+    uri = '/v1/meetings/' + str(mmid) + '/cancel'
+    url = get_url(uri)
+    signature, headers = get_signature('POST', uri, payload)
+    r = requests.post(url, headers=headers, data=payload)
+    if r.status_code != 200:
+        logger.error('Fail to cancel meeting {}'.format(mid))
+        logger.error(r.json())
+        return r.status_code
+    logger.info('Cancel meeting {}'.format(mid))
+    return r.status_code
+
+
+def getParticipants(mid):
+    meeting = Meeting.objects.get(mid=mid)
+    mmid = meeting.mmid
+    host_id = meeting.host_id
+    uri = '/v1/meetings/{}/participants?userid={}'.format(mmid, host_id)
+    url = get_url(uri)
+    signature, headers = get_signature('GET', uri, "")
+    r = requests.get(url, headers=headers)
+    return r.status_code, r.json()

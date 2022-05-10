@@ -154,7 +154,17 @@ MINDSPORE_APP_CONF = {
     'secret': os.getenv('APP_SECRET', '')
 }
 
-MINDSPORE_MEETING_HOSTS = ['admin', 'meeting48317', 'meeting48318']
+MINDSPORE_MEETING_HOSTS = {
+    'tencent': ['admin', 'meeting48317', 'meeting48318'],
+    'welink': [os.getenv('WELINK_HOST_1', '')]
+}
+
+WELINK_HOSTS = {
+    os.getenv('WELINK_HOST_1', ''): {
+        'account': os.getenv('WELINK_HOST_1_ACCOUNT', ''),
+        'pwd': os.getenv('WELINK_HOST_1_PWD', '')
+    }
+}
 
 RECORDING_RECEIVER = os.getenv('RECORDING_RECEIVER', '')
 

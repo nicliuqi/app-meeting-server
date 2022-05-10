@@ -32,6 +32,7 @@ from meetings.send_email import sendmail
 from meetings.utils.tecent_apis import *
 from meetings.utils import send_feedback, prepare_create_activity, send_applicants_info, gene_wx_code, gene_sign_code
 from obs import ObsClient
+from meetings.utils import drivers
 
 logger = logging.getLogger('log')
 
@@ -307,7 +308,9 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
 
     def post(self, *args, **kwargs):
         data = self.request.data
-        host_list = settings.MINDSPORE_MEETING_HOSTS
+        platform = data['platform'] if 'platform' in data else 'tencent'
+        platform = platform.lower()
+        host_list = settings.MINDSPORE_MEETING_HOSTS[platform]
         topic = data['topic']
         sponsor = data['sponsor']
         meeting_type = data['meeting_type']
@@ -364,32 +367,11 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         # 从available_host_id中随机生成一个host_id,并在host_dict中取出
         host_id = random.choice(available_host_id)
         logger.info('host_id: {}'.format(host_id))
-        start_time = str(int(time.mktime(time.strptime(start_time, '%Y-%m-%d %H:%M'))))
-        end_time = str(int(time.mktime(time.strptime(end_time, '%Y-%m-%d %H:%M'))))
-        payload = {
-            "userid": host_id,
-            "instanceid": 1,
-            "subject": topic,
-            "type": 0,
-            "start_time": start_time,
-            "end_time": end_time,
-            "settings": {
-                "mute_enable_join": True
-            }
-        }
-        if record == 'cloud':
-            payload['settings']['auto_record_type'] = 'cloud'
-            payload['settings']['participant_join_auto_record'] = True
-            payload['settings']['enable_host_pause_auto_record'] = True
-        uri = '/v1/meetings'
-        url = get_url(uri)
-        payload = json.dumps(payload)
-        signature, headers = get_signature('POST', uri, payload)
-        r = requests.post(url, headers=headers, data=payload)
-        if r.status_code == 200:
-            meeting_id = r.json()['meeting_info_list'][0]['meeting_id']
-            meeting_code = r.json()['meeting_info_list'][0]['meeting_code']
-            join_url = r.json()['meeting_info_list'][0]['join_url']
+        status, resp = drivers.createMeeting(platform, date, start, end, topic, host_id, record)
+        if status == 200:
+            meeting_id = resp['mmid']
+            meeting_code = resp['mid']
+            join_url = resp['join_url']
             # 保存数据
             Meeting.objects.create(
                 mid=meeting_code,
@@ -410,20 +392,21 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
                 host_id=host_id,
                 user_id=user_id,
                 group_id=group_id,
-                city=city
+                city=city,
+                mplatform=platform
             )
-            logger.info('{} has created a meeting which mid is {}.'.format(sponsor, meeting_code))
+            logger.info('{} has created a {} meeting which mid is {}.'.format(sponsor, platform, meeting_code))
             logger.info('meeting info: {},{}-{},{}'.format(date, start, end, topic))
             # 发送邮件
             if group_name == 'Tech':
                 group_name = '专家委员会'
             p1 = Process(target=sendmail, args=(topic, date, start, end, join_url, group_name, emaillist, etherpad,
+                                                platform.replace('tencent', 'Tencent').replace('welink', 'WeLink'),
                                                 agenda, record))
             p1.start()
             meeting_id = Meeting.objects.get(mid=meeting_code).id
             return JsonResponse({'code': 201, 'msg': '创建成功', 'id': meeting_id})
         else:
-            logger.error(r.json())
             return JsonResponse({'code': 400, 'msg': '创建失败'})
 
 
@@ -436,24 +419,14 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
 
     def put(self, *args, **kwargs):
         user_id = self.request.user.id
-        mmid = self.kwargs.get('mmid')
-        if not Meeting.objects.filter(mmid=mmid, user_id=user_id, is_delete=0):
+        mid = self.kwargs.get('mmid')
+        if not Meeting.objects.filter(mid=mid, user_id=user_id, is_delete=0) and User.objects.get(id=user_id).level != 3:
             return JsonResponse({'code': 400, 'msg': '会议不存在'})
-        meeting = Meeting.objects.get(mmid=mmid)
-        host_id = meeting.host_id
-        mid = meeting.mid
-        payload = json.dumps({
-            "userid": host_id,
-            "instanceid": 1,
-            "reason_code": 1
-        })
-        uri = '/v1/meetings/' + str(mmid) + '/cancel'
-        url = get_url(uri)
-        signature, headers = get_signature('POST', uri, payload)
-        r = requests.post(url, headers=headers, data=payload)
+        status = drivers.cancelMeeting(mid)
+        meeting = Meeting.objects.get(mid=mid)
         # 数据库更改Meeting的is_delete=1
-        if r.status_code == 200:
-            Meeting.objects.filter(mmid=mmid).update(is_delete=1)
+        if status == 200:
+            Meeting.objects.filter(mid=mid).update(is_delete=1)
             # 发送会议取消通知
             collections = Collect.objects.filter(meeting_id=meeting.id)
             if collections:
@@ -487,7 +460,6 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
             return JsonResponse({'code': 200, 'msg': '取消会议'})
         else:
             logger.error('删除会议失败')
-            logger.error(r.json())
             return JsonResponse({'code': 400, 'msg': '取消失败'})
 
     def get_remove_template(self, openid, topic, time, mid):
@@ -779,16 +751,14 @@ class ParticipantsView(GenericAPIView):
 
     def get(self, request, *args, **kwargs):
         mid = self.kwargs.get('mid')
-        meeting = Meeting.objects.filter(mid=mid)
-        if not meeting:
+        if not Meeting.objects.filter(mid=mid, is_delete=0):
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        mmid = meeting.values()[0]['mmid']
-        host_id = meeting.values()[0]['host_id']
-        uri = '/v1/meetings/{}/participants?userid={}'.format(mmid, host_id)
-        url = get_url(uri)
-        signature, headers = get_signature('GET', uri, "")
-        r = requests.get(url, headers=headers)
-        return JsonResponse(r.json())
+        status, res = drivers.getParticipants(mid)
+        if status == 200:
+            return JsonResponse(res)
+        resp = JsonResponse(res)
+        resp.status_code = 400
+        return resp
 
 
 class SponsorsView(GenericAPIView, ListModelMixin):
@@ -1510,7 +1480,8 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
                         'join_url': meeting.join_url,
                         'meeting_id': meeting.mid,
                         'etherpad': meeting.etherpad,
-                        'replay_url': meeting.replay_url
+                        'replay_url': meeting.replay_url,
+                        'platform': meeting.mplatform
                     } for meeting in Meeting.objects.filter(is_delete=0, date=date)]
                 })
         return Response({'tableData': tableData})
