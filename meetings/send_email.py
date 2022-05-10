@@ -96,7 +96,7 @@ def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, etherpad,
     cal.add('method', 'REQUEST')
 
     event = icalendar.Event()
-    event.add('attendee', toaddrs_string)
+    event.add('attendee', ','.join(sorted(list(set(toaddrs_list)))))
     event.add('organizer', 'public@opengauss.org')
     event.add('summary', topic)
     event.add('dtstart', dt_start)
