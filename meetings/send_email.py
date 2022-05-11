@@ -17,14 +17,14 @@ from email.mime.text import MIMEText
 logger = logging.getLogger('log')
 
 
-def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, etherpad,
+def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, etherpad, platform,
              summary=None, record=None, enclosure_paths=None):
     start_time = ' '.join([date, start])
     toaddrs = toaddrs.replace(' ', '').replace('，', ',').replace(';', ',').replace('；', ',')
     toaddrs_list = toaddrs.split(',')
     error_addrs = []
     for addr in toaddrs_list:
-        if not re.match(r'^[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]*)*@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$', addr):
+        if not re.match(r'^[a-zA-Z0-9+_.-]+(\.[a-zA-Z0-9_-]*)*@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$', addr):
             error_addrs.append(addr)
             toaddrs_list.remove(addr)
     toaddrs_string = ','.join(toaddrs_list)
@@ -52,29 +52,31 @@ def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, etherpad,
     if not summary and not record:
         with open('templates/template_without_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
-            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
-                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').\
-                replace('{{etherpad}}', '{4}').format(sig_name, start_time, join_url, topic, etherpad)
+            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
+                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}'). \
+                replace('{{etherpad}}', '{4}').replace('{{platform}}', '{5}'). \
+                format(sig_name, start_time, join_url, topic, etherpad, platform)
     if summary and not record:
         with open('templates/template_with_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
-            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
-                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}').\
-                replace('{{etherpad}}', '{5}').\
-                format(sig_name, start_time, join_url, topic, summary, etherpad)
+            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
+                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}'). \
+                replace('{{etherpad}}', '{5}').replace('{{platform}}', '{6}'). \
+                format(sig_name, start_time, join_url, topic, summary, etherpad, platform)
     if not summary and record:
         with open('templates/template_without_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
-            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
-                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').\
-                replace('{{etherpad}}', '{4}').format(sig_name, start_time, join_url, topic, etherpad)
+            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
+                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}'). \
+                replace('{{etherpad}}', '{4}').replace('{{platform}}', '{5}'). \
+                format(sig_name, start_time, join_url, topic, etherpad, platform)
     if summary and record:
         with open('templates/template_with_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
-            body_of_email = body.replace('{{sig_name}}', '{0}').replace( '{{start_time}}', '{1}').\
-                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}').\
-                replace('{{etherpad}}', '{5}').\
-                format(sig_name, start_time, join_url, topic, summary, etherpad)
+            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
+                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}'). \
+                replace('{{etherpad}}', '{5}').replace('{{platform}}', '{6}'). \
+                format(sig_name, start_time, join_url, topic, summary, etherpad, platform)
     content = MIMEText(body_of_email, 'plain', 'utf-8')
     msg.attach(content)
 
@@ -87,8 +89,10 @@ def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, etherpad,
             msg.attach(file)
 
     # 添加日历
-    dt_start = (datetime.datetime.strptime(date + ' ' + start, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(tzinfo=pytz.utc)
-    dt_end = (datetime.datetime.strptime(date + ' ' + end, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(tzinfo=pytz.utc)
+    dt_start = (datetime.datetime.strptime(date + ' ' + start, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(
+        tzinfo=pytz.utc)
+    dt_end = (datetime.datetime.strptime(date + ' ' + end, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(
+        tzinfo=pytz.utc)
 
     cal = icalendar.Calendar()
     cal.add('prodid', '-//opengauss conference calendar')

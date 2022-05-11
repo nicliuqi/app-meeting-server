@@ -128,8 +128,20 @@ DATABASES = {
 }
 
 OPENGAUSS_MEETING_HOSTS = {
-    os.getenv('ZOOM_HOST_FIRST', ''): 'public@cla.opengauss.org',
-    os.getenv('ZOOM_HOST_SECOND', ''): 'public@certificate.opengauss.org'
+    'zoom': {
+        os.getenv('ZOOM_HOST_FIRST', ''): 'public@cla.opengauss.org',
+        os.getenv('ZOOM_HOST_SECOND', ''): 'public@certificate.opengauss.org'
+    },
+    'welink': {
+        os.getenv('WELINK_HOST_1', ''): os.getenv('WELINK_HOST_1', '')
+    }
+}
+
+WELINK_HOSTS = {
+    'WELINK_HOST_1': {
+        'account': os.getenv('WELINK_HOST_1_ACCOUNT', ''),
+        'pwd': os.getenv('WELINK_HOST_1_PWD', '')
+    }
 }
 
 # Password validation
