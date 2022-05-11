@@ -31,7 +31,7 @@ class MeetingDetailSerializer(ModelSerializer):
     class Meta:
         model = Meeting
         fields = ['id', 'mid', 'topic', 'sponsor', 'avatar', 'group_name', 'date', 'start', 'end', 'etherpad', 'agenda',
-                  'join_url', 'emaillist']
+                  'join_url', 'emaillist', 'mplatform']
 
 
 class GroupsSerializer(ModelSerializer):
