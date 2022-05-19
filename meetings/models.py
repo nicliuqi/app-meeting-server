@@ -42,6 +42,7 @@ class Meeting(models.Model):
     user = models.ForeignKey(User, on_delete=models.DO_NOTHING)
     group = models.ForeignKey(Group, on_delete=models.DO_NOTHING)
     mplatform = models.CharField(verbose_name='第三方会议平台', max_length=20, null=True, blank=True, default='zoom')
+    sequence = models.IntegerField(verbose_name='序列号', default=0)
 
 
 class Video(models.Model):
