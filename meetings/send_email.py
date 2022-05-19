@@ -19,6 +19,7 @@ logger = logging.getLogger('log')
 
 
 def sendmail(mid, record=None, enclosure_paths=None):
+    mid = str(mid)
     meeting = Meeting.objects.get(mid=mid)
     topic = meeting.topic
     date = meeting.date

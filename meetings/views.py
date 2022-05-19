@@ -248,11 +248,7 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
             return resp
 
         mplatform = Meeting.objects.get(mid=mid).mplatform
-        status = drivers.cancelMeeting(mid)
-        if status not in [200, 204]:
-            resp = JsonResponse({'code': 400, 'msg': 'Fail to delete meeting'})
-            resp.status_code = 400
-            return resp
+        drivers.cancelMeeting(mid)
 
         # 会议作软删除
         meeting = Meeting.objects.get(mid=mid)
@@ -515,9 +511,6 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         join_url = content['join_url']
         host_id = content['host_id']
         timezone = content['timezone'] if 'timezone' in content else 'Asia/Shanghai'
-        # 发送email
-        p1 = Process(target=sendmail, args=(mid, record))
-        p1.start()
 
         # 数据库生成数据
         Meeting.objects.create(
@@ -542,6 +535,10 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         )
         logger.info('{} has created a {} meeting which mid is {}.'.format(sponsor, platform, mid))
         logger.info('meeting info: {},{}-{},{}'.format(date, start, end, topic))
+
+        # 发送email
+        p1 = Process(target=sendmail, args=(mid, record))
+        p1.start()
 
         # 如果开启录制功能，则在Video表中创建一条数据
         if record == 'cloud':
