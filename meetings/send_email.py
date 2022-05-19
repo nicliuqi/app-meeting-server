@@ -11,12 +11,27 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from django.conf import settings
+from meetings.models import Meeting
 
 logger = logging.getLogger('log')
 
 
-def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, etherpad, platform,
-             summary=None, record=None, enclosure_paths=None):
+def sendmail(mid, record=None, enclosure_paths=None):
+    mid = str(mid)
+    meeting = Meeting.objects.get(mid=mid)
+    topic = meeting.topic
+    date = meeting.date
+    start = meeting.start
+    end = meeting.end
+    join_url = meeting.join_url
+    sig_name = meeting.group_name
+    toaddrs = meeting.emaillist
+    etherpad = meeting.etherpad
+    platform = meeting.mplatform
+    platform = platform.replace('tencent', 'Tencent').replace('welink', 'WeLink')
+    summary = meeting.agenda
+    if sig_name = 'Tech':
+        sig_name = '专家委员会'
     start_time = ' '.join([date, start])
     toaddrs = toaddrs.replace(' ', '').replace('，', ',').replace(';', ',').replace('；', ',')
     toaddrs_list = toaddrs.split(',')
@@ -82,19 +97,16 @@ def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, etherpad, pla
 
     event = icalendar.Event()
     event.add('attendee', ','.join(sorted(list(set(toaddrs_list)))))
-    event.add('organizer', 'public@mindspore.cn')
     event.add('summary', topic)
     event.add('dtstart', dt_start)
     event.add('dtend', dt_end)
     event.add('dtstamp', dt_start)
-    event['uid'] = uuid.uuid4()
-    event.add('priority', 5)
-    event.add('sequence', 1)
+    event.add('uid', platform + mid)
 
     alarm = icalendar.Alarm()
     alarm.add('action', 'DISPLAY')
     alarm.add('description', 'Reminder')
-    alarm.add('TRIGGER;RELATED=START', '-PT1H')
+    alarm.add('TRIGGER;RELATED=START', '-PT15M')
     event.add_component(alarm)
 
     cal.add_component(event)

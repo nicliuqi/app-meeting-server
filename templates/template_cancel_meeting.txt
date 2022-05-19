@@ -1,0 +1,1 @@
+Sorry! The {{platform}} meeting will be held at {{start_time}} scheduled by MindSpore {{sig_name}} has been cancelled.
