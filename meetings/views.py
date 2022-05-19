@@ -260,6 +260,11 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
         meeting_id = meeting.id
         mid = meeting.mid
         logger.info('{} has canceled the meeting which mid was {}'.format(request.user.gitee_name, mid))
+
+        # 发送删除通知邮件
+        from meetings.utils.send_cancel_email import sendmail
+        sendmail(mid)
+
         # 发送会议取消通知
         collections = Collect.objects.filter(meeting_id=meeting_id)
         if collections:
@@ -511,8 +516,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         host_id = content['host_id']
         timezone = content['timezone'] if 'timezone' in content else 'Asia/Shanghai'
         # 发送email
-        p1 = Process(target=sendmail, args=(topic, date, start, end, join_url, sig_name, emaillist,
-            platform.replace('zoom', 'Zoom').replace('welink', 'WeLink'), etherpad, summary, record))
+        p1 = Process(target=sendmail, args=(mid, record))
         p1.start()
 
         # 数据库生成数据
