@@ -29,7 +29,7 @@ def sendmail(mid):
     platform = meeting.mplatform
     platform = platform.replace('tencent', 'Tencent').replace('welink', 'WeLink')
     summary = meeting.agenda
-    if sig_name = 'Tech':
+    if sig_name == 'Tech':
         sig_name = '专家委员会'
     start_time = ' '.join([date, start])
     toaddrs = toaddrs.replace(' ', '').replace('，', ',').replace(';', ',').replace('；', ',')
