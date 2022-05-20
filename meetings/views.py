@@ -208,11 +208,6 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         join_url = content['join_url']
         host_id = content['host_id']
         timezone = content['timezone'] if 'timezone' in content else 'Asia/Shanghai'
-        # 发送email
-        p1 = Process(target=sendmail, args=(topic, date, start, end, join_url, group_name, emaillist, etherpad,
-                                            platform.replace('zoom', 'Zoom').replace('welink', 'WeLink'),
-                                            summary, record))
-        p1.start()
 
         # 数据库生成数据
         Meeting.objects.create(
@@ -247,6 +242,9 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
                 agenda=summary
             )
             logger.info('meeting {} was created with auto recording.'.format(mid))
+        # 发送email
+        p1 = Process(target=sendmail, args=(mid, topic, record))
+        p1.start()
 
         # 返回请求数据
         resp = {'code': 201, 'msg': '创建成功', 'en_msg': 'Schedule meeting successfully'}
@@ -322,23 +320,10 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         duration = (int(end.split(':')[0]) - int(start.split(':')[0])) * 60 + (
                 int(end.split(':')[1]) - int(start.split(':')[1]))
 
-        # 准备好调用zoom api的data
-        new_data = {}
-        new_data['settings'] = {}
-        new_data['start_time'] = start_time
-        new_data['duration'] = duration
-        new_data['topic'] = topic
-        new_data['settings']['waiting_room'] = False
-        new_data['settings']['auto_recording'] = record
-        headers = {
-            "content-type": "application/json",
-            "authorization": "Bearer {}".format(settings.ZOOM_TOKEN)
-        }
-        url = "https://api.zoom.us/v2/meetings/{}".format(mid)
-        # 发送patch请求，修改会议
-        response = requests.patch(url, data=json.dumps(new_data), headers=headers)
-        if response.status_code != 204:
-            return JsonResponse({'code': response.status_code, 'msg': '修改会议失败', 'en_msg': 'Fail to update.'})
+        update_topic = '[Update] ' + topic
+        status = drivers.updateMeeting(mid, date, start, end, update_topic, record)
+        if status not in [200, 204]:
+            return JsonResponse({'code': 400, 'msg': '修改会议失败', 'en_msg': 'Fail to update.'})
 
         # 数据库更新数据
         Meeting.objects.filter(mid=mid).update(
@@ -369,11 +354,7 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         if Video.objects.filter(mid=mid) and record != 'cloud':
             Video.objects.filter(mid=mid).delete()
             logger.info('remove video obj of meeting {}'.format(mid))
-        meeting = Meeting.objects.get(mid=mid)
-        join_url = meeting.join_url
-        if not emaillist:
-            emaillist = meeting.emaillist
-        p1 = Process(target=sendmail, args=(topic, date, start, end, join_url, group_name, emaillist, etherpad, summary, record))
+        p1 = Process(target=sendmail, args=(mid, update_topic, record))
         p1.start()
         # 返回请求数据
         resp = {'code': 204, 'msg': '修改成功', 'en_msg': 'Update successfully', 'id': mid}
@@ -396,16 +377,13 @@ class DeleteMeetingView(GenericAPIView, UpdateModelMixin):
         mid = self.kwargs.get('mid')
         if not Meeting.objects.filter(user_id=user_id, mid=mid, is_delete=0):
             return JsonResponse({'code': 404, 'msg': '会议不存在', 'en_msg': 'The meeting does not exist'})
-        status = drivers.cancelMeeting(mid)
-        logger.info(status)
-        if status not in [200, 204]:
-            resp = JsonResponse({'code': 400, 'msg': 'Fail to delete meeting'})
-            resp.status_code = 400
-            return resp
+        drivers.cancelMeeting(mid)
         # 数据库软删除数据
         Meeting.objects.filter(mid=mid).update(is_delete=1)
         user = User.objects.get(id=user_id)
         logger.info('{} has canceled meeting {}'.format(user.gitee_id, mid))
+        from meetings.utils.send_cancel_email import sendmail
+        sendmail(mid)
         return JsonResponse({'code': 204, 'msg': '已删除会议{}'.format(mid), 'en_msg': 'Delete successfully'})
 
 

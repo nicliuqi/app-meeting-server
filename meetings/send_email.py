@@ -13,12 +13,26 @@ from email.mime.base import MIMEBase
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from meetings.models import Meeting
 
 logger = logging.getLogger('log')
 
 
-def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, etherpad, platform,
-             summary=None, record=None, enclosure_paths=None):
+def sendmail(mid, topic, record=None, enclosure_paths=None):
+    mid = str(mid)
+    meeting = Meeting.objects.get(mid=mid)
+    date = meeting.date
+    start = meeting.start
+    end = meeting.end
+    join_url = meeting.join_url
+    sig_name = meeting.group_name
+    toaddrs = meeting.emaillist
+    platform = meeting.mplatform
+    platform = platform.replace('zoom', 'Zoom').replace('welink', 'WeLink')
+    etherpad = meeting.etherpad
+    summary = meeting.agenda
+    sequence = meeting.sequence
+    sequence += 1
     start_time = ' '.join([date, start])
     toaddrs = toaddrs.replace(' ', '').replace('，', ',').replace(';', ',').replace('；', ',')
     toaddrs_list = toaddrs.split(',')
@@ -101,19 +115,17 @@ def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, etherpad, pla
 
     event = icalendar.Event()
     event.add('attendee', ','.join(sorted(list(set(toaddrs_list)))))
-    event.add('organizer', 'public@opengauss.org')
     event.add('summary', topic)
     event.add('dtstart', dt_start)
     event.add('dtend', dt_end)
     event.add('dtstamp', dt_start)
-    event['uid'] = uuid.uuid4()
-    event.add('priority', 5)
-    event.add('sequence', 1)
+    event.add('uid', platform + mid)
+    event.add('sequence', sequence)
 
     alarm = icalendar.Alarm()
     alarm.add('action', 'DISPLAY')
     alarm.add('description', 'Reminder')
-    alarm.add('TRIGGER;RELATED=START', '-PT1H')
+    alarm.add('TRIGGER;RELATED=START', '-PT15M')
     event.add_component(alarm)
 
     cal.add_component(event)
@@ -148,5 +160,6 @@ def sendmail(topic, date, start, end, join_url, sig_name, toaddrs, etherpad, pla
         logger.info('error addrs: {}'.format(error_addrs))
         logger.info('email sent: {}'.format(toaddrs_string))
         server.quit()
+        Meeting.objects.filter(mid=mid).update(sequence=sequence)
     except smtplib.SMTPException as e:
         logger.error(e)
