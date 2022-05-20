@@ -398,11 +398,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
             logger.info('{} has created a {} meeting which mid is {}.'.format(sponsor, platform, meeting_code))
             logger.info('meeting info: {},{}-{},{}'.format(date, start, end, topic))
             # 发送邮件
-            if group_name == 'Tech':
-                group_name = '专家委员会'
-            p1 = Process(target=sendmail, args=(topic, date, start, end, join_url, group_name, emaillist, etherpad,
-                                                platform.replace('tencent', 'Tencent').replace('welink', 'WeLink'),
-                                                agenda, record))
+            p1 = Process(target=sendmail, args=(meeting_code, record))
             p1.start()
             meeting_id = Meeting.objects.get(mid=meeting_code).id
             return JsonResponse({'code': 201, 'msg': '创建成功', 'id': meeting_id})
@@ -425,42 +421,43 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
         status = drivers.cancelMeeting(mid)
         meeting = Meeting.objects.get(mid=mid)
         # 数据库更改Meeting的is_delete=1
-        if status == 200:
-            Meeting.objects.filter(mid=mid).update(is_delete=1)
-            # 发送会议取消通知
-            collections = Collect.objects.filter(meeting_id=meeting.id)
-            if collections:
-                access_token = self.get_token()
-                topic = meeting.topic
-                date = meeting.date
-                start_time = meeting.start
-                time = date + ' ' + start_time
-                for collection in collections:
-                    user_id = collection.user_id
-                    user = User.objects.get(id=user_id)
-                    nickname = user.nickname
-                    openid = user.openid
-                    content = self.get_remove_template(openid, topic, time, mid)
-                    r = requests.post(
-                        'https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token={}'.format(access_token),
-                        data=json.dumps(content))
-                    if r.status_code != 200:
-                        logger.error('status code: {}'.format(r.status_code))
-                        logger.error('content: {}'.format(r.json()))
+        Meeting.objects.filter(mid=mid).update(is_delete=1)
+
+        # 发送删除通知邮件
+        from meetings.utils.send_cancel_email import sendmail
+        sendmail(mid)
+
+        # 发送会议取消通知
+        collections = Collect.objects.filter(meeting_id=meeting.id)
+        if collections:
+            access_token = self.get_token()
+            topic = meeting.topic
+            date = meeting.date
+            start_time = meeting.start
+            time = date + ' ' + start_time
+            for collection in collections:
+                user_id = collection.user_id
+                user = User.objects.get(id=user_id)
+                nickname = user.nickname
+                openid = user.openid
+                content = self.get_remove_template(openid, topic, time, mid)
+                r = requests.post(
+                    'https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token={}'.format(access_token),
+                    data=json.dumps(content))
+                if r.status_code != 200:
+                    logger.error('status code: {}'.format(r.status_code))
+                    logger.error('content: {}'.format(r.json()))
+                else:
+                    if r.json()['errcode'] != 0:
+                        logger.warning('Error Code: {}'.format(r.json()['errcode']))
+                        logger.warning('Error Msg: {}'.format(r.json()['errmsg']))
+                        logger.warning('receiver: {}'.format(nickname))
                     else:
-                        if r.json()['errcode'] != 0:
-                            logger.warning('Error Code: {}'.format(r.json()['errcode']))
-                            logger.warning('Error Msg: {}'.format(r.json()['errmsg']))
-                            logger.warning('receiver: {}'.format(nickname))
-                        else:
-                            logger.info('meeting {} cancel message sent to {}.'.format(mid, nickname))
-                    # 删除收藏
-                    collection.delete()
-            logger.info('{} has canceled the meeting which mid was {}'.format(self.request.user.gitee_name, mid))
-            return JsonResponse({'code': 200, 'msg': '取消会议'})
-        else:
-            logger.error('删除会议失败')
-            return JsonResponse({'code': 400, 'msg': '取消失败'})
+                        logger.info('meeting {} cancel message sent to {}.'.format(mid, nickname))
+                # 删除收藏
+                collection.delete()
+        logger.info('{} has canceled the meeting which mid was {}'.format(self.request.user.gitee_name, mid))
+        return JsonResponse({'code': 200, 'msg': '取消会议'})
 
     def get_remove_template(self, openid, topic, time, mid):
         if len(topic) > 20:
