@@ -36,8 +36,10 @@ def sendmail(mid):
             error_addrs.append(addr)
             toaddrs_list.remove(addr)
     toaddrs_string = ','.join(toaddrs_list)
-    toaddrs_list.extend(['community@openeuler.org', 'dev@openeuler.org'])
     toaddrs_list = sorted(list(set(toaddrs_list)))
+    if not toaddrs_list:
+        logger.info('Event of cancelling meeting {} has no email to send.'.format(mid))
+        return
 
     # 构造邮件
     msg = MIMEMultipart()

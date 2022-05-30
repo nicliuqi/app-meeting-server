@@ -41,10 +41,11 @@ def sendmail(mid, record=None, enclosure_paths=None):
             error_addrs.append(addr)
             toaddrs_list.remove(addr)
     toaddrs_string = ','.join(toaddrs_list)
-    # 发送列表默认添加community和dev的邮件列表
-    toaddrs_list.extend(['community@openeuler.org', 'dev@openeuler.org'])
     # 发送列表去重，排序
     toaddrs_list = sorted(list(set(toaddrs_list)))
+    if not toaddrs_list:
+        logger.info('Event of creating meeting {} has no email to send.'.format(mid))
+        return
 
     # 构造邮件
     msg = MIMEMultipart()
