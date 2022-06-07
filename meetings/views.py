@@ -1447,8 +1447,8 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
 
     def get(self, request, *args, **kwargs):
         self.queryset = self.queryset.filter(
-            date__gte=(datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'),
-            date__lte=(datetime.datetime.now() + datetime.timedelta(days=14)).strftime('%Y-%m-%d'))
+            date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
+            date__lte=(datetime.datetime.now() + datetime.timedelta(days=180)).strftime('%Y-%m-%d'))
         queryset = self.filter_queryset(self.get_queryset()).values()
         tableData = []
         date_list = []
@@ -1490,8 +1490,8 @@ class ActivitiesDataView(GenericAPIView, ListModelMixin):
 
     def get(self, request, *args, **kwargs):
         self.queryset = self.queryset.filter(
-            start_date__gte=(datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'),
-            start_date__lte=(datetime.datetime.now() + datetime.timedelta(days=14)).strftime('%Y-%m-%d'))
+            start_date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
+            start_date__lte=(datetime.datetime.now() + datetime.timedelta(days=180)).strftime('%Y-%m-%d'))
         queryset = self.filter_queryset(self.get_queryset()).values()
         tableData = []
         date_list = []
