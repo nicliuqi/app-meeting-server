@@ -5,6 +5,7 @@ import pytz
 import re
 import smtplib
 import uuid
+import yaml
 from django.conf import settings
 from email import encoders
 from email.mime.base import MIMEBase
@@ -38,7 +39,22 @@ def sendmail(mid):
             error_addrs.append(addr)
             toaddrs_list.remove(addr)
     toaddrs_string = ','.join(toaddrs_list)
+    # 发送列表默认添加该sig所在的邮件列表
+    newly_mapping = 'https://gitee.com/opengauss/tc/raw/master/maillist_mapping.yaml'
+    subprocess.call('wget {} -O meetings/utils/maillist_mapping.yaml'.format(newly_mapping), shell=True)
+    with open('meetings/utils/maillist_mapping.yaml', 'r') as f:
+        maillists = yaml.load(f.read(), Loader=yaml.Loader)
+    if sig_name in maillists.keys():
+        maillist = maillists[sig_name]
+        toaddrs_list.append(maillist)
+        logger.info('BCC to {}'.format(maillist))
+
+    if sig_name == 'TC':
+        for k, v in maillists.items():
+            if v not in toaddrs_list:
+                toaddrs_list.append(v)
     toaddrs_list = sorted(list(set(toaddrs_list)))
+    logger.info('toaddrs_list: {}'.format(toaddrs_list))
 
     # 构造邮件
     msg = MIMEMultipart()
