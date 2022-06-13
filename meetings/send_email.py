@@ -56,6 +56,7 @@ def sendmail(mid, topic, record=None, enclosure_paths=None):
         for k, v in maillists.items():
             if v not in toaddrs_list:
                 toaddrs_list.append(v)
+    toaddrs_list = sorted(list(set(toaddrs_list)))
     logger.info('toaddrs_list: {}'.format(toaddrs_list))
 
     # 构造邮件
