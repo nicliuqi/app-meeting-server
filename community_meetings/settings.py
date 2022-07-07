@@ -57,7 +57,7 @@ MEETING_HOSTS = {
 }
 
 WELINK_HOSTS = {
-    'WELINK_HOST_1': {
+    os.getenv('WELINK_HOST_1', ''): {
         'account': os.getenv('WELINK_HOST_1_ACCOUNT', ''),
         'pwd': os.getenv('WELINK_HOST_1_PWD', '')
     }
