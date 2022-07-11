@@ -194,10 +194,11 @@ class UsersInGroupSerializer(ModelSerializer):
 class UserGroupSerializer(ModelSerializer):
     group_name = serializers.CharField(source='group.group_name', read_only=True)
     etherpad = serializers.CharField(source='group.etherpad', read_only=True)
+    maillist = serializers.CharField(source='group.maillist', read_only=True)
 
     class Meta:
         model = GroupUser
-        fields = ['group', 'group_name', 'etherpad']
+        fields = ['group', 'group_name', 'etherpad', 'maillist']
 
 
 class UserInfoSerializer(ModelSerializer):
