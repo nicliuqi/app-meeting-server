@@ -396,8 +396,8 @@ class SigMeetingsDataView(GenericAPIView, ListModelMixin):
     queryset = Meeting.objects.filter(is_delete=0).order_by('date', 'start')
 
     def get(self, request, *args, **kwargs):
-        group_id = kwargs.get('pk')
-        queryset = self.filter_queryset(self.get_queryset()).filter(group_id=group_id).filter((Q(
+        group_name = kwargs.get('gn')
+        queryset = self.filter_queryset(self.get_queryset()).filter(group_name=group_name).filter((Q(
             date__gte=str(datetime.datetime.now() - datetime.timedelta(days=180))[:10]) & Q(
             date__lte=str(datetime.datetime.now() + datetime.timedelta(days=30))[:10]))).values()
         tableData = []
@@ -428,7 +428,7 @@ class SigMeetingsDataView(GenericAPIView, ListModelMixin):
                         'etherpad': meeting.etherpad,
                         'video_url': '' if not Record.objects.filter(mid=meeting.mid, platform='bilibili') else
                         Record.objects.filter(mid=meeting.mid, platform='bilibili').values()[0]['url']
-                    } for meeting in Meeting.objects.filter(is_delete=0, group_id=group_id, date=date)]
+                    } for meeting in Meeting.objects.filter(is_delete=0, group_name=group_name, date=date)]
                 })
         return Response({'tableData': tableData})
 
