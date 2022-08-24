@@ -9,7 +9,7 @@ from meetings.views import LoginView, GroupView, GroupsView, MeetingView, Meetin
     DraftPublishView, SponsorActivitiesPublishingView, ActivityCollectView, ActivityCollectDelView, \
     MyActivityCollectionsView, ActivityRegisterView, ApplicantInfoView, RegisterActivitiesView, ApplicantsInfoView, \
     FeedbackView, CountActivitiesView, MyCountsView, TicketView, MeetingsRecentlyView, ActivitySignView, \
-    ActivityRegistrantsView
+    ActivityRegistrantsView, ActivitiesDataView
 
 urlpatterns = [
     path('login/', LoginView.as_view()),  # 登陆
@@ -72,4 +72,5 @@ urlpatterns = [
     path('ticket/<int:pk>/', TicketView.as_view()),  # 查看活动门票
     path('activitysign/', ActivitySignView.as_view()),  # 活动签到
     path('registrants/<int:pk>/', ActivityRegistrantsView.as_view()),  # 活动报名信息列表
+    path('activitiesdata/', ActivitiesDataView.as_view()),  # 活动日历
 ]

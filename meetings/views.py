@@ -1534,3 +1534,43 @@ class ActivityRegistrantsView(GenericAPIView, RetrieveModelMixin):
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)
+
+
+class ActivitiesDataView(GenericAPIView, ListModelMixin):
+    """活动日历数据"""
+    queryset = Activity.objects.filter(is_delete=0, status__in=[3, 4, 5])
+
+    def get(self, request, *args, **kwargs):
+        self.queryset = self.queryset.filter(
+            date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
+            date__lte=(datetime.datetime.now() + datetime.timedelta(days=180)).strftime('%Y-%m-%d'))
+        queryset = self.filter_queryset(self.get_queryset()).values()
+        tableData = [] 
+        date_list = [] 
+        for query in queryset:
+            date_list.append(query.get('date'))
+        date_list = sorted(list(set(date_list)))
+        for date in date_list:
+            tableData.append(
+                {    
+                    'start_date': date,
+                    'timeData': [{
+                        'id': activity.id,
+                        'title': activity.title,
+                        'start_date': activity.date,
+                        'end_date': activity.date,
+                        'activity_type': activity.activity_type,
+                        'address': activity.address,
+                        'detail_address': activity.detail_address,
+                        'longitude': activity.longitude,
+                        'latitude': activity.latitude,
+                        'synopsis': activity.synopsis,
+                        'sign_url': activity.sign_url,
+                        'replay_url': activity.replay_url,
+                        'poster': activity.poster,
+                        'wx_code': activity.wx_code,
+                        'schedules': json.loads(activity.schedules)
+                    } for activity in Activity.objects.filter(is_delete=0, date=date)]
+                }    
+            )    
+        return Response({'tableData': tableData})
