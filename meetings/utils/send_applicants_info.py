@@ -30,7 +30,7 @@ def run(queryset, mailto):
         profession = user.profession
         gitee_name = user.gitee_name
         activity_id = applicant_info.activity_id
-        if user_id in ActivitySign.objects.filter(activity_id=activity_id).values_list('user_id'):
+        if user_id in ActivitySign.objects.filter(activity_id=activity_id).values_list('user_id', flat=True):
             is_sign = '是'
         else:
             is_sign = '否'
