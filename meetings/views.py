@@ -1,6 +1,5 @@
 import datetime
 import json
-import math
 import random
 import re
 import requests
@@ -362,31 +361,35 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
         for query in queryset:
             date_list.append(query.get('date'))
         date_list = sorted(list(set(date_list)))
+        records = Record.objects.all().values()
+        record_dict = {}
+        for record in records:
+            if record['platform'] == 'bilibili' and record['url']:
+                record_dict[record['mid']] = record['url']
         for date in date_list:
-            tableData.append(
-                {
-                    'date': date,
-                    'timeData': [{
-                        'id': meeting.id,
-                        'group_name': meeting.group_name,
-                        'startTime': meeting.start,
-                        'endTime': meeting.end,
-                        'duration': math.ceil(float(meeting.end.replace(':', '.'))) - math.floor(
-                            float(meeting.start.replace(':', '.'))),
-                        'duration_time': meeting.start.split(':')[0] + ':00' + '-' + str(
-                            math.ceil(float(meeting.end.replace(':', '.')))) + ':00',
-                        'name': meeting.topic,
-                        'creator': meeting.sponsor,
-                        'detail': meeting.agenda,
-                        'url': User.objects.get(id=meeting.user_id).avatar,
-                        'join_url': meeting.join_url,
-                        'meeting_id': meeting.mid,
-                        'etherpad': meeting.etherpad,
-                        'platform': meeting.mplatform,
-                        'video_url': '' if not Record.objects.filter(mid=meeting.mid, platform='bilibili') else
-                        Record.objects.filter(mid=meeting.mid, platform='bilibili').values()[0]['url']
-                    } for meeting in Meeting.objects.filter(is_delete=0, date=date)]
+            timeData = []
+            for meeting in queryset:
+                if meeting['date'] != date:
+                    continue
+                timeData.append({
+                    'id': meeting['id'],
+                    'group_name': meeting['group_name'],
+                    'startTime': meeting['start'],
+                    'endTime': meeting['end'],
+                    'duration_time': meeting['start'] + '-' + meeting['end'],
+                    'name': meeting['topic'],
+                    'creator': meeting['sponsor'],
+                    'detail': meeting['agenda'],
+                    'join_url': meeting['join_url'],
+                    'meeting_id': meeting['mid'],
+                    'etherpad': meeting['etherpad'],
+                    'platform': meeting['mplatform'],
+                    'video_url': record_dict.get(meeting['mid'], '')
                 })
+            tableData.append({
+                'date': date,
+                'timeData': timeData
+            })
         return Response({'tableData': tableData})
 
 
@@ -405,31 +408,35 @@ class SigMeetingsDataView(GenericAPIView, ListModelMixin):
         for query in queryset:
             date_list.append(query.get('date'))
         date_list = sorted(list(set(date_list)))
+        records = Record.objects.all().values()
+        record_dict = {}
+        for record in records:
+            if record['platform'] == 'bilibili' and record['url']:
+                record_dict[record['mid']] = record['url']
         for date in date_list:
-            tableData.append(
-                {
-                    'date': date,
-                    'timeData': [{
-                        'id': meeting.id,
-                        'group_name': meeting.group_name,
-                        'date': meeting.date,
-                        'startTime': meeting.start,
-                        'endTime': meeting.end,
-                        'duration': math.ceil(float(meeting.end.replace(':', '.'))) - math.floor(
-                            float(meeting.start.replace(':', '.'))),
-                        'duration_time': meeting.start.split(':')[0] + ':00' + '-' + str(
-                            math.ceil(float(meeting.end.replace(':', '.')))) + ':00',
-                        'name': meeting.topic,
-                        'creator': meeting.sponsor,
-                        'detail': meeting.agenda,
-                        'url': User.objects.get(id=meeting.user_id).avatar,
-                        'join_url': meeting.join_url,
-                        'meeting_id': meeting.mid,
-                        'etherpad': meeting.etherpad,
-                        'video_url': '' if not Record.objects.filter(mid=meeting.mid, platform='bilibili') else
-                        Record.objects.filter(mid=meeting.mid, platform='bilibili').values()[0]['url']
-                    } for meeting in Meeting.objects.filter(is_delete=0, group_name=group_name, date=date)]
+            timeData = []
+            for meeting in queryset:
+                if meeting['date'] != date:
+                    continue
+                timeData.append({
+                    'id': meeting['id'],
+                    'group_name': meeting['group_name'],
+                    'startTime': meeting['start'],
+                    'endTime': meeting['end'],
+                    'duration_time': meeting['start'] + '-' + meeting['end'],
+                    'name': meeting['topic'],
+                    'creator': meeting['sponsor'],
+                    'detail': meeting['agenda'],
+                    'join_url': meeting['join_url'],
+                    'meeting_id': meeting['mid'],
+                    'etherpad': meeting['etherpad'],
+                    'platform': meeting['mplatform'],
+                    'video_url': record_dict.get(meeting['mid'], '')
                 })
+            tableData.append({
+                'date': date,
+                'timeData': timeData
+            })
         return Response({'tableData': tableData})
 
 
