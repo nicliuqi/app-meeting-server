@@ -189,8 +189,8 @@ class Command(BaseCommand):
                 self.logger.info("Create sig: {}".format(group_name))
                 self.logger.info(sig)
             else:
-                Group.objects.filter(group_name=group_name).update(maillist=maillist, irc=irc, etherpad=etherpad,
-                                                                   owners=owners, description=description)
+                Group.objects.filter(group_name=group_name).update(irc=irc, etherpad=etherpad, owners=owners,
+                                                                   description=description)
                 self.logger.info("Update sig: {}".format(group_name))
                 self.logger.info(sig)
         t4 = time.time()
