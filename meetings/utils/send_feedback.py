@@ -31,6 +31,9 @@ def run(feedback_type, feedback_email, feedback_content):
     try:
         gmail_username = settings.GMAIL_USERNAME
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
+        server.ehlo()
+        server.starttls()
+        server.login(settings.SMTP_SERVER_USER, settings.SMTP_SERVER_PASS)
         server.sendmail(gmail_username, mailto.split(','), msg.as_string())
         server.sendmail(gmail_username, feedback_email.split(','), reply_msg.as_string())
         print('发送成功')
