@@ -24,6 +24,9 @@ def run(date, start, topic, start_url, password, summary, email):
     try:
         gmail_username = settings.GMAIL_USERNAME
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
+        server.ehlo()
+        server.starttls()
+        server.login(settings.SMTP_SERVER_USER, settings.SMTP_SERVER_PASS)
         server.sendmail(gmail_username, mailto.split(','), msg.as_string())
         print('发送成功')
         server.quit()
