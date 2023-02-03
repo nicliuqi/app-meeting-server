@@ -149,6 +149,9 @@ def sendmail(mid, record=None, enclosure_paths=None):
     try:
         gmail_username = settings.GMAIL_USERNAME
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
+        server.ehlo()
+        server.starttls()
+        server.login(settings.SMTP_SERVER_USER, settings.SMTP_SERVER_PASS)
         server.sendmail(gmail_username, toaddrs_list, msg.as_string())
         logger.info('email string: {}'.format(toaddrs))
         logger.info('error addrs: {}'.format(error_addrs))
