@@ -519,6 +519,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         host_id = content['host_id']
         timezone = content['timezone'] if 'timezone' in content else 'Asia/Shanghai'
 
+        logger.info('保存数据之前, 有 {} 个会议对象'.format(len(Meeting.objects.all())))
         # 数据库生成数据
         Meeting.objects.create(
             mid=mid,
@@ -542,6 +543,8 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         )
         logger.info('{} has created a {} meeting which mid is {}.'.format(sponsor, platform, mid))
         logger.info('meeting info: {},{}-{},{}'.format(date, start, end, topic))
+        logger.info('保存数据之后, 有 {} 个会议对象'.format(len(Meeting.objects.all())))
+        logger.info('最后一个会议对象为: {}'.format(Meeting.objects.values()[len(Meeting.objects.all()) - 1]))
 
         # 发送email
         p1 = Process(target=sendmail, args=(mid, record))
