@@ -20,6 +20,8 @@ logger = logging.getLogger('log')
 
 def sendmail(mid, record=None, enclosure_paths=None):
     mid = str(mid)
+    logger.info('开启多进程后, 有 {} 个会议对象'.format(len(Meeting.objects.all())))
+    logger.info('开启多进程后最后一个会议对象为: {}'.format(Meeting.objects.values()[len(Meeting.objects.all()) - 1]))
     meeting = Meeting.objects.get(mid=mid)
     topic = meeting.topic
     date = meeting.date
