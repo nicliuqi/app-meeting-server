@@ -18,22 +18,20 @@ from meetings.models import Meeting
 logger = logging.getLogger('log')
 
 
-def sendmail(mid, record=None, enclosure_paths=None):
+def sendmail(meeting, record=None, enclosure_paths=None):
+    mid = meeting.get('mid')
     mid = str(mid)
-    logger.info('开启多进程后, 有 {} 个会议对象'.format(len(Meeting.objects.all())))
-    logger.info('开启多进程后最后一个会议对象为: {}'.format(Meeting.objects.values()[len(Meeting.objects.all()) - 1]))
-    meeting = Meeting.objects.get(mid=mid)
-    topic = meeting.topic
-    date = meeting.date
-    start = meeting.start
-    end = meeting.end
-    join_url = meeting.join_url
-    sig_name = meeting.group_name
-    toaddrs = meeting.emaillist
-    platform = meeting.mplatform
+    topic = meeting.get('topic')
+    date = meeting.get('date')
+    start = meeting.get('start')
+    end = meeting.get('end')
+    join_url = meeting.get('join_url')
+    sig_name = meeting.get('sig_name')
+    toaddrs = meeting.get('emaillist')
+    platform = meeting.get('platform')
     platform = platform.replace('zoom', 'Zoom').replace('welink', 'WeLink')
-    etherpad = meeting.etherpad
-    summary = meeting.agenda
+    etherpad = meeting.get('etherpad')
+    summary = meeting.get('agenda')
     start_time = ' '.join([date, start])
     toaddrs = toaddrs.replace(' ', '').replace('，', ',').replace(';', ',').replace('；', ',')
     toaddrs_list = toaddrs.split(',')
