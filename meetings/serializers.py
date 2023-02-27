@@ -204,7 +204,7 @@ class UserGroupSerializer(ModelSerializer):
 class UserInfoSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['level', 'gitee_name', 'activity_level']
+        fields = ['level', 'gitee_name', 'activity_level', 'nickname', 'avatar', 'openid']
 
 
 class GroupUserSerializer(ModelSerializer):
