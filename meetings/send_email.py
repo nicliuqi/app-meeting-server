@@ -18,20 +18,20 @@ from meetings.models import Meeting
 logger = logging.getLogger('log')
 
 
-def sendmail(mid, topic, record=None, enclosure_paths=None):
+def sendmail(meeting, record=None, enclosure_paths=None):
+    mid = meeting.get('mid')
     mid = str(mid)
-    meeting = Meeting.objects.get(mid=mid)
-    date = meeting.date
-    start = meeting.start
-    end = meeting.end
-    join_url = meeting.join_url
-    sig_name = meeting.group_name
-    toaddrs = meeting.emaillist
-    platform = meeting.mplatform
-    platform = platform.replace('zoom', 'Zoom').replace('welink', 'WeLink')
-    etherpad = meeting.etherpad
-    summary = meeting.agenda
-    sequence = meeting.sequence
+    topic = meeting.get('topic')
+    date = meeting.get('date')
+    start = meeting.get('start')
+    end = meeting.get('end')
+    join_url = meeting.get('join_url')
+    sig_name = meeting.get('sig_name')
+    toaddrs = meeting.get('toaddrs')
+    platform = meeting.get('platform')
+    etherpad = meeting.get('etherpad')
+    summary = meeting.get('summary')
+    sequence = meeting.get('sequence')
     sequence += 1
     start_time = ' '.join([date, start])
     toaddrs = toaddrs.replace(' ', '').replace('，', ',').replace(';', ',').replace('；', ',')
