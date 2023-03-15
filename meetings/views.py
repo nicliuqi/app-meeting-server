@@ -243,7 +243,22 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
             )
             logger.info('meeting {} was created with auto recording.'.format(mid))
         # 发送email
-        p1 = Process(target=sendmail, args=(mid, topic, record))
+        sequence = Meeting.objects.get(mid=mid).sequence
+        m = {
+            'mid': mid,
+            'topic': topic,
+            'date': date,
+            'start': start,
+            'end': end,
+            'join_url': join_url,
+            'sig_name': group_name,
+            'toaddrs': emaillist,
+            'platform': platform,
+            'etherpad': etherpad,
+            'summary': summary,
+            'sequence': sequence
+        }
+        p1 = Process(target=sendmail, args=(m, record))
         p1.start()
 
         # 返回请求数据
@@ -354,7 +369,23 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         if Video.objects.filter(mid=mid) and record != 'cloud':
             Video.objects.filter(mid=mid).delete()
             logger.info('remove video obj of meeting {}'.format(mid))
-        p1 = Process(target=sendmail, args=(mid, update_topic, record))
+        platform = Meeting.objects.get(mid=mid).mplatform
+        sequence = Meeting.objects.get(mid=mid).sequence
+        m = {
+            'mid': mid,
+            'topic': update_topic,
+            'date': date,
+            'start': start,
+            'end': end,
+            'join_url': join_url,
+            'sig_name': group_name,
+            'toaddrs': emaillist,
+            'platform': platform,
+            'etherpad': etherpad,
+            'summary': summary,
+            'sequence': sequence
+        }
+        p1 = Process(target=sendmail, args=(m, record))
         p1.start()
         # 返回请求数据
         resp = {'code': 204, 'msg': '修改成功', 'en_msg': 'Update successfully', 'id': mid}
