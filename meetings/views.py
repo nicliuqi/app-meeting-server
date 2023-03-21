@@ -369,6 +369,7 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         if Video.objects.filter(mid=mid) and record != 'cloud':
             Video.objects.filter(mid=mid).delete()
             logger.info('remove video obj of meeting {}'.format(mid))
+        join_url = Meeting.objects.get(mid=mid).join_url
         platform = Meeting.objects.get(mid=mid).mplatform
         sequence = Meeting.objects.get(mid=mid).sequence
         m = {
