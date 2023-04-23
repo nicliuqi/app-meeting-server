@@ -171,7 +171,7 @@ def download_upload_recordings(start, end, zoom_download_url, mid, total_size, v
                 "record_end": end,
                 "download_url": download_url,
                 "total_size": download_file_size,
-                "attenders": attenders
+                "attenders": []
             }
             # 上传视频
             try:
@@ -374,7 +374,7 @@ def download_upload_welink_recordings(start, end, mid, filename, object_key, end
         "record_end": end,
         "download_url": download_url,
         "total_size": download_file_size,
-        "attenders": attenders
+        "attenders": []
     }
     try:
         # 断点续传上传文件
