@@ -1,7 +1,7 @@
 from django.urls import path
 from meetings.views import GiteeAuthView, GiteeBackView, UserInfoView, MeetingsDataView, CreateMeetingView, \
         UpdateMeetingView, DeleteMeetingView, MeetingDetailView, GroupsView, AllMeetingsView, \
-        ParticipantsView
+        ParticipantsView, LogoutView
 
 
 urlpatterns = [
@@ -16,4 +16,5 @@ urlpatterns = [
     path('groups/', GroupsView.as_view()),
     path('allmeetings/', AllMeetingsView.as_view()),
     path('participants/<int:mid>/', ParticipantsView.as_view()),
+    path('logout/', LogoutView.as_view()),
 ]

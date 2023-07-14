@@ -1,6 +1,7 @@
 import datetime
 import icalendar
 import logging
+import os
 import pytz
 import re
 import smtplib
@@ -44,9 +45,10 @@ def sendmail(meeting, record=None, enclosure_paths=None):
     toaddrs_string = ','.join(toaddrs_list)
     # 发送列表默认添加该sig所在的邮件列表
     newly_mapping = 'https://gitee.com/opengauss/tc/raw/master/maillist_mapping.yaml'
-    subprocess.call('wget {} -O meetings/utils/maillist_mapping.yaml'.format(newly_mapping), shell=True)
+    cmd = 'wget {} -O meetings/utils/maillist_mapping.yaml'.format(newly_mapping)
+    subprocess.call(cmd.split())
     with open('meetings/utils/maillist_mapping.yaml', 'r') as f:
-        maillists = yaml.load(f.read(), Loader=yaml.Loader)
+        maillists = yaml.safe_load(f)
     if sig_name in maillists.keys():
         maillist = maillists[sig_name]
         toaddrs_list.append(maillist) 
@@ -142,16 +144,16 @@ def sendmail(meeting, record=None, enclosure_paths=None):
 
     msg.attach(part)
 
+    sender = os.getenv('SMTP_SENDER', '')
     # 完善邮件信息
     msg['Subject'] = topic
-    msg['From'] = 'openGauss conference <public@opengauss.org>'
+    msg['From'] = 'openGauss conference <%s>' % sender
     msg['To'] = toaddrs_string
 
     # 登录服务器发送邮件
     try:
         gmail_username = settings.GMAIL_USERNAME
         gmail_password = settings.GMAIL_PASSWORD
-        sender = 'public@opengauss.org'
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.ehlo()
         server.starttls()
@@ -161,6 +163,5 @@ def sendmail(meeting, record=None, enclosure_paths=None):
         logger.info('error addrs: {}'.format(error_addrs))
         logger.info('email sent: {}'.format(toaddrs_string))
         server.quit()
-        Meeting.objects.filter(mid=mid).update(sequence=sequence)
     except smtplib.SMTPException as e:
         logger.error(e)

@@ -4,7 +4,6 @@ from binascii import a2b_hex, b2a_hex
 
 
 key = settings.SECRET_KEY[:16].encode('utf-8')
-iv = settings.SECRET_KEY[-16:].encode('utf-8')
 
 def add_to_16(text):
     if len(text.encode('utf-8')) % 16:
@@ -15,7 +14,7 @@ def add_to_16(text):
     return text.encode('utf-8')
 
 
-def encrypt(text):
+def encrypt(text, iv):
     mode = AES.MODE_CBC
     text = add_to_16(text)
     cryptos = AES.new(key, mode, iv)
@@ -23,7 +22,7 @@ def encrypt(text):
     return b2a_hex(cipher_text).decode('utf-8')
 
 
-def decrypt(text):
+def decrypt(text, iv):
     mode = AES.MODE_CBC
     cryptos = AES.new(key, mode, iv)
     plain_text = cryptos.decrypt(a2b_hex(text.encode('utf-8')))
