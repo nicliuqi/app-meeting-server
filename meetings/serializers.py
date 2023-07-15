@@ -75,6 +75,7 @@ class LoginSerializer(serializers.ModelSerializer):
         data['level'] = instance.level
         data['gitee_name'] = instance.gitee_name
         data['activity_level'] = instance.activity_level
+        User.objects.filter(id=instance.id).update(signature=access)
         return data
 
 

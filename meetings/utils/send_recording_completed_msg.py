@@ -1,4 +1,5 @@
 import logging
+import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -21,6 +22,7 @@ def sendmail(topic, group_name, date, start, end, meeting_code, download_url):
             '{{download_url}}', download_url)
     content = MIMEText(body_of_email, 'html', 'utf-8')
     msg.attach(content)
+    sender = os.getenv('SMTP_SENDER', '')
     msg['Subject'] = 'MindSporeApp录像生成'
     msg['From'] = 'MindSpore App'
     msg['To'] = toaddrs
@@ -28,7 +30,6 @@ def sendmail(topic, group_name, date, start, end, meeting_code, download_url):
     try:
         gmail_username = settings.GMAIL_USERNAME
         gmail_password = settings.GMAIL_PASSWORD
-        sender = 'public@mindspore.cn'
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.ehlo()
         server.starttls()
