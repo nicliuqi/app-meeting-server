@@ -2,10 +2,11 @@ import datetime
 import json
 import logging
 import math
-import random
 import requests
+import secrets
 import yaml
 from django.conf import settings
+from django.middleware.csrf import get_token
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from rest_framework.filters import SearchFilter
@@ -31,11 +32,31 @@ def IdentifyUser(request):
     :param request: request object
     :return: user_id
     """
-    if 'access_token' not in request.COOKIES.keys():
-        return JsonResponse({'code': 400, 'msg': '请求头中缺少access_token'})
-    access_token = request.COOKIES['access_token']
-    user_id = int(cryptos.decrypt(access_token))
+    access_token = request.COOKIES.get('access_token')
+    if not access_token:
+        return JsonResponse({'code': 400, 'msg': '请求头中缺少认证信息'})
+    if not isinstance(access_token, str):
+        return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+    if len(access_token) != 48:
+        return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+    text, iv = access_token[:32], access_token[32:]
+    user_id = int(cryptos.decrypt(text, iv.encode('utf-8')))
     return user_id
+
+
+def refresh_token(user_id):
+    iv = secrets.token_hex(8)
+    text = cryptos.encrypt(str(user_id), iv.encode('utf-8'))
+    access_token = text + iv
+    return access_token
+
+
+def refresh_cookie(response, access_token):
+    response.delete_cookie('access_token')
+    now_time = datetime.datetime.now()
+    expire = now_time + settings.COOKIE_EXPIRE
+    response.set_cookie('access_token', access_token, expires=expire, secure=True, httponly=True, samesite='strict')
+    return response
 
 
 class GiteeAuthView(GenericAPIView, ListModelMixin):
@@ -80,11 +101,26 @@ class GiteeBackView(GenericAPIView, ListModelMixin):
                     User.objects.filter(gid=gid).update(gitee_id=gitee_id, name=name, avatar=avatar)
                 response = redirect(settings.REDIRECT_HOME_PAGE)
                 user_id = User.objects.get(gid=gid).id
-                access_token = cryptos.encrypt(str(user_id))
-                response.set_cookie('access_token', access_token)
+                iv = secrets.token_hex(8)
+                access_token = cryptos.encrypt(str(user_id), iv.encode('utf-8'))
+                now_time = datetime.datetime.now()
+                expire = now_time + settings.COOKIE_EXPIRE
+                response.set_cookie('access_token', access_token + iv, expires=expire, secure=True, httponly=True, samesite='strict')
+                request.META['CSRF_COOKIE'] = get_token(self.request)
                 return response
         else:
             return JsonResponse(r.json())
+
+
+class LogoutView(GenericAPIView):
+    """
+    Log out
+    """
+    def get(self, request):
+        response = JsonResponse({'code': 200, 'msg': 'OK'})
+        response.delete_cookie('access_token')
+        response.delete_cookie(settings.CSRF_COOKIE_NAME)
+        return response
 
 
 class UserInfoView(GenericAPIView):
@@ -100,7 +136,7 @@ class UserInfoView(GenericAPIView):
             user = User.objects.get(id=user_id)
             gitee_id = user.gitee_id
             with open('share/openGauss_sigs.yaml', 'r') as f:
-                sigs = yaml.load(f.read(), Loader=yaml.Loader)
+                sigs = yaml.safe_load(f)
             self_sigs = []
             for sig in sigs:
                 if gitee_id in sig['sponsors']:
@@ -126,6 +162,8 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
     queryset = Meeting.objects.all()
 
     def post(self, request, *args, **kwargs):
+        if request.COOKIES.get(settings.CSRF_COOKIE_NAME) != request.META.get('HTTP_X_CSRFTOKEN'):
+            return JsonResponse({'code': 403, 'msg': 'Forbidden'})
         try:
             user_id = IdentifyUser(request)
         except:
@@ -195,7 +233,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
             logger.warning('暂无可用host')
             return JsonResponse({'code': 1000, 'msg': '时间冲突，请调整时间预定会议', 'en_msg': 'Schedule time conflict'})
         # 从available_host_id中随机生成一个host_id,并在host_dict中取出
-        host_id = random.choice(available_host_id)
+        host_id = secrets.choice(available_host_id)
         host = host_dict[host_id]
         logger.info('host_id:{}'.format(host_id))
         logger.info('host:{}'.format(host))
@@ -260,12 +298,17 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         }
         p1 = Process(target=sendmail, args=(m, record))
         p1.start()
+        Meeting.objects.filter(mid=mid).update(sequence=sequence + 1)
 
         # 返回请求数据
+        access_token = refresh_token(user_id)
         resp = {'code': 201, 'msg': '创建成功', 'en_msg': 'Schedule meeting successfully'}
         meeting_id = Meeting.objects.get(mid=mid).id
         resp['id'] = meeting_id
-        return JsonResponse(resp)
+        response = JsonResponse(resp)
+        refresh_cookie(response, access_token)
+        request.META['CSRF_COOKIE'] = get_token(request)
+        return response
 
 
 class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, RetrieveModelMixin):
@@ -276,6 +319,8 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
     queryset = Meeting.objects.filter(is_delete=0)
 
     def put(self, request, *args, **kwargs):
+        if request.COOKIES.get(settings.CSRF_COOKIE_NAME) != request.META.get('HTTP_X_CSRFTOKEN'):
+            return JsonResponse({'code': 403, 'msg': 'Forbidden'})
         # 鉴权
         try:
             user_id = IdentifyUser(request)
@@ -388,9 +433,14 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         }
         p1 = Process(target=sendmail, args=(m, record))
         p1.start()
+        Meeting.objects.filter(mid=mid).update(sequence=sequence + 1)
         # 返回请求数据
+        access_token = refresh_token(user_id)
         resp = {'code': 204, 'msg': '修改成功', 'en_msg': 'Update successfully', 'id': mid}
-        return JsonResponse(resp)
+        response = JsonResponse(resp)
+        refresh_cookie(response, access_token)
+        request.META['CSRF_COOKIE'] = get_token(request)
+        return response
 
 
 class DeleteMeetingView(GenericAPIView, UpdateModelMixin):
@@ -401,6 +451,8 @@ class DeleteMeetingView(GenericAPIView, UpdateModelMixin):
     queryset = Meeting.objects.filter(is_delete=0)
 
     def delete(self, request, *args, **kwargs):
+        if request.COOKIES.get(settings.CSRF_COOKIE_NAME) != request.META.get('HTTP_X_CSRFTOKEN'):
+            return JsonResponse({'code': 403, 'msg': 'Forbidden'})
         # 鉴权
         try:
             user_id = IdentifyUser(request)
@@ -415,8 +467,34 @@ class DeleteMeetingView(GenericAPIView, UpdateModelMixin):
         user = User.objects.get(id=user_id)
         logger.info('{} has canceled meeting {}'.format(user.gitee_id, mid))
         from meetings.utils.send_cancel_email import sendmail
-        sendmail(mid)
-        return JsonResponse({'code': 204, 'msg': '已删除会议{}'.format(mid), 'en_msg': 'Delete successfully'})
+        meeting = Meeting.objects.get(mid=mid)
+        date = meeting.date
+        start = meeting.start
+        end = meeting.end
+        toaddrs = meeting.emaillist
+        topic = '[Cancel] ' + meeting.topic
+        sig_name = meeting.group_name
+        platform = meeting.mplatform
+        platform = platform.replace('zoom', 'Zoom').replace('welink', 'WeLink')
+        sequence = meeting.sequence
+        m = {
+            'mid': mid,
+            'date': date,
+            'start': start,
+            'end': end,
+            'toaddrs': toaddrs,
+            'topic': topic,
+            'sig_name': sig_name,
+            'platform': platform,
+            'sequence': sequence
+        }
+        sendmail(m)
+        Meeting.objects.filter(mid=mid).update(sequence=sequence + 1)
+        access_token = refresh_token(user_id)
+        response = JsonResponse({'code': 204, 'msg': '已删除会议{}'.format(mid), 'en_msg': 'Delete successfully'})
+        refresh_cookie(response, access_token)
+        request.META['CSRF_COOKIE'] = get_token(request)
+        return response
 
 
 class MeetingDetailView(GenericAPIView, RetrieveModelMixin):

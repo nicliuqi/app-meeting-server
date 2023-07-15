@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import requests
+import stat
 import tempfile
 import wget
 from django.db.models import Q
@@ -105,10 +106,11 @@ def generate_cover(mid, topic, group_name, date, filename, start_time, end_time)
     """生成封面"""
     html_path = filename.replace('.mp4', '.html')
     image_path = filename.replace('.mp4', '.png')
-    f = open(html_path, 'w')
     content = cover_content(topic, group_name, date, start_time, end_time)
-    f.write(content)
-    f.close()
+    flags = os.O_CREAT | os.O_WRONLY
+    modes = stat.S_IWUSR
+    with os.fdopen(os.open(html_path, flags, modes), 'w') as f:
+        f.write(content)
     os.system("cp meetings/images/cover.png {}".format(os.path.dirname(filename)))
     os.system("wkhtmltoimage --enable-local-file-access {} {}".format(html_path, image_path))
     logger.info("meeting {}: 生成封面".format(mid))

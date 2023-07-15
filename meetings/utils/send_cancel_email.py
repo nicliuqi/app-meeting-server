@@ -1,6 +1,7 @@
 import datetime
 import icalendar
 import logging
+import os
 import pytz
 import re
 import smtplib
@@ -17,19 +18,16 @@ from meetings.models import Meeting
 logger = logging.getLogger('log')
 
 
-def sendmail(mid):
-    mid = str(mid)
-    meeting = Meeting.objects.get(mid=mid)
-    date = meeting.date
-    start = meeting.start
-    end = meeting.end
-    toaddrs = meeting.emaillist
-    sponsor = meeting.sponsor
-    topic = '[Cancel] ' + meeting.topic
-    sig_name = meeting.group_name
-    platform = meeting.mplatform
-    platform = platform.replace('zoom', 'Zoom').replace('welink', 'WeLink')
-    sequence = meeting.sequence
+def sendmail(m):
+    mid = str(m.get('mid'))
+    date = m.get('date')
+    start = m.get('start')
+    end = m.get('end')
+    toaddrs = m.get('toaddrs')
+    topic = '[Cancel] ' + m.get('topic')
+    sig_name = m.get('sig_name')
+    platform = m.get('platform')
+    sequence = m.get('sequence')
     sequence += 1
     start_time = ' '.join([date, start])
     toaddrs = toaddrs.replace(' ', '').replace('，', ',').replace(';', ',').replace('；', ',')
@@ -42,9 +40,10 @@ def sendmail(mid):
     toaddrs_string = ','.join(toaddrs_list)
     # 发送列表默认添加该sig所在的邮件列表
     newly_mapping = 'https://gitee.com/opengauss/tc/raw/master/maillist_mapping.yaml'
-    subprocess.call('wget {} -O meetings/utils/maillist_mapping.yaml'.format(newly_mapping), shell=True)
+    cmd = 'wget {} -O meetings/utils/maillist_mapping.yaml'.format(newly_mapping)
+    subprocess.call(cmd.split())
     with open('meetings/utils/maillist_mapping.yaml', 'r') as f:
-        maillists = yaml.load(f.read(), Loader=yaml.Loader)
+        maillists = yaml.safe_load(f)
     if sig_name in maillists.keys():
         maillist = maillists[sig_name]
         toaddrs_list.append(maillist)
@@ -71,8 +70,10 @@ def sendmail(mid):
     msg.attach(content)
 
     # 取消日历
-    dt_start = (datetime.datetime.strptime(date + ' ' + start, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(tzinfo=pytz.utc)
-    dt_end = (datetime.datetime.strptime(date + ' ' + end, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(tzinfo=pytz.utc)
+    dt_start = (datetime.datetime.strptime(date + ' ' + start, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(
+        tzinfo=pytz.utc)
+    dt_end = (datetime.datetime.strptime(date + ' ' + end, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(
+        tzinfo=pytz.utc)
 
     cal = icalendar.Calendar()
     cal.add('prodid', '-//openeuler conference calendar')
@@ -97,16 +98,16 @@ def sendmail(mid):
 
     msg.attach(part)
 
+    sender = os.getenv('SMTP_SENDER', '')
     # 完善邮件信息
     msg['Subject'] = topic
-    msg['From'] = 'openGauss conference<public@opengauss.org>'
+    msg['From'] = 'openGauss conference<%s>' % sender
     msg['To'] = toaddrs_string
 
     # 登录服务器发送邮件
     try:
         gmail_username = settings.GMAIL_USERNAME
         gmail_password = settings.GMAIL_PASSWORD
-        sender = 'public@opengauss.org'
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.ehlo()
         server.starttls()
@@ -116,6 +117,5 @@ def sendmail(mid):
         logger.info('error addrs: {}'.format(error_addrs))
         logger.info('email sent: {}'.format(toaddrs_string))
         server.quit()
-        Meeting.objects.filter(mid=mid).update(sequence=sequence)
     except smtplib.SMTPException as e:
-        logger.error(e) 
+        logger.error(e)

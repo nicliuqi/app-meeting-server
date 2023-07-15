@@ -129,8 +129,8 @@ DATABASES = {
 
 OPENGAUSS_MEETING_HOSTS = {
     'zoom': {
-        os.getenv('ZOOM_HOST_FIRST', ''): 'public@cla.opengauss.org',
-        os.getenv('ZOOM_HOST_SECOND', ''): 'public@certificate.opengauss.org'
+        os.getenv('ZOOM_HOST_FIRST', ''): os.getenv('ZOOM_ACCOUNT_FIRST', ''),
+        os.getenv('ZOOM_HOST_SECOND', ''): os.getenv('ZOOM_ACCOUNT_SECOND', '')
     },
     'welink': {
         os.getenv('WELINK_HOST_1', ''): os.getenv('WELINK_HOST_1', '')
@@ -263,3 +263,7 @@ GMAIL_USERNAME = os.getenv('GMAIL_USERNAME', '')
 GMAIL_PASSWORD = os.getenv('GMAIL_PASSWORD', '')
 SMTP_SERVER_HOST = os.getenv('SMTP_SERVER_HOST', '')
 SMTP_SERVER_PORT = 25
+CSRF_COOKIE_NAME = 'meeting-csrftoken'
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = 'strict'
+COOKIE_EXPIRE = timedelta(minutes=30)
