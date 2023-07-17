@@ -1,5 +1,6 @@
 import requests
 import logging
+import stat
 import sys
 import json
 import tempfile
@@ -43,7 +44,9 @@ def gene_code_img(appid, secret, activity_id):
 def save_temp_img(content):
     tmpdir = tempfile.gettempdir()
     tmp_file = os.path.join(tmpdir, 'tmp.jpeg')
-    with open(tmp_file, 'wb') as f:
+    flags = os.O_CREAT | os.O_WRONLY
+    modes = stat.S_IWUSR
+    with os.fdopen(os.open(tmp_file, flags, modes), 'wb') as f:
         f.write(content)
     return tmp_file
 
@@ -58,11 +61,11 @@ def upload_to_obs(tmp_file, activity_id):
         sys.exit(1)
     obs_client = ObsClient(access_key_id=access_key_id,
                            secret_access_key=secret_access_key,
-                           server='https://{}'.format(endpoint))
+                           server='https://%s' % endpoint)
     object_key = 'mindspore/miniprogram/activity/{}/wx_code.jpeg'.format(activity_id)
     obs_client.uploadFile(bucketName=bucketName, objectKey=object_key, uploadFile=tmp_file, taskNum=10,
                           enableCheckpoint=True)
-    img_url = 'https://{}.{}/{}'.format(bucketName, endpoint, object_key)
+    img_url = 'https://%s.%s/%s' % (bucketName, endpoint, object_key)
     return img_url
 
 

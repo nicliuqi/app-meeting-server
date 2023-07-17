@@ -2,6 +2,7 @@ import datetime
 import csv
 import codecs
 import logging
+import os
 import tempfile
 import smtplib
 from django.conf import settings
@@ -65,21 +66,21 @@ def send_csv(csv_file, mailto):
                          filename='活动报名表单' + datetime.datetime.now().strftime('%Y%m%d%H%M%S') + '.csv')
     msg.attach(enclosure)
 
+    sender = os.getenv('SMTP_SENDER', '')
     # 完善邮件信息
     msg['Subject'] = '活动报名表单'
-    msg['From'] = 'Mindspore MiniProgram<public@mindspore.cn>'
+    msg['From'] = 'Mindspore MiniProgram<%s>' % sender
     msg['To'] = mailto
 
     # 登录服务器发送邮件
     try:
         gmail_username = settings.GMAIL_USERNAME
         gmail_password = settings.GMAIL_PASSWORD
-        sender = 'public@mindspore.cn'
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.ehlo()
         server.starttls()
         server.login(gmail_username, gmail_password)
-        server.sendmail(gmail_username, [mailto], msg.as_string())
+        server.sendmail(sender, [mailto], msg.as_string())
         print('发送成功')
         server.quit()
     except smtplib.SMTPException as e:

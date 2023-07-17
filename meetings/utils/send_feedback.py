@@ -1,4 +1,5 @@
 import logging
+import os
 import smtplib
 from django.conf import settings
 from email.mime.multipart import MIMEMultipart
@@ -19,10 +20,11 @@ def run(feedback_type, feedback_email, feedback_content):
     reply_msg.attach(reply_content)
 
     # 完善邮件信息
-    mailto = 'contact@mindspore.cn'
+    mailto = os.getenv('CONTACT_EMAIL', '')
     msg['Subject'] = 'MindSpore小程序意见反馈'
     msg['From'] = 'MindSpore MiniProgram'
     msg['To'] = mailto
+    sender = os.getenv('SMTP_SENDER', '')
     reply_msg['Subject'] = 'MindSpore小程序意见反馈'
     reply_msg['From'] = 'MindSpore MiniProgram'
     reply_msg['To'] = feedback_email
@@ -31,7 +33,6 @@ def run(feedback_type, feedback_email, feedback_content):
     try:
         gmail_username = settings.GMAIL_USERNAME
         gmail_password = settings.GMAIL_PASSWORD
-        sender = 'public@mindspore.cn'
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.ehlo()
         server.starttls()

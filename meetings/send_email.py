@@ -1,6 +1,7 @@
 import datetime
 import icalendar
 import logging
+import os
 import pytz
 import re
 import smtplib
@@ -122,16 +123,16 @@ def sendmail(mid, record=None, enclosure_paths=None):
 
     msg.attach(part)
 
+    sender = os.getenv('SMTP_SENDER', '')
     # 完善邮件信息
     msg['Subject'] = topic
-    msg['From'] = 'MindSpore conference <public@mindspore.cn>'
+    msg['From'] = 'MindSpore conference <%s>' % sender
     msg['To'] = toaddrs_string
 
     # 登录服务器发送邮件
     try:
         gmail_username = settings.GMAIL_USERNAME
         gmail_password = settings.GMAIL_PASSWORD
-        sender = 'public@mindspore.cn'
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.ehlo()
         server.starttls()
