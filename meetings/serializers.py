@@ -71,7 +71,8 @@ class LoginSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         refresh = RefreshToken.for_user(instance)
         data['user_id'] = instance.id
-        data['access'] = str(refresh.access_token)
+        access = str(refresh.access_token)
+        data['access'] = access
         data['level'] = instance.level
         data['gitee_name'] = instance.gitee_name
         data['activity_level'] = instance.activity_level
