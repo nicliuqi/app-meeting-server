@@ -26,7 +26,7 @@ ARG PUBLIC_PASSWORD
 RUN git clone https://$PUBLIC_USER:$PUBLIC_PASSWORD@github.com/Open-Infra-Ops/plugins /work/app-meeting-server/plugins && \ 
     cp -r /work/app-meeting-server/plugins/armorrasp /work/app-meeting-server/armorrasp && \
     rm -rf /work/app-meeting-server/plugins && \
-    cd /opt/mailman-web/armorrasp && pip3 install armorrasp.tar.gz
+    cd /work/app-meeting-server/armorrasp && pip3 install armorrasp.tar.gz
 
 
 RUN cp /usr/bin/python3 /usr/bin/python
