@@ -267,7 +267,19 @@ def handle_zoom_recordings(mid):
                 obs_client = ObsClient(access_key_id=access_key_id,
                                        secret_access_key=secret_access_key,
                                        server='https://{}'.format(endpoint))
-                objs = obs_client.listObjects(bucketName=bucketName)
+                objs = []
+                mark = None
+                while True:
+                    obs_objs = obs_client.listObjects(bucketName, marker=mark, max_keys=1000)
+                    if obs_objs.status < 300:
+                        index = 1
+                        for content in obs_objs.body.contents:
+                            objs.append(content)
+                            index += 1
+                        if obs_objs.body.is_truncated:
+                            mark = obs_objs.body.next_marker
+                        else:
+                            break
                 # 预备文件上传路径
                 start = recordings_list[0]['recording_start']
                 month = datetime.datetime.strptime(start.replace('T', ' ').replace('Z', ''),
@@ -279,13 +291,13 @@ def handle_zoom_recordings(mid):
                 # 收集录像信息待用
                 end = recordings_list[0]['recording_end']
                 zoom_download_url = recordings_list[0]['download_url']
-                if not objs['body']['contents']:
+                if not objs:
                     logger.info('meeting {}: OBS无存储对象，开始下载视频'.format(mid))
                     download_upload_recordings(start, end, zoom_download_url, mid, total_size, video,
                                                endpoint, object_key,
                                                group_name, obs_client)
                 else:
-                    key_size_map = {x['key']: x['size'] for x in objs['body']['contents']}
+                    key_size_map = {x['key']: x['size'] for x in objs}
                     if object_key not in key_size_map.keys():
                         logger.info('meeting {}: OBS存储服务中无此对象，开始下载视频'.format(mid))
                         download_upload_recordings(start, end, zoom_download_url, mid, total_size, video,
@@ -442,7 +454,19 @@ def after_download_recording(target_filename, start, end, mid, target_name):
             obs_client = ObsClient(access_key_id=access_key_id,
                                    secret_access_key=secret_access_key,
                                    server='https://{}'.format(endpoint))
-            objs = obs_client.listObjects(bucketName=bucketName)
+            objs = []
+            mark = None
+            while True:
+                obs_objs = obs_client.listObjects(bucketName, marker=mark, max_keys=1000)
+                if obs_objs.status < 300:
+                    index = 1
+                    for content in obs_objs.body.contents:
+                        objs.append(content)
+                        index += 1
+                    if obs_objs.body.is_truncated:
+                        mark = obs_objs.body.next_marker
+                    else:
+                        break
             # 预备文件上传路径
             date = Meeting.objects.get(mid=mid).date
             start_time = date + 'T' + start + ':00Z'
@@ -454,12 +478,12 @@ def after_download_recording(target_filename, start, end, mid, target_name):
             object_key = 'openeuler/{}/{}/{}/{}'.format(group_name, month, mid, target_name)
             logger.info('meeting {}: object_key is {}'.format(mid, object_key))
             # 收集录像信息待用
-            if not objs['body']['contents']:
+            if not objs:
                 logger.info('meeting {}: OBS无存储对象，开始下载视频'.format(mid))
                 download_upload_welink_recordings(start_time, end_time, mid, target_filename,
                                                   object_key, endpoint, group_name, obs_client)
             else:
-                key_size_map = {x['key']: x['size'] for x in objs['body']['contents']}
+                key_size_map = {x['key']: x['size'] for x in objs}
                 if object_key not in key_size_map.keys():
                     logger.info('meeting {}: OBS存储服务中无此对象，开始下载视频'.format(mid))
                     download_upload_welink_recordings(start_time, end_time, mid, target_filename,
