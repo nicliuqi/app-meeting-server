@@ -25,7 +25,19 @@ class Command(BaseCommand):
         obs_client = ObsClient(access_key_id=access_key_id,
                                secret_access_key=secret_access_key,
                                server='https://{}'.format(endpoint))
-        objs = obs_client.listObjects(bucketName=bucketName)['body']['contents']
+        objs = []
+        mark = None
+        while True:
+            obs_objs = obs_client.listObjects(bucketName, marker=mark, max_keys=1000)
+            if obs_objs.status < 300:
+                index = 1
+                for content in obs_objs.body.contents:
+                    objs.append(content)
+                    index += 1
+                if obs_objs.body.is_truncated:
+                    mark = obs_objs.body.next_marker
+                else:
+                    break
         # 遍历
         if len(objs) == 0:
             logger.info('OBS中无对象')
