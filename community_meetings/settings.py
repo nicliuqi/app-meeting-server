@@ -36,20 +36,10 @@ APP_CONF = {
 
 MEETING_HOSTS = {
     'zoom': {
-        os.getenv('HOST_TOMMYLIKE', ''): 'tommylikehu@gmail.com',
-        os.getenv('HOST_GEORGE', ''): 'caozhi1214@gmail.com',
-        os.getenv('HOST_NIC', ''): 'nicliuqi@gmail.com',
-        os.getenv('HOST_CY', ''): '775517776chng@gmail.com',
-        os.getenv('HOST_ZCJ', ''): 'dakangsiji@gmail.com',
-        os.getenv('HOST_ZJ', ''): 'jun.zhongjun2@gmail.com',
-        os.getenv('HOST_WH', ''): 'wanghaosqsq@gmail.com',
-        os.getenv('HOST_LXL', ''): 'xiaoliwow@gmail.com',
-        os.getenv('HOST_ZD', ''): 'zhuwind2022@gmail.com',
-        os.getenv('HOST_ZC', ''): 'chaotomzhu@gmail.com',
-        os.getenv('HOST_HJC', ''): 'plusvolcano1@gmail.com',
-        os.getenv('HOST_WWL', ''): 'wangwenliang0401@gmail.com',
-        os.getenv('HOST_ZZY', ''): 'zhengzhenyulixi@gmail.com',
-        os.getenv('HOST_ZB', ''): 'bzhaojyathousandy@gmail.com'
+        os.getenv('NEW_HOST_1', ''): os.getenv('HOST_1_ACCOUNT'),
+        os.getenv('NEW_HOST_2', ''): os.getenv('HOST_2_ACCOUNT'),
+        os.getenv('NEW_HOST_3', ''): os.getenv('HOST_3_ACCOUNT'),
+        os.getenv('NEW_HOST_4', ''): os.getenv('HOST_4_ACCOUNT')
     },
     'welink': {
         os.getenv('WELINK_HOST_1', ''): os.getenv('WELINK_HOST_1', '')
