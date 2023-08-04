@@ -11,8 +11,19 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 import datetime
 import os
+import sys
 import time
+import yaml
 from pathlib import Path
+
+if os.path.exists('/vault/secrets/secrets.yaml'):
+    with open('/vault/secrets/secrets.yaml', 'r') as f:
+        content = yaml.safe_load(f)
+    DEFAULT_CONF = content
+else:
+    sys.exit()
+if sys.argv[0] == 'uwsgi':
+    os.remove('/vault/secrets/secrets.yaml')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,7 +34,7 @@ AUTH_USER_MODEL = 'meetings.User'
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', '') 
+SECRET_KEY = DEFAULT_CONF.get('SECRET_KEY', '')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -142,39 +153,39 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'mindspore_meetings',
-        'USER': os.getenv('DB_USER', 'root'),
-        'PASSWORD': os.getenv('DB_PASSWORD', '123456'),
-        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('DB_PORT', '3306')
+        'USER': DEFAULT_CONF.get('DB_USER', 'root'),
+        'PASSWORD': DEFAULT_CONF.get('DB_PASSWORD', '123456'),
+        'HOST': DEFAULT_CONF.get('DB_HOST', '127.0.0.1'),
+        'PORT': DEFAULT_CONF.get('DB_PORT', '3306')
     }
 }
 
 MINDSPORE_APP_CONF = {
-    'appid': os.getenv('APP_ID', ''),
-    'secret': os.getenv('APP_SECRET', '')
+    'appid': DEFAULT_CONF.get('APP_ID', ''),
+    'secret': DEFAULT_CONF.get('APP_SECRET', '')
 }
 
 MINDSPORE_MEETING_HOSTS = {
     'tencent': ['admin', 'meeting48317', 'meeting48318'],
-    'welink': [os.getenv('WELINK_HOST_1', '')]
+    'welink': [DEFAULT_CONF.get('WELINK_HOST_1', '')]
 }
 
 WELINK_HOSTS = {
-    os.getenv('WELINK_HOST_1', ''): {
-        'account': os.getenv('WELINK_HOST_1_ACCOUNT', ''),
-        'pwd': os.getenv('WELINK_HOST_1_PWD', '')
+    DEFAULT_CONF.get('WELINK_HOST_1', ''): {
+        'account': DEFAULT_CONF.get('WELINK_HOST_1_ACCOUNT', ''),
+        'pwd': DEFAULT_CONF.get('WELINK_HOST_1_PWD', '')
     }
 }
 
-RECORDING_RECEIVER = os.getenv('RECORDING_RECEIVER', '')
+RECORDING_RECEIVER = DEFAULT_CONF.get('RECORDING_RECEIVER', '')
 
-TX_MEETING_APPID = os.getenv('TX_MEETING_APPID', '')
-TX_MEETING_SDKID = os.getenv('TX_MEETING_SDKID', '')
-TX_MEETING_SECRETKEY = os.getenv('TX_MEETING_SECRETKEY', '')
-TX_MEETING_SECRETID = os.getenv('TX_MEETING_SECRETID')
+TX_MEETING_APPID = DEFAULT_CONF.get('TX_MEETING_APPID', '')
+TX_MEETING_SDKID = DEFAULT_CONF.get('TX_MEETING_SDKID', '')
+TX_MEETING_SECRETKEY = DEFAULT_CONF.get('TX_MEETING_SECRETKEY', '')
+TX_MEETING_SECRETID = DEFAULT_CONF.get('TX_MEETING_SECRETID')
 
-MINDSPORE_MEETING_ATTENTION_TEMPLATE = os.getenv('MINDSPORE_MEETING_ATTENTION_TEMPLATE', '')
-MINDSPORE_CANCEL_MEETING_TEMPLATE = os.getenv('MINDSPORE_CANCEL_MEETING_TEMPLATE', '')
+MINDSPORE_MEETING_ATTENTION_TEMPLATE = DEFAULT_CONF.get('MINDSPORE_MEETING_ATTENTION_TEMPLATE', '')
+MINDSPORE_CANCEL_MEETING_TEMPLATE = DEFAULT_CONF.get('MINDSPORE_CANCEL_MEETING_TEMPLATE', '')
 
 # Password validation
 # https://docs.djangoproject.com/en/3.1/ref/settings/#auth-password-validators
@@ -220,7 +231,8 @@ cur_path = os.path.dirname(os.path.realpath(__file__))  # log_path是存放日�
 
 log_path = os.path.join(os.path.dirname(cur_path), 'logs')
 
-if not os.path.exists(log_path): os.mkdir(log_path)  # 如果不存在这个logs文件夹，就自动创建一个
+if not os.path.exists(log_path):
+    os.mkdir(log_path)  # 如果不存在这个logs文件夹，就自动创建一个
 
 LOGGING = {
     'version': 1,
@@ -293,7 +305,7 @@ LOGGING = {
     }
 }
 
-GMAIL_USERNAME = os.getenv('GMAIL_USERNAME', '')
-GMAIL_PASSWORD = os.getenv('GMAIL_PASSWORD', '')
-SMTP_SERVER_HOST = os.getenv('SMTP_SERVER_HOST', '')
+GMAIL_USERNAME = DEFAULT_CONF.get('GMAIL_USERNAME', '')
+GMAIL_PASSWORD = DEFAULT_CONF.get('GMAIL_PASSWORD', '')
+SMTP_SERVER_HOST = DEFAULT_CONF.get('SMTP_SERVER_HOST', '')
 SMTP_SERVER_PORT = 25

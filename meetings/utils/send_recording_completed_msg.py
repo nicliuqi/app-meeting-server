@@ -22,7 +22,7 @@ def sendmail(topic, group_name, date, start, end, meeting_code, download_url):
             '{{download_url}}', download_url)
     content = MIMEText(body_of_email, 'html', 'utf-8')
     msg.attach(content)
-    sender = os.getenv('SMTP_SENDER', '')
+    sender = settings.DEFAULT_CONF.get('SMTP_SENDER', '')
     msg['Subject'] = 'MindSporeApp录像生成'
     msg['From'] = 'MindSpore App'
     msg['To'] = toaddrs
@@ -39,3 +39,4 @@ def sendmail(topic, group_name, date, start, end, meeting_code, download_url):
         server.quit()
     except smtplib.SMTPException as e:
         logger.error(e)
+

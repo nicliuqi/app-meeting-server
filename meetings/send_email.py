@@ -88,8 +88,10 @@ def sendmail(mid, record=None, enclosure_paths=None):
             msg.attach(file)
 
     # 添加日历
-    dt_start = (datetime.datetime.strptime(date + ' ' + start, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(tzinfo=pytz.utc)
-    dt_end = (datetime.datetime.strptime(date + ' ' + end, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(tzinfo=pytz.utc)
+    dt_start = (datetime.datetime.strptime(date + ' ' + start, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(
+        tzinfo=pytz.utc)
+    dt_end = (datetime.datetime.strptime(date + ' ' + end, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(
+        tzinfo=pytz.utc)
 
     cal = icalendar.Calendar()
     cal.add('prodid', '-//mindspore conference calendar')
@@ -123,7 +125,7 @@ def sendmail(mid, record=None, enclosure_paths=None):
 
     msg.attach(part)
 
-    sender = os.getenv('SMTP_SENDER', '')
+    sender = settings.DEFAULT_CONF.get('SMTP_SENDER', '')
     # 完善邮件信息
     msg['Subject'] = topic
     msg['From'] = 'MindSpore conference <%s>' % sender
@@ -144,3 +146,4 @@ def sendmail(mid, record=None, enclosure_paths=None):
         server.quit()
     except smtplib.SMTPException as e:
         logger.error(e)
+

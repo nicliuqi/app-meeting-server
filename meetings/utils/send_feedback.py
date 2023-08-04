@@ -20,11 +20,11 @@ def run(feedback_type, feedback_email, feedback_content):
     reply_msg.attach(reply_content)
 
     # 完善邮件信息
-    mailto = os.getenv('CONTACT_EMAIL', '')
+    mailto = settings.DEFAULT_CONF.get('CONTACT_EMAIL', '')
     msg['Subject'] = 'MindSpore小程序意见反馈'
     msg['From'] = 'MindSpore MiniProgram'
     msg['To'] = mailto
-    sender = os.getenv('SMTP_SENDER', '')
+    sender = settings.DEFAULT_CONF.get('SMTP_SENDER', '')
     reply_msg['Subject'] = 'MindSpore小程序意见反馈'
     reply_msg['From'] = 'MindSpore MiniProgram'
     reply_msg['To'] = feedback_email
@@ -44,3 +44,4 @@ def run(feedback_type, feedback_email, feedback_content):
         server.quit()
     except smtplib.SMTPException as e:
         logger.error(e)
+

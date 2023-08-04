@@ -23,8 +23,6 @@ RUN cp /usr/bin/python3 /usr/bin/python
 RUN cd /work/app-meeting-server && pip3 install armorrasp.tar.gz
 
 ENV LANG=en_US.UTF-8
-ENV SENDER="public@mindspore.cn"
-ENV CONTACT_EMAIL="contact@mindspore.cn"
 
 EXPOSE 8080
 ENTRYPOINT ["uwsgi", "--ini", "/work/app-meeting-server/deploy/production/uwsgi.ini"]
