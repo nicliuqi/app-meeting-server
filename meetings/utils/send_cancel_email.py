@@ -84,7 +84,7 @@ def sendmail(mid):
     msg.attach(part)
 
     # 完善邮件信息
-    sender = os.getenv('SMTP_SENDER', '')
+    sender = settings.DEFAULT_CONF.get('SMTP_SENDER', '')
     msg['Subject'] = topic
     msg['From'] = 'MindSpore conference <%s>' % sender
     msg['To'] = toaddrs_string
@@ -104,3 +104,4 @@ def sendmail(mid):
         server.quit()
     except smtplib.SMTPException as e:
         logger.error(e)
+

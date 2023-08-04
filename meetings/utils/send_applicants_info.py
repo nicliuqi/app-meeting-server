@@ -17,7 +17,7 @@ logger = logging.getLogger('log')
 
 def run(queryset, mailto):
     tmpdir = tempfile.gettempdir()
-    target_name = tmpdir + '活动报名表单.csv'
+    target_name = tmpdir + '.csv'
     f = codecs.open(target_name, 'w')
     writer = csv.writer(f)
     writer.writerow(['姓名', '微信号', '性别', '年龄', '电话', '邮箱', '所在公司/就读学校', '职业方向', '职业名称', '工作年限',
@@ -66,7 +66,7 @@ def send_csv(csv_file, mailto):
                          filename='活动报名表单' + datetime.datetime.now().strftime('%Y%m%d%H%M%S') + '.csv')
     msg.attach(enclosure)
 
-    sender = os.getenv('SMTP_SENDER', '')
+    sender = settings.DEFAULT_CONF.get('SMTP_SENDER', '')
     # 完善邮件信息
     msg['Subject'] = '活动报名表单'
     msg['From'] = 'Mindspore MiniProgram<%s>' % sender
@@ -85,3 +85,4 @@ def send_csv(csv_file, mailto):
         server.quit()
     except smtplib.SMTPException as e:
         logger.error(e)
+
