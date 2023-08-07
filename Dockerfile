@@ -22,10 +22,10 @@ RUN wget https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.3/wkh
 # RASP install
 ARG PUBLIC_USER
 ARG PUBLIC_PASSWORD
-RUN git clone https://$PUBLIC_USER:$PUBLIC_PASSWORD@github.com/Open-Infra-Ops/plugins
-RUN cp /work/app-meeting-server/plugins/armorrasp/armorrasp.tar.gz .
-RUN rm -rf /work/app-meeting-server/plugins
-RUN pip3 install armorrasp.tar.gz
+RUN git clone https://$PUBLIC_USER:$PUBLIC_PASSWORD@github.com/Open-Infra-Ops/plugins  &&\
+    cp plugins/armorrasp/armorrasp.tar.gz .  &&\
+    rm -rf plugins  &&\
+    pip3 install armorrasp.tar.gz
 
 ENV LANG=en_US.UTF-8
 
