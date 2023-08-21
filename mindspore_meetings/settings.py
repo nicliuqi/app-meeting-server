@@ -16,16 +16,18 @@ import time
 import yaml
 from pathlib import Path
 
-if os.path.exists('/vault/secrets/secrets.yaml'):
-    with open('/vault/secrets/secrets.yaml', 'r') as f:
-        content = yaml.safe_load(f)
-    DEFAULT_CONF = content
-else:
+
+CONFIG_PATH = os.getenv('CONFIG_PATH')
+XARMOR_CONF = os.getenv('XARMOR_CONF')
+if not os.path.exists(CONFIG_PATH):
     sys.exit()
+with open(CONFIG_PATH, 'r') as f:
+    content = yaml.safe_load(f)
+DEFAULT_CONF = content
 if sys.argv[0] == 'uwsgi':
-    os.remove('/vault/secrets/secrets.yaml')
-    if 'xarmor_pyrasp.ini' in os.listdir():
-        os.remove('./xarmor_pyrasp.ini')
+    os.remove(CONFIG_PATH)
+    if os.path.basename(XARMOR_CONF) in os.listdir():
+        os.remove(os.path.basename(XARMOR_CONF))
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -154,7 +156,7 @@ WSGI_APPLICATION = 'mindspore_meetings.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'mindspore_meetings',
+        'NAME': DEFAULT_CONF.get('DB_NAME', ''),
         'USER': DEFAULT_CONF.get('DB_USER', 'root'),
         'PASSWORD': DEFAULT_CONF.get('DB_PASSWORD', '123456'),
         'HOST': DEFAULT_CONF.get('DB_HOST', '127.0.0.1'),
