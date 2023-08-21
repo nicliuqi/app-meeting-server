@@ -31,6 +31,8 @@ class User(AbstractBaseUser):
     working_years = models.CharField(verbose_name='工作年限', max_length=10, null=True, blank=True)
     enterprise = models.CharField(verbose_name='企业', max_length=30, null=True, blank=True)
     register_number = models.IntegerField(verbose_name='报名次数', default=0)
+    agree_privacy_policy = models.BooleanField(verbose_name='同意隐私政策', default=False)
+    agree_privacy_policy_time = models.DateTimeField(verbose_name='同意隐私政策时间', null=True, blank=True)
 
     USERNAME_FIELD = 'openid'
 

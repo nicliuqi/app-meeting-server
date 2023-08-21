@@ -20,7 +20,7 @@ from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, ListModelM
 from rest_framework.response import Response
 from rest_framework_simplejwt import authentication
 from rest_framework_simplejwt.tokens import RefreshToken
-from meetings.models import Meeting, Record, Activity, ActivityCollect, ActivityRegister, ActivitySign
+from meetings.models import Meeting, Record, Activity, ActivityCollect
 from meetings.permissions import MaintainerPermission, AdminPermission, QueryPermission, SponsorPermission, \
     ActivityAdminPermission
 from meetings.models import GroupUser, Group, User, Collect, Feedback, City, CityUser
@@ -29,11 +29,10 @@ from meetings.serializers import LoginSerializer, UsersInGroupSerializer, SigsSe
     MeetingDelSerializer, MeetingDetailSerializer, MeetingsListSerializer, CollectSerializer, FeedbackSerializer, \
     CitiesSerializer, CityUserAddSerializer, CityUserDelSerializer, UserCitySerializer, SponsorSerializer, \
     ActivitySerializer, ActivityUpdateSerializer, ActivityDraftUpdateSerializer, ActivitiesSerializer, \
-    ActivityRetrieveSerializer, ActivityCollectSerializer, ActivityRegisterSerializer, ActivitySignSerializer, \
-    ActivityRegistrantsSerializer, ApplicantInfoSerializer
+    ActivityRetrieveSerializer, ActivityCollectSerializer
 from meetings.send_email import sendmail
 from meetings.utils.tecent_apis import *
-from meetings.utils import send_feedback, prepare_create_activity, send_applicants_info, gene_wx_code, gene_sign_code
+from meetings.utils import send_feedback, prepare_create_activity, gene_wx_code
 from obs import ObsClient
 from meetings.utils import drivers
 from meetings.auth import CustomAuthentication
@@ -881,6 +880,7 @@ class SponsorsDelView(GenericAPIView, CreateModelMixin):
     permission_classes = (ActivityAdminPermission,)
 
     def post(self, request, *args, **kwargs):
+        access = refresh_access(self.request.user)
         ids = self.request.data.get('ids')
         ids_list = [int(x) for x in ids.split('-')]
         User.objects.filter(id__in=ids_list, activity_level=2).update(activity_level=1)
@@ -1109,9 +1109,7 @@ class ApproveActivityView(GenericAPIView, UpdateModelMixin):
             logger.info('活动id: {}'.format(activity_id))
             img_url = gene_wx_code.run(appid, secret, activity_id)
             logger.info('生成活动页面二维码: {}'.format(img_url))
-            sign_url = gene_sign_code.run(appid, secret, activity_id)
-            logger.info('生成活动签到二维码: {}'.format(sign_url))
-            Activity.objects.filter(id=activity_id, status=2).update(status=3, wx_code=img_url, sign_url=sign_url)
+            Activity.objects.filter(id=activity_id, status=2).update(status=3, wx_code=img_url)
             return JsonResponse({'code': 201, 'msg': '活动通过审核', 'access': access})
         else:
             return JsonResponse({'code': 400, 'msg': '活动不存在', 'access': access})
@@ -1327,132 +1325,6 @@ class ActivityCollectionDelView(GenericAPIView, DestroyModelMixin):
         return queryset
 
 
-class ActivityRegisterView(GenericAPIView, CreateModelMixin):
-    """活动报名"""
-    serializer_class = ActivityRegisterSerializer
-    queryset = ActivityRegister.objects.all()
-    permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (CustomAuthentication,)
-
-    def post(self, request, *args, **kwargs):
-        access = refresh_access(self.request.user)
-        data = self.request.data
-        activity_id = data['activity']
-        user_id = self.request.user.id
-        if Activity.objects.filter(id=activity_id, user_id=user_id):
-            return JsonResponse({'code': 400, 'msg': '不能报名自己发起的活动', 'access': access})
-        name = data['name']
-        wx_account = data['wx_account']
-        gender = data['gender']
-        age = data['age']
-        gitee_id = data.get('gitee_id', None)
-        telephone = data['telephone']
-        email = data['email']
-        company = data['company']
-        career_direction = data['career_direction']
-        profession = data['profession']
-        working_years = data['working_years']
-        register_number = User.objects.get(id=self.request.user.id).register_number
-        register_number += 1
-        User.objects.filter(id=self.request.user.id).update(
-            name=name,
-            wx_account=wx_account,
-            gender=gender,
-            age=age,
-            gitee_name=gitee_id,
-            telephone=telephone,
-            email=email,
-            company=company,
-            career_direction=career_direction,
-            profession=profession,
-            working_years=working_years
-        )
-        ActivityRegister.objects.create(activity_id=activity_id, user_id=user_id)
-        register_number = len(ActivityRegister.objects.filter(user_id=self.request.user.id))
-        return JsonResponse({'code': 201, 'msg': '报名成功', 'register_number': register_number, 'access': access})
-
-
-class RegisteredActivitiesView(GenericAPIView, ListModelMixin):
-    """已报名的活动(已报名)"""
-    serializer_class = ActivitiesSerializer
-    queryset = Activity.objects.all()
-    permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (authentication.JWTAuthentication,)
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-    def get_queryset(self):
-        user_id = self.request.user.id
-        register_lst = ActivityRegister.objects.filter(user_id=user_id).values_list('activity')
-        queryset = Activity.objects.filter(is_delete=0, id__in=register_lst).order_by('-start_date', 'id')
-        return queryset
-
-
-class ActivitySignView(GenericAPIView, CreateModelMixin):
-    """活动签到"""
-    serializer_class = ActivitySignSerializer
-    queryset = ActivitySign.objects.all()
-    permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (CustomAuthentication,)
-
-    def post(self, request, *args, **kwargs):
-        access = refresh_access(self.request.user)
-        user_id = self.request.user.id
-        activity_id = self.request.data['activity']
-        if not ActivityRegister.objects.filter(activity_id=activity_id, user_id=user_id):
-            return JsonResponse({'code': 400, 'msg': '用户还没有报名这个活动', 'access': access})
-        if not ActivitySign.objects.filter(activity_id=activity_id, user_id=user_id):
-            ActivitySign.objects.create(activity_id=activity_id, user_id=user_id)
-        return JsonResponse({'code': 201, 'msg': '活动签到', 'access': access})
-
-
-class ActivityRegistrantsView(GenericAPIView, RetrieveModelMixin):
-    """活动报名者信息"""
-    serializer_class = ActivityRegistrantsSerializer
-    queryset = Activity.objects.filter(is_delete=0)
-    permission_classes = (QueryPermission,)
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-
-class ApplicantsInfoView(GenericAPIView, ListModelMixin):
-    """活动报名者信息列表"""
-    queryset = ActivityRegister.objects.all()
-    permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (CustomAuthentication,)
-
-    def post(self, request, *args, **kwargs):
-        access = refresh_access(self.request.user)
-        data = self.request.data
-        try:
-            activity_id = data['activity']
-            mailto = data['mailto']
-            if not re.match(r'^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$', mailto):
-                return JsonResponse({'code': 400, 'msg': '请填入正确的收件邮箱', 'access': access})
-            user_id = self.request.user.id
-            if not Activity.objects.filter(id=activity_id, user_id=user_id) and User.objects.get(
-                    id=user_id).activity_level != 3:
-                return JsonResponse({'code': 403, 'msg': '无权查看该活动的报名列表', 'access': access})
-            self.queryset = ActivityRegister.objects.filter(activity_id=activity_id)
-            send_applicants_info.run(self.queryset, mailto)
-            return JsonResponse({'code': '200', 'msg': '已发送活动报名信息', 'access': access})
-        except KeyError:
-            return JsonResponse({'code': 400, 'msg': '需要activity和mailto两个参数', 'access': access})
-
-
-class ApplicantInfoView(GenericAPIView, RetrieveModelMixin):
-    """活动报名者信息详情"""
-    serializer_class = ApplicantInfoSerializer
-    queryset = User.objects.all()
-    permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (authentication.JWTAuthentication,)
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-
 class CountActivitiesView(GenericAPIView, ListModelMixin):
     """各类活动计数"""
     queryset = Activity.objects.filter(is_delete=0, status__gt=2).order_by('-start_date', 'id')
@@ -1507,11 +1379,8 @@ class MyCountsView(GenericAPIView, ListModelMixin):
             Collect.objects.filter(user_id=user_id).values_list('meeting_id', flat=True))).values())
         collected_activities_count = len(Activity.objects.filter(is_delete=0, id__in=(
             ActivityCollect.objects.filter(user_id=user_id).values_list('activity_id', flat=True))).values())
-        registerd_activities_count = len(Activity.objects.filter(is_delete=0, status__gt=2, id__in=(
-            ActivityRegister.objects.filter(user_id=user_id).values_list('activity_id', flat=True))).values())
         res = {'collected_meetings_count': collected_meetings_count,
-               'collected_activities_count': collected_activities_count,
-               'registerd_activities_count': registerd_activities_count}
+               'collected_activities_count': collected_activities_count}
         # permission limited
         if level == 2:
             created_meetings_count = len(Meeting.objects.filter(is_delete=0, user_id=user_id).values())
@@ -1525,7 +1394,6 @@ class MyCountsView(GenericAPIView, ListModelMixin):
             drafts_count = len(Activity.objects.filter(is_delete=0, status=1, user_id=user_id).values())
             publishing_activities_count = len(Activity.objects.filter(is_delete=0, status=2, user_id=user_id).values())
             res['published_activities_count'] = published_activities_count
-            res['register_table_count'] = published_activities_count
             res['drafts_count'] = drafts_count
             res['publishing_activities_count'] = publishing_activities_count
         if activity_level == 3:
@@ -1533,30 +1401,8 @@ class MyCountsView(GenericAPIView, ListModelMixin):
             drafts_count = len(Activity.objects.filter(is_delete=0, status=1, user_id=user_id).values())
             publishing_activities_count = len(Activity.objects.filter(is_delete=0, status=2).values())
             res['published_activities_count'] = published_activities_count
-            res['register_table_count'] = published_activities_count
             res['drafts_count'] = drafts_count
             res['publishing_activities_count'] = publishing_activities_count
-        return JsonResponse(res)
-
-
-class TicketView(GenericAPIView, RetrieveModelMixin):
-    """查看活动门票"""
-    queryset = Activity.objects.all()
-    permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (authentication.JWTAuthentication,)
-
-    def get(self, request, *args, **kwargs):
-        activity_id = self.kwargs.get('pk')
-        user_id = self.request.user.id
-        if not ActivityRegister.objects.filter(activity_id=activity_id, user_id=user_id):
-            return JsonResponse({'code': 404, 'msg': '用户还没有报名这个活动'})
-        res = {
-            'title': self.queryset.get(id=activity_id).title,
-            'poster': self.queryset.get(id=activity_id).poster,
-            'name': User.objects.get(id=user_id).name,
-            'telephone': User.objects.get(id=user_id).telephone,
-            'activity_id': activity_id
-        }
         return JsonResponse(res)
 
 
@@ -1646,3 +1492,27 @@ class ActivitiesDataView(GenericAPIView, ListModelMixin):
             )
         return Response({'tableData': tableData})
 
+
+class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def put(self, request, *args, **kwargs):
+        now_time = datetime.datetime.now()
+        access = refresh_access(self.request.user)
+        if User.objects.get(id=self.request.user.id).agree_privacy_policy:
+            resp = JsonResponse({
+                'code': 400,
+                'msg': 'The user has signed privacy policy agreement already.',
+                'access': access
+            })
+            resp.status_code = 400
+            return resp
+        User.objects.filter(id=self.request.user.id).update(agree_privacy_policy=True,
+                                                            agree_privacy_policy_time=now_time)
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'Updated',
+            'access': access
+        })
+        return resp

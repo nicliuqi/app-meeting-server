@@ -5,11 +5,10 @@ from meetings.views import LoginView, GroupMembersView, NonGroupMembersView, Sig
     HandleRecordView, GroupsView, FeedbackView, ParticipantsView, SponsorsView, NonSponsorsView, SponsorsAddView, \
     SponsorsDelView, ActivityCreateView, ActivityUpdateView, DraftUpdateView, WaitingActivities, WaitingActivity, \
     ApproveActivityView, DenyActivityView, ActivityDeleteView, DraftView, ActivitiesListView, ActivityDetailView, \
-    DraftsListView, ActivityCollectView, ActivityCollectionsView, ActivityCollectionDelView, ActivityRegisterView, \
-    ActivitySignView, MyCountsView, CityMembersView, NonCityMembersView, CitiesView, AddCityView, CityUserAddView, \
-    CityUserDelView, UserCityView, RecentActivitiesView, PublishedActivitiesView, WaitingPublishingActivitiesView, \
-    RegisteredActivitiesView, ApplicantsInfoView, ApplicantInfoView, ActivityRegistrantsView, CountActivitiesView, \
-    TicketView, MeetingsDataView, ActivitiesDataView
+    DraftsListView, ActivityCollectView, ActivityCollectionsView, ActivityCollectionDelView, MyCountsView, \
+    CityMembersView, NonCityMembersView, CitiesView, AddCityView, CityUserAddView, CityUserDelView, UserCityView, \
+    RecentActivitiesView, PublishedActivitiesView, WaitingPublishingActivitiesView, CountActivitiesView, \
+    MeetingsDataView, ActivitiesDataView, AgreePrivacyPolicyView
 
 urlpatterns = [
     path('login/', LoginView.as_view()),  # 登录
@@ -61,16 +60,10 @@ urlpatterns = [
     path('activity/action/collect/', ActivityCollectView.as_view()),  # 收藏活动
     path('activitycollections/', ActivityCollectionsView.as_view()),  # 活动收藏列表
     path('activity/action/collectdel/<int:pk>/', ActivityCollectionDelView.as_view()),  # 取消收藏活动
-    path('register/', ActivityRegisterView.as_view()),  # 活动报名
-    path('myregisterdactivities/', RegisteredActivitiesView.as_view()),  # 我报名的活动
-    path('sign/', ActivitySignView.as_view()),  # 活动签到
     path('counts/', MyCountsView.as_view()),  # 我的各类计数
     path('recentactivities/', RecentActivitiesView.as_view()),  # 最近的活动
-    path('applicants/', ApplicantsInfoView.as_view()),  # 导出活动报名表单
-    path('applicant/<int:pk>/', ApplicantInfoView.as_view()),  # 活动报名者信息详情
-    path('registrants/<int:pk>/', ActivityRegistrantsView.as_view()),  # 活动报名者列表查询
     path('countactivities/', CountActivitiesView.as_view()),  # 各类活动计数
-    path('ticket/<int:pk>/', TicketView.as_view()),  # 活动门票
     path('meetingsdata/', MeetingsDataView.as_view()),  # 会议日历数据
     path('activitiesdata/', ActivitiesDataView.as_view()),  # 活动日历数据
+    path('agree/', AgreePrivacyPolicyView.as_view()),  # 同意更新隐私政策
 ]
