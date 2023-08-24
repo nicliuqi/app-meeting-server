@@ -19,7 +19,7 @@ class Command(BaseCommand):
         os.system('test -d community && rm -rf community')
         os.system('git clone https://gitee.com/openeuler/community.git')
         access_token = settings.CI_BOT_TOKEN
-        genegroup_auth = os.getenv('GENEGROUP_AUTH', '')
+        genegroup_auth = settings.DEFAULT_CONF.get('GENEGROUP_AUTH', '')
         if not access_token:
             self.logger.error('missing CI_BOT_TOKEN, exit...')
             sys.exit(1)
@@ -30,7 +30,7 @@ class Command(BaseCommand):
         self.logger.info('Starting to genegroup...')
         mail_lists = []
         headers = {
-            'Authorization': os.getenv('GENEGROUP_AUTH', '')
+            'Authorization': settings.DEFAULT_CONF.get('GENEGROUP_AUTH', '')
         }
         r = requests.get('https://www.openeuler.org/api/mail/list', headers=headers)
         if r.status_code == 401:
@@ -97,10 +97,12 @@ class Command(BaseCommand):
             html = HTML(r.text)
             assert isinstance(html, lxml.etree._Element)
             try:
-                maillist = html.xpath('//li[contains(text(), "邮件列表")]/a/@href')[0].rstrip('/').split('/')[-1].replace('mailto:', '')
+                maillist = html.xpath('//li[contains(text(), "邮件列表")]/a/@href')[0].rstrip('/').split('/')[-1].\
+                    replace('mailto:', '')
             except IndexError:
                 try:
-                    maillist = html.xpath('//a[contains(text(), "邮件列表")]/@href')[0].rstrip('/').split('/')[-1].replace('mailto:', '')
+                    maillist = html.xpath('//a[contains(text(), "邮件列表")]/@href')[0].rstrip('/').split('/')[-1].\
+                        replace('mailto:', '')
                     if '@' not in maillist:
                         maillist = html.xpath('//a[contains(@href, "@openeuler.org")]/text()')[0]
                 except IndexError:
