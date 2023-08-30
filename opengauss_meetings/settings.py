@@ -9,29 +9,53 @@ https://docs.djangoproject.com/en/3.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
+import base64
 import os
 import time
+import requests
 import sys
 import yaml
 from datetime import timedelta
 from pathlib import Path
 
 
-if os.path.exists('/vault/secrets/secrets.yaml'):
-    with open('/vault/secrets/secrets.yaml', 'r') as f:
-        content = yaml.safe_load(f)
-    DEFAULT_CONF = content
-else:
+CONFIG_PATH = os.getenv('CONFIG_PATH')
+XARMOR_CONF = os.getenv('XARMOR_CONF')
+if not os.path.exists(CONFIG_PATH):
     sys.exit()
+with open(CONFIG_PATH, 'r') as f:
+    content = yaml.safe_load(f)
+DEFAULT_CONF = content
 if sys.argv[0] == 'uwsgi':
-    os.remove('/vault/secrets/secrets.yaml')
-    if 'xarmor_pyrasp.ini' in os.listdir():
-        os.remove('./xarmor_pyrasp.ini')
+    os.remove(CONFIG_PATH)
+    if os.path.basename(XARMOR_CONF) in os.listdir():
+        os.remove(os.path.basename(XARMOR_CONF))
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-ZOOM_TOKEN = DEFAULT_CONF.get('ZOOM_TOKEN', '')
+
+def getOauthToken(account_id, client_id, client_secret, zoom_auth_url):
+    """Get server to server oauth token"""
+    url = zoom_auth_url
+    payload = {
+        'grant_type': 'account_credentials',
+        'account_id': account_id
+    }
+    headers = {
+        'Host': 'zoom.us',
+        'Authorization': 'Basic {}'.format(base64.b64encode((client_id + ':' + client_secret).encode()).decode())
+    }
+    r = requests.post(url, data=payload, headers=headers)
+    if r.status_code != 200:
+        return None
+    return r.json().get('access_token')
+
+account_id = DEFAULT_CONF.get('ZOOM_ACCOUTN_ID', '')
+client_id = DEFAULT_CONF.get('ZOOM_CLIENT_ID', '')
+client_secret = DEFAULT_CONF.get('ZOOM_CLIENT_SECRET', '')
+zoom_auth_url = DEFAULT_CONF.get('ZOOM_AUTH_URL', '')
+ZOOM_TOKEN = getOauthToken(account_id, client_id, client_secret, zoom_auth_url)
 
 GITEE_OAUTH_CLIENT_ID = DEFAULT_CONF.get('GITEE_OAUTH_CLIENT_ID', '')
 
