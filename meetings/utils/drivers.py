@@ -1,5 +1,5 @@
 from meetings.models import Meeting
-from meetings.utils import zoom_apis, welink_apis
+from meetings.utils import zoom_apis, welink_apis, tencent_apis
 
 
 def createMeeting(platform, date, start, end, topic, host, record):
@@ -8,6 +8,8 @@ def createMeeting(platform, date, start, end, topic, host, record):
         status, content = zoom_apis.createMeeting(date, start, end, topic, host, record)
     elif platform == 'welink':
         status, content = welink_apis.createMeeting(date, start, end, topic, host, record)
+    elif platform == 'tencent':
+        status, content = tencent_apis.createMeeting(date, start, end, topic, host, record)
     return status, content
 
 
@@ -20,6 +22,8 @@ def cancelMeeting(mid):
         status = zoom_apis.cancelMeeting(mid)
     elif mplatform == 'welink':
         status = welink_apis.cancelMeeting(mid, host_id)
+    elif mplatform == 'tencent':
+        status = tencent_apis.cancelMeeting(mid)
     return status
 
 
@@ -31,5 +35,7 @@ def getParticipants(mid):
         status, res = zoom_apis.getParticipants(mid)
     elif mplatform == 'welink':
         status, res = welink_apis.getParticipants(mid)
+    elif mplatform == 'tencent':
+        status, res = tencent_apis.getParticipants(mid)
     return status, res
 

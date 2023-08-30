@@ -12,6 +12,7 @@ from meetings.models import Meeting, Video, Record
 from multiprocessing.dummy import Pool as ThreadPool
 from meetings.utils.html_template import cover_content
 from meetings.utils.welink_apis import getParticipants, listRecordings, downloadHWCloudRecording, getDetailDownloadUrl
+from meetings.utils.tencent_apis import get_records, get_video_download
 
 logger = logging.getLogger('log')
 
@@ -22,7 +23,9 @@ class Command(BaseCommand):
         past_meetings = Meeting.objects.filter(is_delete=0).filter(
             Q(date__gt=str(datetime.datetime.now() - datetime.timedelta(days=7))) &
             Q(date__lte=datetime.datetime.now().strftime('%Y-%m-%d')))
-        recent_mids = [x for x in meeting_ids if x in list(past_meetings.values_list('mid', flat=True))]
+        record_mids = Record.objects.filter(platform='obs').values_list('mid', flat=True)
+        recent_mids = [x for x in meeting_ids if x in list(past_meetings.values_list('mid', flat=True)) and x not in
+                       record_mids]
         logger.info('meeting_ids: {}'.format(list(meeting_ids)))
         logger.info('mids of past_meetings: {}'.format(list(past_meetings.values_list('mid', flat=True))))
         logger.info('recent_mids: {}'.format(recent_mids))
@@ -152,7 +155,7 @@ def download_upload_recordings(start, end, zoom_download_url, mid, total_size, v
             topic = video.topic
             agenda = video.agenda
             community = video.community
-            bucketName = os.getenv('OBS_BUCKETNAME', '')
+            bucketName = settings.DEFAULT_CONF.get('OBS_BUCKETNAME', '')
             if not bucketName:
                 logger.error('mid: {}, bucketName required'.format(mid))
                 return
@@ -256,10 +259,10 @@ def handle_zoom_recordings(mid):
             logger.info('meeting {}: 文件过小，不予操作'.format(mid))
         else:
             # 连接obs服务，实例化ObsClient
-            access_key_id = os.getenv('ACCESS_KEY_ID', '')
-            secret_access_key = os.getenv('SECRET_ACCESS_KEY', '')
-            endpoint = os.getenv('OBS_ENDPOINT', '')
-            bucketName = os.getenv('OBS_BUCKETNAME', '')
+            access_key_id = settings.DEFAULT_CONF.get('ACCESS_KEY_ID', '')
+            secret_access_key = settings.DEFAULT_CONF.get('SECRET_ACCESS_KEY', '')
+            endpoint = settings.DEFAULT_CONF.get('OBS_ENDPOINT', '')
+            bucketName = settings.DEFAULT_CONF.get('OBS_BUCKETNAME', '')
             if not (access_key_id and secret_access_key and endpoint and bucketName):
                 logger.error('losing required arguments for ObsClient')
                 return
@@ -370,7 +373,7 @@ def download_upload_welink_recordings(start, end, mid, filename, object_key, end
         topic = (video.topic + '-{}'.format(order_number))
     agenda = video.agenda
     community = video.community
-    bucketName = os.getenv('OBS_BUCKETNAME', '')
+    bucketName = settings.DEFAULT_CONF.get('OBS_BUCKETNAME', '')
     if not bucketName:
         logger.error('mid: {}, bucketName required'.format(mid))
         return
@@ -443,17 +446,17 @@ def after_download_recording(target_filename, start, end, mid, target_name):
     if os.path.exists(target_filename):
         total_size = os.path.getsize(target_filename)
         # 连接obs服务，实例化ObsClient
-        access_key_id = os.getenv('ACCESS_KEY_ID', '')
-        secret_access_key = os.getenv('SECRET_ACCESS_KEY', '')
-        endpoint = os.getenv('OBS_ENDPOINT', '')
-        bucketName = os.getenv('OBS_BUCKETNAME', '')
+        access_key_id = settings.DEFAULT_CONF.get('ACCESS_KEY_ID', '')
+        secret_access_key = settings.DEFAULT_CONF.get('SECRET_ACCESS_KEY', '')
+        endpoint = settings.DEFAULT_CONF.get('OBS_ENDPOINT', '')
+        bucketName = settings.DEFAULT_CONF.get('OBS_BUCKETNAME', '')
         if not (access_key_id and secret_access_key and endpoint and bucketName):
             logger.error('losing required arguments for ObsClient')
             return
         try:
             obs_client = ObsClient(access_key_id=access_key_id,
                                    secret_access_key=secret_access_key,
-                                   server='https://{}'.format(endpoint))
+                                   server='https://%s' % endpoint)
             objs = []
             mark = None
             while True:
@@ -537,6 +540,104 @@ def handle_welink_recordings(mid):
             after_download_recording(target_filename, start, end, mid, target_name)
 
 
+def handle_tencent_recordings(mid):
+    # 参数准备
+    meeting = Meeting.objects.get(mid=mid)
+    video = Video.objects.get(mid=mid)
+    mmid = meeting.mmid
+    date = meeting.date
+    start = meeting.start
+    start_time = ' '.join([date, start])
+    start_timestamp = int(datetime.datetime.timestamp(datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M')))
+    # 获取账户级会议录制列表
+    records = get_records()
+    if not records:
+        return
+    # 遍历录制列表，匹配录制文件
+    match_record = {}
+    for record in records:
+        if record.get('meeting_id') != mmid:
+            continue
+        if record.get('state') != 3:
+            continue
+        media_start_time = record.get('media_start_time')
+        if abs(media_start_time // 1000 - start_timestamp) > 1800:
+            continue
+        record_file = record.get('record_files')[0]
+        if record_file.get('record_size') < 1024 * 1024 * 10:
+            continue
+        if not match_record:
+            match_record['record_file_id'] = record_file.get('record_file_id')
+            match_record['record_size'] = record_file.get('record_size')
+            match_record['userid'] = record.get('userid')
+        else:
+            if record_file.get('record_size') > match_record.get('record_size'):
+                match_record['record_file_id'] = record_file.get('record_file_id')
+                match_record['record_size'] = record_file.get('record_size')
+                match_record['userid'] = record.get('userid')
+    if not match_record:
+        logger.info('Find no recordings about Tencent meeting which id is {}'.format(mid))
+        return
+    total_size = match_record['record_size']
+    # 获取录像下载链接
+    download_url = get_video_download(match_record.get('record_file_id'), match_record.get('userid'))
+    if not download_url:
+        return
+    # 连接obs服务，实例化ObsClient
+    access_key_id = settings.DEFAULT_CONF.get('ACCESS_KEY_ID', '')
+    secret_access_key = settings.DEFAULT_CONF.get('SECRET_ACCESS_KEY', '')
+    endpoint = settings.DEFAULT_CONF.get('OBS_ENDPOINT', '')
+    bucketName = settings.DEFAULT_CONF.get('OBS_BUCKETNAME', '')
+    if not (access_key_id and secret_access_key and endpoint and bucketName):
+        logger.error('losing required arguments for ObsClient')
+        return
+    obs_client = ObsClient(access_key_id=access_key_id,
+                           secret_access_key=secret_access_key,
+                           server='https://%s' % endpoint)
+    objs = []
+    mark = None
+    while True:
+        obs_objs = obs_client.listObjects(bucketName, marker=mark, max_keys=1000)
+        if obs_objs.status < 300:
+            index = 1
+            for content in obs_objs.body.contents:
+                objs.append(content)
+                index += 1
+            if obs_objs.body.is_truncated:
+                mark = obs_objs.body.next_marker
+            else:
+                break
+    # 预备文件上传路径
+    start = date + 'T' + start + ':00Z'
+    month = datetime.datetime.strptime(start.replace('T', ' ').replace('Z', ''),
+                                       "%Y-%m-%d %H:%M:%S").strftime("%b").lower()
+    group_name = video.group_name
+    video_name = mid + '.mp4'
+    object_key = 'openeuler/{}/{}/{}/{}'.format(group_name, month, mid, video_name)
+    logger.info('meeting {}: object_key is {}'.format(mid, object_key))
+    # 收集录像信息待用
+    end = date + 'T' + meeting.end + ':00Z'
+    if not objs:
+        logger.info('meeting {}: OBS无存储对象，开始下载视频'.format(mid))
+        download_upload_recordings(start, end, download_url, mid, total_size, video,
+                                   endpoint, object_key,
+                                   group_name, obs_client)
+    else:
+        key_size_map = {x['key']: x['size'] for x in objs}
+        if object_key not in key_size_map.keys():
+            logger.info('meeting {}: OBS存储服务中无此对象，开始下载视频'.format(mid))
+            download_upload_recordings(start, end, download_url, mid, total_size, video,
+                                       endpoint, object_key,
+                                       group_name, obs_client)
+        elif object_key in key_size_map.keys() and key_size_map[object_key] >= total_size:
+            logger.info('meeting {}: OBS存储服务中已存在该对象且无需替换'.format(mid))
+        else:
+            logger.info('meeting {}: OBS存储服务中该对象需要替换，开始下载视频'.format(mid))
+            download_upload_recordings(start, end, download_url, mid, total_size, video,
+                                       endpoint,
+                                       object_key, group_name, obs_client)
+
+
 def run(mid):
     """
     查询Video根据total_size判断是否需要执行后续操作（下载、上传、保存数据）
@@ -549,4 +650,5 @@ def run(mid):
         handle_zoom_recordings(mid)
     elif platform == 'welink':
         handle_welink_recordings(mid)
-
+    elif platform == 'tencent':
+        handle_tencent_recordings(mid)

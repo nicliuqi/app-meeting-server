@@ -5,6 +5,7 @@ import sys
 import time
 import traceback
 from bilibili_api import video, Verify
+from django.conf import settings
 from django.core.management import BaseCommand
 from obs import ObsClient
 from meetings.models import Record
@@ -15,16 +16,16 @@ logger = logging.getLogger('log')
 class Command(BaseCommand):
     def handle(self, *args, **options):
         # 从OBS查询对象
-        access_key_id = os.getenv('ACCESS_KEY_ID', '')
-        secret_access_key = os.getenv('SECRET_ACCESS_KEY', '')
-        endpoint = os.getenv('OBS_ENDPOINT', '')
-        bucketName = os.getenv('OBS_BUCKETNAME', '')
+        access_key_id = settings.DEFAULT_CONF.get('ACCESS_KEY_ID', '')
+        secret_access_key = settings.DEFAULT_CONF.get('SECRET_ACCESS_KEY', '')
+        endpoint = settings.DEFAULT_CONF.get('OBS_ENDPOINT', '')
+        bucketName = settings.DEFAULT_CONF.get('OBS_BUCKETNAME', '')
         if not access_key_id or not secret_access_key or not endpoint or not bucketName:
             logger.error('losing required arguments for ObsClient')
             sys.exit(1)
         obs_client = ObsClient(access_key_id=access_key_id,
                                secret_access_key=secret_access_key,
-                               server='https://{}'.format(endpoint))
+                               server='https://%s' % endpoint)
         objs = []
         mark = None
         while True:
@@ -74,8 +75,8 @@ class Command(BaseCommand):
                             # 下载封面
                             img_object_key = object_key.replace('.mp4', '.png')
                             try:
-                                resp2 = obs_client.downloadFile(bucketName, img_object_key, imageFile, partSize, taskNum,
-                                                                enableCheckpoint)
+                                resp2 = obs_client.downloadFile(bucketName, img_object_key, imageFile, partSize,
+                                                                taskNum, enableCheckpoint)
                                 if resp2.status < 300:
                                     # 将下载的视频上传至B站
                                     topic = metadata_dict['meeting_topic']
@@ -139,8 +140,8 @@ class Command(BaseCommand):
 
 def upload(topic, date, videoFile, imageFile, mid, sig, community):
     """上传视频到b站"""
-    sessdata = os.getenv('SESSDATA', '')
-    bili_jct = os.getenv('BILI_JCT', '')
+    sessdata = settings.DEFAULT_CONF.get('SESSDATA', '')
+    bili_jct = settings.DEFAULT_CONF.get('BILI_JCT', '')
     if not sessdata or not bili_jct:
         logger.error('both sessdata and bili_jct required, please check!')
         sys.exit(1)
