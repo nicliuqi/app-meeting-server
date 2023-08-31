@@ -170,7 +170,7 @@ MINDSPORE_APP_CONF = {
 }
 
 MINDSPORE_MEETING_HOSTS = {
-    'tencent': ['admin', 'meeting48317', 'meeting48318'],
+    'tencent': ['meeting48318'],
     'welink': [DEFAULT_CONF.get('WELINK_HOST_1', '')]
 }
 
