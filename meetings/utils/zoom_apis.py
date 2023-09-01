@@ -4,6 +4,7 @@ import json
 import random
 import requests
 from django.conf import settings
+from meetings.models import Zoom
 
 logger = logging.getLogger('log')
 
@@ -16,9 +17,10 @@ def createMeeting(date, start, end, topic, host, record):
     duration = int((datetime.datetime.strptime(end_time, '%Y-%m-%dT%H:%M:%SZ') -
                     datetime.datetime.strptime(start_time, '%Y-%m-%dT%H:%M:%SZ')).seconds / 60)
     password = str(random.randint(100000, 999999))
+    token = getOauthToken()
     headers = {
         "content-type": "application/json",
-        "authorization": "Bearer {}".format(settings.ZOOM_TOKEN)
+        "authorization": "Bearer {}".format(token)
     }
     payload = {
         'start_time': start_time,
@@ -60,9 +62,10 @@ def updateMeeting(mid, date, start, end, topic, record):
     new_data = {'settings': {}, 'start_time': start_time, 'duration': duration, 'topic': topic}
     new_data['settings']['waiting_room'] = False
     new_data['settings']['auto_recording'] = record
+    token = getOauthToken()
     headers = {
         "content-type": "application/json",
-        "authorization": "Bearer {}".format(settings.ZOOM_TOKEN)
+        "authorization": "Bearer {}".format(token)
     }
     url = "https://api.zoom.us/v2/meetings/{}".format(mid)
     # 发送patch请求，修改会议
@@ -72,8 +75,9 @@ def updateMeeting(mid, date, start, end, topic, record):
 
 def cancelMeeting(mid):
     url = "https://api.zoom.us/v2/meetings/{}".format(mid)
+    token = getOauthToken()
     headers = {
-        "authorization": "Bearer {}".format(settings.ZOOM_TOKEN)
+        "authorization": "Bearer {}".format(token)
     }
     response = requests.request("DELETE", url, headers=headers)
     return response.status_code
@@ -81,8 +85,9 @@ def cancelMeeting(mid):
 
 def getParticipants(mid):
     url = "https://api.zoom.us/v2/past_meetings/{}/participants?page_size=300".format(mid)
+    token = getOauthToken()
     headers = {
-        "authorization": "Bearer {}".format(settings.ZOOM_TOKEN)}
+        "authorization": "Bearer {}".format(token)}
     logger.info(url)
     logger.info(headers)
     r = requests.get(url, headers=headers)
@@ -93,3 +98,8 @@ def getParticipants(mid):
         return r.status_code, resp
     else:
         return r.status_code, r.json()
+
+
+def getOauthToken():
+    token = Zoom.objects.get(id=1).access
+    return token
