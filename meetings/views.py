@@ -1509,7 +1509,9 @@ class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
             resp.status_code = 400
             return resp
         User.objects.filter(id=self.request.user.id).update(agree_privacy_policy=True,
-                                                            agree_privacy_policy_time=now_time)
+                                                            agree_privacy_policy_time=now_time,
+                                                            agree_privacy_policy_version=settings.DEFAULT_CONF.\
+                                                            get('PRIVACY_POLICY_VERSION'))
         resp = JsonResponse({
             'code': 201,
             'msg': 'Updated',
