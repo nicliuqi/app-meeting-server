@@ -64,7 +64,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'meetings.apps.MeetingsConfig',
     'rest_framework',
-    'drf_yasg',
     'corsheaders',
 ]
 
