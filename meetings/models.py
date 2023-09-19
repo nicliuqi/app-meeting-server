@@ -166,8 +166,3 @@ class ActivitySign(models.Model):
     """用户活动签到表"""
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-
-
-class Zoom(models.Model):
-    access = models.TextField(null=True, blank=True)
-    refresh = models.TextField(null=True, blank=True)

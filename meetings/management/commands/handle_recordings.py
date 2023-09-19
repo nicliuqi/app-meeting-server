@@ -272,7 +272,7 @@ def handle_zoom_recordings(mid):
             try:
                 obs_client = ObsClient(access_key_id=access_key_id,
                                        secret_access_key=secret_access_key,
-                                       server='https://{}'.format(endpoint))
+                                       server='https://%s' % endpoint)
                 objs = []
                 mark = None
                 while True:
