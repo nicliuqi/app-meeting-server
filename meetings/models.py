@@ -68,8 +68,3 @@ class Record(models.Model):
     platform = models.CharField(verbose_name='平台', max_length=50)
     url = models.CharField(verbose_name='播放地址', max_length=255, null=True, blank=True)
     thumbnail = models.CharField(verbose_name='缩略图', max_length=255, null=True, blank=True)
-
-
-class Zoom(models.Model):
-    access = models.TextField(null=True, blank=True)
-    refresh = models.TextField(null=True, blank=True)
