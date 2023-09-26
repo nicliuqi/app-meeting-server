@@ -14,9 +14,20 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.urls import path, include
+from django.conf import settings
 
-urlpatterns = [
-    path('', include('openeuler.urls')),
-    path('', include('mindspore.urls')),
-    path('', include('opengauss.urls')),
-]
+community = settings.AUTH_USER_MODEL.split(".")[0].lower()
+if community == "openeuler":
+    urlpatterns = [
+        path('', include('openeuler.urls')),
+    ]
+elif community == "mindspore":
+    urlpatterns = [
+        path('', include('mindspore.urls')),
+    ]
+elif community == "opengauss":
+    urlpatterns = [
+        path('', include('opengauss.urls')),
+    ]
+else:
+    urlpatterns = list()
