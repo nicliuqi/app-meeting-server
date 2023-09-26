@@ -3,7 +3,7 @@ FROM openeuler/openeuler:22.03
 MAINTAINER TommyLike<tommylikehu@gmail.com>
 
 RUN yum install -y vim wget git xz tar make automake autoconf libtool gcc gcc-c++ kernel-devel libmaxminddb-devel pcre-devel openssl openssl-devel tzdata \
-readline-devel libffi-devel python3-devel mariadb-devel python3-pip net-tools.x86_64 iputils libXext libjpeg xorg-x11-fonts-75dpi xorg-x11-fonts-Type1
+readline-devel libffi-devel python3-devel mariadb-devel python3-pip net-tools.x86_64 iputils libXext libjpeg xorg-x11-fonts-75dpi xorg-x11-fonts-Type1 openssl-devel tzdata
 
 RUN pip3 install uwsgi
 
@@ -16,7 +16,16 @@ RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkh
     rpm -i wkhtmltox-0.12.6-1.centos8.x86_64.rpm && \
     rm -f wkhtmltox-0.12.6-1.centos8.x86_64.rpm
 
-RUN cp /usr/bin/python3 /usr/bin/python
+RUN ln -s /usr/bin/python3 /usr/bin/python
+# RASP install
+#ARG PUBLIC_USER
+#ARG PUBLIC_PASSWORD
+#RUN git clone https://$PUBLIC_USER:$PUBLIC_PASSWORD@github.com/Open-Infra-Ops/plugins  &&\
+#    cp plugins/armorrasp/armorrasp.tar.gz .  &&\
+#    rm -rf plugins  &&\
+#    pip3 install armorrasp.tar.gz && \
+#    rm -rf armorrasp.tar.gz \
+
 ENV LANG=en_US.UTF-8
 ARG user=meetingserver
 ARG group=meetingserver
@@ -28,4 +37,4 @@ RUN chown -R ${user}:${group} /work/app-meeting-server
 USER ${uid}:${gid}
 
 EXPOSE 8080
-ENTRYPOINT ["uwsgi", "--ini", "/work/app-meeting-server/deploy/production/uwsgi.ini"]
+ENTRYPOINT ["uwsgi", "--ini", "/work/app-meeting-server/uwsgi.ini"]
