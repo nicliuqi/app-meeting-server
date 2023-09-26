@@ -87,7 +87,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_filters'
 ]
-AUTH_USER_MODEL = DEFAULT_CONF["user_model"],  # DEFAULT_CONF["user_model"]='openeuler.User'/'opengauss.User'/'mindspore.User'
+AUTH_USER_MODEL = DEFAULT_CONF["user_model"]  # DEFAULT_CONF["user_model"]='openeuler.User'/'opengauss.User'/'mindspore.User'
 
 CORS_ALLOW_METHODS = (
     'GET',

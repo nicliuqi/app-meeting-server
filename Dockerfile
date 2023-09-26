@@ -37,4 +37,4 @@ RUN chown -R ${user}:${group} /work/app-meeting-server
 USER ${uid}:${gid}
 
 EXPOSE 8080
-ENTRYPOINT ["uwsgi", "--ini", "/work/app-meeting-server/deploy/production/uwsgi.ini"]
+ENTRYPOINT ["uwsgi", "--ini", "/work/app-meeting-server/uwsgi.ini"]
