@@ -34,7 +34,7 @@ def createMeeting(date, start, end, topic, host, record):
             'jbh_time': 5
         }
     }
-    url = "https://api.zoom.us/v2/users/{}/openeuler".format(host)
+    url = "https://api.zoom.us/v2/users/{}/meetings".format(host)
     response = requests.post(url, data=json.dumps(payload), headers=headers)
     resp_dict = {}
     if response.status_code != 201:

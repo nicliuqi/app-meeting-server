@@ -106,7 +106,7 @@ def createMeeting(date, start, end, topic, host_id, record):
         payload['settings']['auto_record_type'] = 'cloud'
         payload['settings']['participant_join_auto_record'] = True
         payload['settings']['enable_host_pause_auto_record'] = True
-    uri = '/v1/openeuler'
+    uri = '/v1/meetings'
     url = get_url(uri)
     payload = json.dumps(payload)
     signature, headers = get_signature('POST', uri, payload)
@@ -132,7 +132,7 @@ def cancelMeeting(mid):
         "instanceid": 1,
         "reason_code": 1
     })
-    uri = '/v1/openeuler/' + str(mmid) + '/cancel'
+    uri = '/v1/meetings/' + str(mmid) + '/cancel'
     url = get_url(uri)
     signature, headers = get_signature('POST', uri, payload)
     r = requests.post(url, headers=headers, data=payload)
@@ -148,7 +148,7 @@ def getParticipants(mid):
     meeting = Meeting.objects.get(mid=mid)
     mmid = meeting.mmid
     host_id = meeting.host_id
-    uri = '/v1/openeuler/{}/participants?userid={}'.format(mmid, host_id)
+    uri = '/v1/meetings/{}/participants?userid={}'.format(mmid, host_id)
     url = get_url(uri)
     signature, headers = get_signature('GET', uri, "")
     r = requests.get(url, headers=headers)

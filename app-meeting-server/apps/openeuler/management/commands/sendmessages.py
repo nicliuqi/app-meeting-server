@@ -62,7 +62,7 @@ class Command(BaseCommand):
         return content
 
     def send_subscribe_msg(self):
-        logger.info('start to search openeuler...')
+        logger.info('start to search meetings...')
         # 获取当前日期
         date = datetime.datetime.now().strftime('%Y-%m-%d')
         t1 = datetime.datetime.now().strftime('%H:%M')

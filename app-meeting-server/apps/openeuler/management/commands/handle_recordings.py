@@ -57,17 +57,17 @@ def get_recordings(mid):
     if response.status_code != 200:
         logger.error('get recordings: {} {}'.format(response.status_code, response.json()['message']))
         return
-    mids = [x['id'] for x in response.json()['openeuler']]
+    mids = [x['id'] for x in response.json()['meetings']]
     if mids.count(int(mid)) == 0:
         logger.info('meeting {}: no recordings yet'.format(mid))
         return
     if mids.count(int(mid)) == 1:
-        record = list(filter(lambda x: x if x['id'] == int(mid) else None, response.json()['openeuler']))[0]
+        record = list(filter(lambda x: x if x['id'] == int(mid) else None, response.json()['meetings']))[0]
         return record
     if mids.count(int(mid)) > 1:
-        records = list(filter(lambda x: x if x['id'] == int(mid) else None, response.json()['openeuler']))
+        records = list(filter(lambda x: x if x['id'] == int(mid) else None, response.json()['meetings']))
         max_size = max([x['total_size'] for x in records])
-        record = list(filter(lambda x: x if x['total_size'] == max_size else None, response.json()['openeuler']))[0]
+        record = list(filter(lambda x: x if x['total_size'] == max_size else None, response.json()['meetings']))[0]
         return record
 
 
@@ -115,7 +115,7 @@ def generate_cover(mid, topic, group_name, date, filename, start_time, end_time)
     content = cover_content(topic, group_name, date, start_time, end_time)
     f.write(content)
     f.close()
-    os.system("cp openeuler/images/cover.png {}".format(os.path.dirname(filename)))
+    os.system("cp meetings/images/cover.png {}".format(os.path.dirname(filename)))
     os.system("wkhtmltoimage --enable-local-file-access {} {}".format(html_path, image_path))
     logger.info("meeting {}: 生成封面".format(mid))
     os.remove(os.path.join(os.path.dirname(filename), 'cover.png'))

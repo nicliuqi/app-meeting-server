@@ -15,12 +15,12 @@ urlpatterns = [
     path('groups/', GroupsView.as_view()),  # 查询所有SIG组的名称
     path('sigs/', SigsView.as_view()),  # 查询所有SIG组的名称、首页、邮件列表、IRC频道及成员的nickname、gitee_name、avatar
     path('groups/<int:pk>/', GroupView.as_view()),  # 查询单个SIG组详情
-    path('openeuler/', MeetingsView.as_view()),  # 新建会议
+    path('meetings/', MeetingsView.as_view()),  # 新建会议
     path('meetings_weekly/', MeetingsWeeklyView.as_view()),  # 查询前后一周会议详情
     path('meetings_daily/', MeetingsDailyView.as_view()),   # 查询当日会议详情
     path('meetings_recently/', MeetingsRecentlyView.as_view()),  # 查询近期的会议
     path('meeting/<int:mid>/', MeetingDelView.as_view()),  # 删除会议
-    path('openeuler/<int:pk>/', MeetingView.as_view()),  # 查询单个会议详情
+    path('meetings/<int:pk>/', MeetingView.as_view()),  # 查询单个会议详情
     path('users_exclude/<int:pk>/', UsersExcludeView.as_view()),  # 查询不在该组的所有成员的nickname、gitee_name、avatar
     path('users_include/<int:pk>/', UsersIncludeView.as_view()),  # 获取该SIG组的所有成员的nickname、gitee_name、avatar
     path('user/<int:pk>/', UserView.as_view()),  # 更新gitee_name

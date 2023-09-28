@@ -48,7 +48,7 @@ class Command(BaseCommand):
         for sig in sigs:
             sig_name = sig['name']
             sig_page = 'https://gitee.com/openeuler/community/tree/master/sig/{}'.format(sig_name)
-            etherpad = 'https://etherpad.openeuler.org/p/{}-openeuler'.format(sig_name)
+            etherpad = 'https://etherpad.openeuler.org/p/{}-meetings'.format(sig_name)
             if Group.objects.filter(group_name=sig_name):
                 etherpad = Group.objects.get(group_name=sig_name).etherpad
             sigs_list.append([sig_name, sig_page, etherpad])

@@ -112,7 +112,7 @@ def listHisMeetings(host_id):
     }
     response = requests.get(url, headers=headers, params=params)
     if response.status_code != 200:
-        logger.error('Fail to get history openeuler list')
+        logger.error('Fail to get history meetings list')
         logger.error(response.json())
         return {}
     return response.json()
