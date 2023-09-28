@@ -17,6 +17,7 @@ RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkh
     rm -f wkhtmltox-0.12.6-1.centos8.x86_64.rpm
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
+RUN chmod -R 550 /work/app-meeting-server
 # RASP install
 #ARG PUBLIC_USER
 #ARG PUBLIC_PASSWORD
@@ -35,6 +36,6 @@ RUN groupadd -g ${gid} ${group}
 RUN useradd -u ${uid} -g ${group} -s /bin/sh -m ${user}
 RUN chown -R ${user}:${group} /work/app-meeting-server
 USER ${uid}:${gid}
-
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["uwsgi", "--ini", "/work/app-meeting-server/uwsgi.ini"]
 EXPOSE 8080
-ENTRYPOINT ["uwsgi", "--ini", "/work/app-meeting-server/uwsgi.ini"]

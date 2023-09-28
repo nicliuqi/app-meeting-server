@@ -33,6 +33,11 @@ class User(AbstractBaseUser):
 
     USERNAME_FIELD = 'openid'
 
+    class Meta:
+        db_table = "meetings_user"
+        verbose_name = "meetings_user"
+        verbose_name_plural = verbose_name
+
 
 class Group(models.Model):
     """SIG组表"""
@@ -45,6 +50,11 @@ class Group(models.Model):
     app_home_page = models.CharField(verbose_name='app首页', max_length=128, null=True, blank=True)
     description = models.CharField(verbose_name='组描述', max_length=255, null=True, blank=True)
 
+    class Meta:
+        db_table = "meetings_group"
+        verbose_name = "meetings_group"
+        verbose_name_plural = verbose_name
+
 
 class GroupUser(models.Model):
     """组与用户表"""
@@ -53,6 +63,9 @@ class GroupUser(models.Model):
 
     class Meta:
         unique_together = ('group', 'user')
+        db_table = "meetings_groupuser"
+        verbose_name = "meetings_groupuser"
+        verbose_name_plural = verbose_name
 
 
 class Meeting(models.Model):
@@ -81,11 +94,21 @@ class Meeting(models.Model):
     group = models.ForeignKey(Group, on_delete=models.DO_NOTHING)
     mplatform = models.CharField(verbose_name='第三方会议平台', max_length=20, null=True, blank=True, default='zoom')
 
+    class Meta:
+        db_table = "meetings_meeting"
+        verbose_name = "meetings_meeting"
+        verbose_name_plural = verbose_name
+
 
 class Collect(models.Model):
     """用户收藏会议表"""
     meeting = models.ForeignKey(Meeting, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "meetings_collect"
+        verbose_name = "meetings_collect"
+        verbose_name_plural = verbose_name
 
 
 class Video(models.Model):
@@ -101,6 +124,11 @@ class Video(models.Model):
     total_size = models.IntegerField(verbose_name='总文件大小', blank=True, null=True)
     download_url = models.CharField(verbose_name='下载地址', max_length=255, blank=True, null=True)
 
+    class Meta:
+        db_table = "meetings_video"
+        verbose_name = "meetings_video"
+        verbose_name_plural = verbose_name
+
 
 class Record(models.Model):
     """录像表"""
@@ -108,6 +136,11 @@ class Record(models.Model):
     platform = models.CharField(verbose_name='平台', max_length=50)
     url = models.CharField(verbose_name='播放地址', max_length=128, null=True, blank=True)
     thumbnail = models.CharField(verbose_name='缩略图', max_length=128, null=True, blank=True)
+
+    class Meta:
+        db_table = "meetings_record"
+        verbose_name = "meetings_record"
+        verbose_name_plural = verbose_name
 
 
 class Activity(models.Model):
@@ -140,6 +173,11 @@ class Activity(models.Model):
     replay_url = models.CharField(verbose_name='回放地址', max_length=255, null=True, blank=True)
     register_url = models.CharField(verbose_name='报名链接', max_length=255, null=True, blank=True)
 
+    class Meta:
+        db_table = "meetings_activity"
+        verbose_name = "meetings_activity"
+        verbose_name_plural = verbose_name
+
 
 class Feedback(models.Model):
     """意见反馈表"""
@@ -149,11 +187,21 @@ class Feedback(models.Model):
     feedback_content = models.TextField(verbose_name='反馈内容', null=True, blank=True)
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True)
 
+    class Meta:
+        db_table = "meetings_feedback"
+        verbose_name = "meetings_feedback"
+        verbose_name_plural = verbose_name
+
 
 class ActivityCollect(models.Model):
     """用户收藏活动表"""
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "meetings_activitycollect"
+        verbose_name = "meetings_activitycollect"
+        verbose_name_plural = verbose_name
 
 
 class ActivityRegister(models.Model):
@@ -161,8 +209,18 @@ class ActivityRegister(models.Model):
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
+    class Meta:
+        db_table = "meetings_activityregister"
+        verbose_name = "meetings_activityregister"
+        verbose_name_plural = verbose_name
+
 
 class ActivitySign(models.Model):
     """用户活动签到表"""
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "meetings_activitysign"
+        verbose_name = "meetings_activitysign"
+        verbose_name_plural = verbose_name
