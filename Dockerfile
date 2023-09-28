@@ -37,5 +37,5 @@ RUN useradd -u ${uid} -g ${group} -s /bin/sh -m ${user}
 RUN chown -R ${user}:${group} /work/app-meeting-server
 USER ${uid}:${gid}
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["uwsgi", "--ini", "/work/app-meeting-server/uwsgi.ini"]
+CMD ["uwsgi", "--ini", "/work/app-meeting-server/production/uwsgi.ini"]
 EXPOSE 8080
