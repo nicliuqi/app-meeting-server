@@ -17,7 +17,7 @@ RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkh
     rm -f wkhtmltox-0.12.6-1.centos8.x86_64.rpm
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN chmod -R 550 /work/app-meeting-server
+RUN chmod -R 550 /work/app-meeting-server/docker-entrypoint.sh
 # RASP install
 #ARG PUBLIC_USER
 #ARG PUBLIC_PASSWORD
