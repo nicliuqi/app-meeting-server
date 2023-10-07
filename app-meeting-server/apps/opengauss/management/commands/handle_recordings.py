@@ -114,7 +114,7 @@ def generate_cover(mid, topic, group_name, date, filename, start_time, end_time)
     modes = stat.S_IWUSR
     with os.fdopen(os.open(html_path, flags, modes), 'w') as f:
         f.write(content)
-    os.system("cp meetings/images/cover.png {}".format(os.path.dirname(filename)))
+    os.system("cp app-meeting-server/static/opengauss/images/cover.png {}".format(os.path.dirname(filename)))
     os.system("wkhtmltoimage --enable-local-file-access {} {}".format(html_path, image_path))
     logger.info("meeting {}: 生成封面".format(mid))
     os.remove(os.path.join(os.path.dirname(filename), 'cover.png'))
