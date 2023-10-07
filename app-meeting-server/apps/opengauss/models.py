@@ -11,11 +11,21 @@ class User(models.Model):
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True, null=True, blank=True)
     expire_time = models.IntegerField(verbose_name='过期时间', default=0)
 
+    class Meta:
+        db_table = "meetings_user"
+        verbose_name = "meetings_user"
+        verbose_name_plural = verbose_name
+
 
 class Group(models.Model):
     name = models.CharField(verbose_name='sig组名称', max_length=50)
     members = models.TextField(verbose_name='sig组成员')
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True, null=True, blank=True)
+
+    class Meta:
+        db_table = "meetings_group"
+        verbose_name = "meetings_group"
+        verbose_name_plural = verbose_name
 
 
 class Meeting(models.Model):
@@ -45,6 +55,11 @@ class Meeting(models.Model):
     mplatform = models.CharField(verbose_name='第三方会议平台', max_length=20, null=True, blank=True, default='zoom')
     sequence = models.IntegerField(verbose_name='序列号', default=0)
 
+    class Meta:
+        db_table = "meetings_meeting"
+        verbose_name = "meetings_meeting"
+        verbose_name_plural = verbose_name
+
 
 class Video(models.Model):
     """会议记录表"""
@@ -61,6 +76,11 @@ class Video(models.Model):
     replay_url = models.CharField(verbose_name='回放地址', max_length=255, null=True, blank=True)
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True, null=True, blank=True)
 
+    class Meta:
+        db_table = "meetings_video"
+        verbose_name = "meetings_video"
+        verbose_name_plural = verbose_name
+
 
 class Record(models.Model):
     """录像表"""
@@ -68,3 +88,8 @@ class Record(models.Model):
     platform = models.CharField(verbose_name='平台', max_length=50)
     url = models.CharField(verbose_name='播放地址', max_length=255, null=True, blank=True)
     thumbnail = models.CharField(verbose_name='缩略图', max_length=255, null=True, blank=True)
+
+    class Meta:
+        db_table = "meetings_record"
+        verbose_name = "meetings_record"
+        verbose_name_plural = verbose_name

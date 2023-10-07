@@ -1,0 +1,27 @@
+您好！
+
+{{sig_name}} 邀请您参加 {{start_time}} 召开的{{platform}}会议
+
+会议主题：{{topic}}
+
+会议链接：{{join_url}}
+
+会议纪要：{{etherpad}}
+
+更多资讯尽在：{{portal_zh}}
+
+
+
+
+Hello!
+
+{{sig_name}} invites you to attend the {{platform}} conference will be held at {{start_time}},
+
+The subject of the conference is {{topic}},
+
+You can join the meeting at {{join_url}}.
+
+Add topics at {{etherpad}}.
+
+More information: {{portal_en}}
+

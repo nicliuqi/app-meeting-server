@@ -18,7 +18,7 @@ from openeuler.models import Meeting
 logger = logging.getLogger('log')
 
 
-def sendmail(meeting, record=None, enclosure_paths=None):
+def sendmail(meeting, record=None):
     mid = meeting.get('mid')
     mid = str(mid)
     topic = meeting.get('topic')
@@ -29,7 +29,7 @@ def sendmail(meeting, record=None, enclosure_paths=None):
     sig_name = meeting.get('sig_name')
     toaddrs = meeting.get('emaillist')
     platform = meeting.get('platform')
-    platform = platform.replace('zoom', 'Zoom').replace('welink', 'WeLink')
+    platform = platform.replace('zoom', 'Zoom').replace('welink', 'WeLink').replace('tencent', 'Tencent')
     etherpad = meeting.get('etherpad')
     summary = meeting.get('agenda')
     start_time = ' '.join([date, start])
@@ -52,57 +52,42 @@ def sendmail(meeting, record=None, enclosure_paths=None):
 
     # 添加邮件主体
     body_of_email = None
+    portal_zh = settings.DEFAULT_CONF.get('PORTAL_ZH')
+    portal_en = settings.DEFAULT_CONF.get('PORTAL_EN')
     if not summary and not record:
-        print(platform)
         with open('templates/template_without_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
                 replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').\
                 replace('{{platform}}', '{4}').replace('{{etherpad}}', '{5}').\
-                format(sig_name, start_time, join_url, topic, platform, etherpad)
-    if summary and not record:
-        print(platform)
+                replace('{{portal_zh}}', '{6}').replace('{{portal_en}}', '{7}').\
+                format(sig_name, start_time, join_url, topic, platform, etherpad, portal_zh, portal_en)
+    elif summary and not record:
         with open('templates/template_with_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
                 replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').\
                 replace('{{summary}}', '{4}').replace('{{platform}}', '{5}').\
-                replace('{{etherpad}}', '{6}').\
-                format(sig_name, start_time, join_url, topic, summary, platform, etherpad)
-    if not summary and record:
+                replace('{{etherpad}}', '{6}').replace('{{portal_zh}}', '{7}').\
+                replace('{{portal_en}}', '{8}').\
+                format(sig_name, start_time, join_url, topic, summary, platform, etherpad, portal_zh, portal_en)
+    elif not summary and record:
         with open('templates/template_without_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
                 replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{platform}}', '{4}').\
-                replace('{{etherpad}}', '{5}').\
-                format(sig_name, start_time, join_url, topic, platform, etherpad)
-    if summary and record:
+                replace('{{etherpad}}', '{5}').replace('{{portal_zh}}', '{6}').replace('{{portal_en}}', '{7}').\
+                format(sig_name, start_time, join_url, topic, platform, etherpad, portal_zh, portal_en)
+    elif summary and record:
         with open('templates/template_with_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace( '{{start_time}}', '{1}').\
                 replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').\
                 replace('{{summary}}', '{4}').replace('{{platform}}', '{5}').\
-                replace('{{etherpad}}', '{6}').\
-                format(sig_name, start_time, join_url, topic, summary, platform, etherpad)
+                replace('{{etherpad}}', '{6}').replace('{{portal_zh}}', '{7}').replace('{{portal_en}}', '{8}').\
+                format(sig_name, start_time, join_url, topic, summary, platform, etherpad, portal_zh, portal_en)
     content = MIMEText(body_of_email, 'plain', 'utf-8')
     msg.attach(content)
-
-    # 添加图片
-    for file in os.listdir('templates/images'):
-        if os.path.join('images', file) in body_of_email:
-            f = open(os.path.join('templates', 'images', file), 'rb')
-            msgImage = MIMEImage(f.read())
-            f.close()
-            msgImage.add_header('Content-ID', '<{}>'.format(os.path.join('images', file)))
-            msg.attach(msgImage)
-
-    # 添加邮件附件
-    paths = enclosure_paths
-    if paths:
-        for file_path in paths:
-            file = MIMEApplication(open(file_path, 'rb').read())
-            file.add_header('Content-Disposition', 'attachment', filename=file_path)
-            msg.attach(file)
 
     # 添加日历
     dt_start = (datetime.datetime.strptime(date + ' ' + start, '%Y-%m-%d %H:%M') - datetime.timedelta(hours=8)).replace(tzinfo=pytz.utc)

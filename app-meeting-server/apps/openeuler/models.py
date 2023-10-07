@@ -106,6 +106,7 @@ class Collect(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     class Meta:
+        unique_together = ('meeting', 'user')
         db_table = "meetings_collect"
         verbose_name = "meetings_collect"
         verbose_name_plural = verbose_name
@@ -179,48 +180,13 @@ class Activity(models.Model):
         verbose_name_plural = verbose_name
 
 
-class Feedback(models.Model):
-    """意见反馈表"""
-    user = models.ForeignKey(User, on_delete=models.DO_NOTHING)
-    feedback_type = models.SmallIntegerField(verbose_name='反馈类型', choices=((1, '问题反馈'), (2, '产品建议')))
-    feedback_email = models.EmailField(verbose_name='反馈邮箱', null=True, blank=True)
-    feedback_content = models.TextField(verbose_name='反馈内容', null=True, blank=True)
-    create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True)
-
-    class Meta:
-        db_table = "meetings_feedback"
-        verbose_name = "meetings_feedback"
-        verbose_name_plural = verbose_name
-
-
 class ActivityCollect(models.Model):
     """用户收藏活动表"""
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     class Meta:
+        unique_together = ('activity', 'user')
         db_table = "meetings_activitycollect"
         verbose_name = "meetings_activitycollect"
-        verbose_name_plural = verbose_name
-
-
-class ActivityRegister(models.Model):
-    """用户活动报名表"""
-    activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-
-    class Meta:
-        db_table = "meetings_activityregister"
-        verbose_name = "meetings_activityregister"
-        verbose_name_plural = verbose_name
-
-
-class ActivitySign(models.Model):
-    """用户活动签到表"""
-    activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-
-    class Meta:
-        db_table = "meetings_activitysign"
-        verbose_name = "meetings_activitysign"
         verbose_name_plural = verbose_name
