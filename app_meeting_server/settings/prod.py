@@ -17,6 +17,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE_DIR, "apps"))
 
 CONFIG_PATH = os.getenv('CONFIG_PATH')
+XARMOR_CONF = os.getenv('XARMOR_CONF')
 if not os.path.exists(CONFIG_PATH):
     sys.exit()
 with open(CONFIG_PATH, 'r') as f:
@@ -24,6 +25,8 @@ with open(CONFIG_PATH, 'r') as f:
 DEFAULT_CONF = content
 if sys.argv[0] == 'uwsgi':
     os.remove(CONFIG_PATH)
+    if os.path.basename(XARMOR_CONF) in os.listdir():
+        os.remove(os.path.basename(XARMOR_CONF))
 
 CI_BOT_TOKEN = DEFAULT_CONF.get('CI_BOT_TOKEN')
 
