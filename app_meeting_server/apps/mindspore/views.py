@@ -1,11 +1,10 @@
 import datetime
-import json
 import math
 import os
-import re
 import sys
 import tempfile
 import traceback
+from random import random
 import wget
 from django.conf import settings
 from multiprocessing import Process
@@ -20,22 +19,23 @@ from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, ListModelM
 from rest_framework.response import Response
 from rest_framework_simplejwt import authentication
 from rest_framework_simplejwt.tokens import RefreshToken
-from mindspore.models import Meeting, Record, Activity, ActivityCollect
-from mindspore.permissions import MaintainerPermission, AdminPermission, QueryPermission, SponsorPermission, \
-    ActivityAdminPermission
-from mindspore.models import GroupUser, Group, User, Collect, Feedback, City, CityUser
-from mindspore.serializers import LoginSerializer, UsersInGroupSerializer, SigsSerializer, GroupsSerializer, \
-    GroupUserAddSerializer, GroupUserDelSerializer, UserInfoSerializer, UserGroupSerializer, MeetingSerializer, \
-    MeetingDelSerializer, MeetingDetailSerializer, MeetingsListSerializer, CollectSerializer, FeedbackSerializer, \
-    CitiesSerializer, CityUserAddSerializer, CityUserDelSerializer, UserCitySerializer, SponsorSerializer, \
-    ActivitySerializer, ActivityUpdateSerializer, ActivityDraftUpdateSerializer, ActivitiesSerializer, \
-    ActivityRetrieveSerializer, ActivityCollectSerializer
-from mindspore.send_email import sendmail
-from mindspore.utils.tecent_apis import *
-from mindspore.utils import send_feedback, prepare_create_activity, gene_wx_code
+from app_meeting_server.apps.mindspore.models import Meeting, Record, Activity, ActivityCollect
+from app_meeting_server.apps.mindspore.permissions import MaintainerPermission, AdminPermission, QueryPermission, \
+    SponsorPermission, ActivityAdminPermission
+from app_meeting_server.apps.mindspore.models import GroupUser, Group, User, Collect, City, CityUser
+from app_meeting_server.apps.mindspore.serializers import LoginSerializer, UsersInGroupSerializer, SigsSerializer, \
+    GroupsSerializer, GroupUserAddSerializer, GroupUserDelSerializer, UserInfoSerializer, UserGroupSerializer, \
+    MeetingSerializer, MeetingDelSerializer, MeetingsListSerializer, CollectSerializer, CitiesSerializer, \
+    CityUserAddSerializer, CityUserDelSerializer, UserCitySerializer, SponsorSerializer, ActivitySerializer, \
+    ActivityUpdateSerializer, ActivityDraftUpdateSerializer, ActivitiesSerializer, ActivityRetrieveSerializer, \
+    ActivityCollectSerializer
+from app_meeting_server.apps.mindspore.send_email import sendmail
+from app_meeting_server.apps.mindspore.utils.tecent_apis import *
+from app_meeting_server.apps.mindspore.utils import prepare_create_activity, gene_wx_code
 from obs import ObsClient
-from mindspore.utils import drivers
-from mindspore.auth import CustomAuthentication
+from app_meeting_server.apps.mindspore.utils import drivers
+from app_meeting_server.apps.mindspore.auth import CustomAuthentication
+from app_meeting_server.apps.mindspore.utils.tecent_apis import get_video_download
 
 logger = logging.getLogger('log')
 
@@ -482,7 +482,7 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
         # 数据库更改Meeting的is_delete=1
         if status == 200:
             # 发送删除通知邮件
-            from mindspore.utils.send_cancel_email import sendmail
+            from app_meeting_server.apps.mindspore.utils.send_cancel_email import sendmail
             sendmail(mid)
 
             Meeting.objects.filter(mid=mid).update(is_delete=1)
@@ -680,41 +680,6 @@ class MyCollectionsView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class FeedbackView(GenericAPIView, CreateModelMixin):
-    """意见反馈"""
-    serializer_class = FeedbackSerializer
-    queryset = Feedback.objects.all()
-    permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (CustomAuthentication,)
-
-    def post(self, request, *args, **kwargs):
-        data = self.request.data
-        access = refresh_access(self.request.user)
-        try:
-            feedback_type = data['feedback_type']
-            feedback_content = data['feedback_content']
-            feedback_email = data['feedback_email']
-            if not re.match(r'^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$', feedback_email):
-                return JsonResponse({'code': 400, 'msg': '请填入正确的收件邮箱', 'access': access})
-            user_id = self.request.user.id
-            Feedback.objects.create(
-                feedback_type=feedback_type,
-                feedback_content=feedback_content,
-                feedback_email=feedback_email,
-                user_id=user_id
-            )
-            if feedback_type == 1:
-                feedback_type = '问题反馈'
-            if feedback_type == 2:
-                feedback_type = '产品建议'
-            send_feedback.run(feedback_type, feedback_email, feedback_content)
-            return JsonResponse({'code': 201, 'msg': '反馈意见已收集', 'access': access})
-        except KeyError:
-            return JsonResponse(
-                {'code': 400, 'msg': 'feedback_type, feedback_content and feedback_email are all required!',
-                    'access': access})
-
-
 class HandleRecordView(GenericAPIView):
     """处理录像"""
 
@@ -799,7 +764,7 @@ class HandleRecordView(GenericAPIView):
                                                                                                      objectKey)
                 logger.info('upload to OBS successfully, the download_url is {}'.format(obs_download_url))
                 # 发送包含download_url的邮件
-                from mindspore.utils.send_recording_completed_msg import sendmail
+                from app_meeting_server.apps.mindspore.utils.send_recording_completed_msg import sendmail
                 topic = meeting.topic
                 date = meeting.date
                 start = meeting.start

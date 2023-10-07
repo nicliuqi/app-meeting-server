@@ -6,12 +6,9 @@ from django.core.management.base import BaseCommand
 from obs import ObsClient
 
 logger = logging.getLogger('log')
-ACCESS_KEY_ID = settings.DEFAULT_CONF.get('QUERY_AK')
-SECRET_ACCESS_KEY = settings.DEFAULT_CONF.get('QUERY_SK')
-ENDPOINT = settings.DEFAULT_CONF.get('QUERY_ENDPOINT')
-BUCKET_NAME = settings.DEFAULT_CONF.get('QUERY_BUCKETNAME')
-OBJ_KEY = settings.DEFAULT_CONF.get('QUERY_OBJ')
-QUERY_INTERVAL = settings.DEFAULT_CONF.get('QUERY_INTERVAL')
+BUCKET_NAME = settings.QUERY_BUCKETNAME
+OBJ_KEY = settings.QUERY_OBJ
+QUERY_INTERVAL = settings.QUERY_INTERVAL
 GMT_FORMAT = '%a, %d %b %Y %H:%M:%S GMT'
 
 
@@ -30,7 +27,9 @@ class Command(BaseCommand):
         # 获取当前时间
         now_time = datetime.now()
         # 连接ObsClient
-        obs_client = ObsClient(access_key_id=ACCESS_KEY_ID, secret_access_key=SECRET_ACCESS_KEY, server=ENDPOINT)
+        obs_client = ObsClient(access_key_id=settings.QUERY_AK,
+                               secret_access_key=settings.QUERY_SK,
+                               server=settings.QUERY_ENDPOINT)
         metadata = obs_client.getObjectMetadata(BUCKET_NAME, OBJ_KEY)
         if metadata.status != 200:
             logger.error('Failed to get search the target object.')

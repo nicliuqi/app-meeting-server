@@ -5,8 +5,7 @@ from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
-from openeuler.models import Collect, Group, User, Meeting, GroupUser, Record, Activity, ActivityCollect, \
-    ActivityRegister, Feedback, ActivitySign
+from openeuler.models import Collect, Group, User, Meeting, GroupUser, Record, Activity, ActivityCollect
 
 logger = logging.getLogger('log')
 
@@ -310,49 +309,7 @@ class ActivityCollectSerializer(ModelSerializer):
         fields = ['activity']
 
 
-class ActivityRegisterSerializer(ModelSerializer):
-    class Meta:
-        model = ActivityRegister
-        fields = ['activity']
-
-
 class ApplicantInfoSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'name', 'telephone', 'email', 'company', 'profession', 'gitee_name']
-
-
-class FeedbackSerializer(ModelSerializer):
-    class Meta:
-        model = Feedback
-        fields = ['feedback_type', 'feedback_email', 'feedback_content']
-
-
-class ActivitySignSerializer(ModelSerializer):
-    class Meta:
-        model = ActivitySign
-        fields = ['activity']
-
-
-class ActivityRegistrantsSerializer(ModelSerializer):
-    registrants = serializers.SerializerMethodField()
-    class Meta:
-        model = User
-        fields = ['registrants']
-
-    def get_registrants(self, obj):
-        user_ids = ActivityRegister.objects.filter(activity_id=obj.id).values_list('user_id', flat=True)
-        users = User.objects.filter(id__in=user_ids)
-        registrants = [
-            {
-                'id': x.id,
-                'name': x.name,
-                'telephone': x.telephone,
-                'email': x.email,
-                'company': x.company,
-                'profession': x.profession,
-                'sign': True if ActivitySign.objects.filter(activity_id=obj.id, user_id=x.id) else False
-            }
-            for x in users
-        ]
-        return registrants

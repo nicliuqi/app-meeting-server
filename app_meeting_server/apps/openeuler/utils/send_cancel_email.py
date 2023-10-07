@@ -4,7 +4,6 @@ import logging
 import pytz
 import re
 import smtplib
-import uuid
 from django.conf import settings
 from email import encoders
 from email.mime.base import MIMEBase
@@ -22,7 +21,6 @@ def sendmail(mid):
     start = meeting.start
     end = meeting.end
     toaddrs = meeting.emaillist
-    sponsor = meeting.sponsor
     topic = '[Cancel] ' + meeting.topic
     sig_name = meeting.group_name
     platform = meeting.mplatform

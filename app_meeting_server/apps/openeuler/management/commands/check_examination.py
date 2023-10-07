@@ -20,10 +20,10 @@ class Command(BaseCommand):
         bvs = [x['bvid'] for x in videos]
         logger.info('所有B站过审视频的bvid: {}'.format(bvs))
         logger.info('B站过审视频数: {}'.format(len(bvs)))
-        access_key_id = settings.DEFAULT_CONF.get('ACCESS_KEY_ID', '')
-        secret_access_key = settings.DEFAULT_CONF.get('SECRET_ACCESS_KEY', '')
-        endpoint = settings.DEFAULT_CONF.get('OBS_ENDPOINT', '')
-        bucketName = settings.DEFAULT_CONF.get('OBS_BUCKETNAME', '')
+        access_key_id = settings.ACCESS_KEY_ID
+        secret_access_key = settings.SECRET_ACCESS_KEY
+        endpoint = settings.OBS_ENDPOINT
+        bucketName = settings.OBS_BUCKETNAME
         if not access_key_id or not secret_access_key or not endpoint or not bucketName:
             logger.error('losing required arguments for ObsClient')
             sys.exit(1)

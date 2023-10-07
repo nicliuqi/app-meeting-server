@@ -1,6 +1,7 @@
 import logging
 import subprocess
 from mindspore.models import Group
+from django.conf import settings
 from django.core.management.base import BaseCommand
 
 logger = logging.getLogger('log')
@@ -8,8 +9,8 @@ logger = logging.getLogger('log')
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        subprocess.call('git clone https://gitee.com/mindspore/community.git meetings/community'.split())
-        etherpad_pre = 'https://etherpad.mindspore.cn/p/meetings-'
+        subprocess.call('git clone {} meetings/community'.format(settings.COMMUNITY_REPO_URL).split())
+        etherpad_pre = '{}/p/meetings-'.format(settings.ETHERPAD_PREFIX)
         if not Group.objects.filter(name='MSG'):
             Group.objects.create(name='MSG', group_type=2, etherpad=etherpad_pre + 'MSG')
             logger.info('Create group MSG')

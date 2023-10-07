@@ -1,5 +1,5 @@
 from openeuler.models import Meeting
-from openeuler.utils import zoom_apis, welink_apis, tencent_apis
+from app_meeting_server.utils import zoom_apis, welink_apis, tencent_apis
 
 
 def createMeeting(platform, date, start, end, topic, host, record):
@@ -23,6 +23,7 @@ def cancelMeeting(mid):
     elif mplatform == 'welink':
         status = welink_apis.cancelMeeting(mid, host_id)
     elif mplatform == 'tencent':
+        from openeuler.utils import tencent_apis
         status = tencent_apis.cancelMeeting(mid)
     return status
 
@@ -34,8 +35,10 @@ def getParticipants(mid):
     if mplatform == 'zoom':
         status, res = zoom_apis.getParticipants(mid)
     elif mplatform == 'welink':
+        from openeuler.utils import welink_apis
         status, res = welink_apis.getParticipants(mid)
     elif mplatform == 'tencent':
+        from openeuler.utils import tencent_apis
         status, res = tencent_apis.getParticipants(mid)
     return status, res
 

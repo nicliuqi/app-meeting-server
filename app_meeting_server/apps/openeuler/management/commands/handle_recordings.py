@@ -11,9 +11,10 @@ from django.core.management.base import BaseCommand
 from openeuler.models import Meeting, Video, Record
 from multiprocessing.dummy import Pool as ThreadPool
 from openeuler.utils.html_template import cover_content
-from openeuler.utils.welink_apis import getParticipants, listRecordings, downloadHWCloudRecording, getDetailDownloadUrl
-from openeuler.utils.tencent_apis import get_records, get_video_download
-from openeuler.utils.zoom_apis import getOauthToken
+from app_meeting_server.utils.welink_apis import listRecordings, downloadHWCloudRecording, getDetailDownloadUrl
+from openeuler.utils.welink_apis import getParticipants
+from app_meeting_server.utils.tencent_apis import get_records, get_video_download
+from app_meeting_server.utils.zoom_apis import getOauthToken
 
 logger = logging.getLogger('log')
 

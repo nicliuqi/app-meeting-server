@@ -7,8 +7,8 @@ from openeuler.views import LoginView, GroupView, GroupsView, MeetingView, Meeti
     ActivityView, ActivitiesView, RecentActivitiesView, SponsorActivitiesView, ActivityRetrieveView, \
     ActivityUpdateView, ActivityDraftView, ActivitiesDraftView, SponsorActivityDraftView, DraftUpdateView, \
     DraftPublishView, SponsorActivitiesPublishingView, ActivityCollectView, ActivityCollectDelView, \
-    MyActivityCollectionsView, FeedbackView, CountActivitiesView, MyCountsView, MeetingsRecentlyView, \
-    ActivitiesDataView, AgreePrivacyPolicyView
+    MyActivityCollectionsView, CountActivitiesView, MyCountsView, MeetingsRecentlyView, ActivitiesDataView, \
+    AgreePrivacyPolicyView, LogoutView, LogoffView
 
 urlpatterns = [
     path('login/', LoginView.as_view()),  # 登陆
@@ -61,9 +61,10 @@ urlpatterns = [
     path('collectactivity/', ActivityCollectView().as_view()),  # 收藏活动
     path('collectactivitydel/<int:pk>/', ActivityCollectDelView.as_view()),  # 取消收藏活动
     path('collectactivities/', MyActivityCollectionsView.as_view()),  # 我收藏的活动列表
-    path('feedback/', FeedbackView.as_view()),  # 意见反馈
     path('countactivities/', CountActivitiesView.as_view()),  # 各类活动计数
     path('mycounts/', MyCountsView.as_view()),  # 我的各类计数
     path('activitiesdata/', ActivitiesDataView.as_view()),  # 活动日历
     path('agree/', AgreePrivacyPolicyView.as_view()),  # 同意更新隐私政策
+    path('logout/', LogoutView.as_view()),
+    path('logoff/', LogoffView.as_view()),
 ]

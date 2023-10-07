@@ -88,8 +88,6 @@ def getParticipants(mid):
     token = getOauthToken()
     headers = {
         "authorization": "Bearer {}".format(token)}
-    logger.info(url)
-    logger.info(headers)
     r = requests.get(url, headers=headers)
     if r.status_code == 200:
         total_records = r.json()['total_records']

@@ -6,7 +6,6 @@ import requests
 import subprocess
 import time
 from django.conf import settings
-from mindspore.models import Meeting
 
 logger = logging.getLogger('log')
 
@@ -19,7 +18,7 @@ def createProxyToken(host_id):
         return None
     account = host_dict[host_id]['account']
     pwd = host_dict[host_id]['pwd']
-    url = settings.WELINK_AUTH_URL
+    uri = '/v1/usg/acs/auth/proxy'
     headers = {
         'Content-Type': 'application/json; charset=UTF-8'
     }
@@ -30,7 +29,7 @@ def createProxyToken(host_id):
         'account': account,
         'pwd': pwd
     }
-    response = requests.post(url, headers=headers, data=json.dumps(payload))
+    response = requests.post(get_url(uri), headers=headers, data=json.dumps(payload))
     if response.status_code != 200:
         logger.error('Fail to get proxy token, status_code: {}'.format(response.status_code))
         return None
@@ -43,7 +42,7 @@ def createMeeting(date, start, end, topic, host, record):
     startTime = (datetime.datetime.strptime(date + start, '%Y-%m-%d%H:%M') - datetime.timedelta(hours=8)).strftime(
         '%Y-%m-%d %H:%M')
     length = int((datetime.datetime.strptime(end, '%H:%M') - datetime.datetime.strptime(start, '%H:%M')).seconds / 60)
-    url = 'https://api.meeting.huaweicloud.com/v1/mmc/management/conferences'
+    uri = '/v1/mmc/management/conferences'
     headers = {
         'Content-Type': 'application/json',
         'X-Access-Token': access_token
@@ -63,13 +62,13 @@ def createMeeting(date, start, end, topic, host, record):
     if record == 'cloud':
         data['isAutoRecord'] = 1
         data['recordType'] = 2
-    response = requests.post(url, headers=headers, data=json.dumps(data))
-    resp_dict = {'mmid': ''}
+    response = requests.post(get_url(uri), headers=headers, data=json.dumps(data))
+    resp_dict = {}
     if response.status_code != 200:
         logger.error('Fail to create meeting, status_code is {}'.format(response.status_code))
         return response.status_code, resp_dict
     resp_dict['mid'] = response.json()[0]['conferenceID']
-    # resp_dict['start_url'] = response.json()[0]['chairJoinUri']
+    resp_dict['start_url'] = response.json()[0]['chairJoinUri']
     resp_dict['join_url'] = response.json()[0]['guestJoinUri']
     resp_dict['host_id'] = response.json()[0]['userUUID']
     return response.status_code, resp_dict
@@ -78,7 +77,7 @@ def createMeeting(date, start, end, topic, host, record):
 def cancelMeeting(mid, host_id):
     """取消会议"""
     access_token = createProxyToken(host_id)
-    url = 'https://api.meeting.huaweicloud.com/v1/mmc/management/conferences'
+    uri = '/v1/mmc/management/conferences'
     headers = {
         'X-Access-Token': access_token
     }
@@ -86,7 +85,7 @@ def cancelMeeting(mid, host_id):
         'conferenceID': mid,
         'type': 1
     }
-    response = requests.delete(url, headers=headers, params=params)
+    response = requests.delete(get_url(uri), headers=headers, params=params)
     if response.status_code != 200:
         logger.error('Fail to cancel meeting {}'.format(mid))
         logger.error(response.json())
@@ -101,7 +100,7 @@ def listHisMeetings(host_id):
     tn = int(time.time())
     endDate = tn * 1000
     startDate = (tn - 3600 * 24) * 1000
-    url = 'https://api.meeting.huaweicloud.com/v1/mmc/management/conferences/history'
+    uri = '/v1/mmc/management/conferences/history'
     headers = {
         'X-Access-Token': access_token
     }
@@ -110,47 +109,12 @@ def listHisMeetings(host_id):
         'endDate': endDate,
         'limit': 500
     }
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(get_url(uri), headers=headers, params=params)
     if response.status_code != 200:
         logger.error('Fail to get history meetings list')
         logger.error(response.json())
         return {}
     return response.json()
-
-
-def getParticipants(mid):
-    """获取会议参会者"""
-    meeting = Meeting.objects.get(mid=mid)
-    host_id = meeting.host_id
-    access_token = createProxyToken(host_id)
-    headers = {
-        'X-Access-Token': access_token
-    }
-    url = 'https://api.meeting.huaweicloud.com/v1/mmc/management/conferences/history/confAttendeeRecord'
-    meetings_lst = listHisMeetings(host_id)
-    meetings_data = meetings_lst.get('data')
-    participants = {
-        'total_records': 0,
-        'participants': []
-    }
-    status = 200
-    for item in meetings_data:
-        if item['conferenceID'] == str(mid):
-            conf_uuid = item['confUUID']
-            params = {
-                'confUUID': conf_uuid,
-                'limit': 500
-            }
-            response = requests.get(url, headers=headers, params=params)
-            if response.status_code == 200:
-                participants['total_records'] += response.json()['count']
-                for participant_info in response.json()['data']:
-                    participants['participants'].append(participant_info)
-            else:
-                status = response.status_code
-                participants = response.json()
-                break
-    return status, participants
 
 
 def listRecordings(host_id):
@@ -159,7 +123,7 @@ def listRecordings(host_id):
     tn = int(time.time())
     endDate = tn * 1000
     startDate = (tn - 3600 * 24) * 1000
-    url = 'https://api.meeting.huaweicloud.com/v1/mmc/management/record/files'
+    uri = '/v1/mmc/management/record/files'
     headers = {
         'X-Access-Token': access_token
     }
@@ -168,21 +132,21 @@ def listRecordings(host_id):
         'endDate': endDate,
         'limit': 100
     }
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(get_url(uri), headers=headers, params=params)
     return response.status_code, response.json()
 
 
 def getDetailDownloadUrl(confUUID, host_id):
     """获取录像下载地址"""
     access_token = createProxyToken(host_id)
-    url = 'https://api.meeting.huaweicloud.com/v1/mmc/management/record/downloadurls'
+    uri = '/v1/mmc/management/record/downloadurls'
     headers = {
         'X-Access-Token': access_token
     }
     params = {
         'confUUID': confUUID
     }
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(get_url(uri), headers=headers, params=params)
     return response.status_code, response.json()
 
 
@@ -192,3 +156,8 @@ def downloadHWCloudRecording(token, target_filename, download_url):
         os.remove(target_filename)
     cmd = 'wget --header="Authorization: {}" -O {} {}'.format(token, target_filename, download_url)
     subprocess.call(cmd.split())
+
+
+def get_url(uri):
+    prefix = settings.WELINK_PREFIX
+    return prefix + uri
