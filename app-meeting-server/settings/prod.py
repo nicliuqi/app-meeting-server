@@ -31,11 +31,11 @@ CI_BOT_TOKEN = DEFAULT_CONF.get('CI_BOT_TOKEN')
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = DEFAULT_CONF.get('SECRET_KEY', '')
+SECRET_KEY = DEFAULT_CONF.get('SECRET_KEY')
 
 APP_CONF = {
-    'appid': DEFAULT_CONF.get('APP_ID', ''),
-    'secret': DEFAULT_CONF.get('APP_SECRET', '')
+    'appid': DEFAULT_CONF.get('APP_ID'),
+    'secret': DEFAULT_CONF.get('APP_SECRET')
 }
 
 MEETING_HOSTS = {
@@ -184,11 +184,11 @@ WSGI_APPLICATION = 'community_meetings.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': DEFAULT_CONF.get('DB_NAME', ""),
-        'USER': DEFAULT_CONF.get('DB_USER', "root"),
-        'PASSWORD': DEFAULT_CONF.get('DB_PASSWORD', "123456"),
-        'HOST': DEFAULT_CONF.get('DB_HOST', "127.0.0.1"),
-        'PORT': DEFAULT_CONF.get('DB_PORT', "3306"),
+        'NAME': DEFAULT_CONF.get('DB_NAME'),
+        'USER': DEFAULT_CONF.get('DB_USER'),
+        'PASSWORD': DEFAULT_CONF.get('DB_PASSWORD'),
+        'HOST': DEFAULT_CONF.get('DB_HOST'),
+        'PORT': DEFAULT_CONF.get('DB_PORT'),
     }
 }
 
