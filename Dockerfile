@@ -5,8 +5,6 @@ MAINTAINER TommyLike<tommylikehu@gmail.com>
 RUN yum install -y vim wget git xz tar make automake autoconf libtool gcc gcc-c++ kernel-devel libmaxminddb-devel pcre-devel openssl openssl-devel tzdata \
 readline-devel libffi-devel python3-devel mariadb-devel python3-pip net-tools.x86_64 iputils libXext libjpeg xorg-x11-fonts-75dpi xorg-x11-fonts-Type1 openssl-devel tzdata
 
-RUN pip3 install uwsgi
-
 WORKDIR /work/app-meeting-server
 COPY . /work/app-meeting-server
 COPY ./deploy/fonts/simsun.ttc /usr/share/fonts
@@ -18,6 +16,7 @@ RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkh
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN chmod -R 550 /work/app-meeting-server/docker-entrypoint.sh
+
 # RASP install
 ARG PUBLIC_USER
 ARG PUBLIC_PASSWORD
@@ -27,6 +26,7 @@ RUN git clone https://$PUBLIC_USER:$PUBLIC_PASSWORD@github.com/Open-Infra-Ops/pl
     pip3 install armorrasp.tar.gz && \
     rm -rf armorrasp.tar.gz \
 
+# Run server
 ENV LANG=en_US.UTF-8
 ARG user=meetingserver
 ARG group=meetingserver
