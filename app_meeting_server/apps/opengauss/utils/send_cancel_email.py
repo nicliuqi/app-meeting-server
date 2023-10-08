@@ -1,19 +1,16 @@
 import datetime
 import icalendar
 import logging
-import os
 import pytz
 import re
 import smtplib
 import subprocess
-import uuid
 import yaml
 from django.conf import settings
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from opengauss.models import Meeting
 
 logger = logging.getLogger('log')
 
@@ -39,10 +36,10 @@ def sendmail(m):
             toaddrs_list.remove(addr)
     toaddrs_string = ','.join(toaddrs_list)
     # 发送列表默认添加该sig所在的邮件列表
-    newly_mapping = 'https://gitee.com/opengauss/tc/raw/master/maillist_mapping.yaml'
-    cmd = 'wget {} -O meetings/utils/maillist_mapping.yaml'.format(newly_mapping)
+    newly_mapping = settings.MAILLIST_MAPPING
+    cmd = 'wget {} -O opengauss/utils/maillist_mapping.yaml'.format(newly_mapping)
     subprocess.call(cmd.split())
-    with open('meetings/utils/maillist_mapping.yaml', 'r') as f:
+    with open('opengauss/utils/maillist_mapping.yaml', 'r') as f:
         maillists = yaml.safe_load(f)
     if sig_name in maillists.keys():
         maillist = maillists[sig_name]
@@ -60,8 +57,7 @@ def sendmail(m):
     msg = MIMEMultipart()
 
     # 添加邮件主体
-    body_of_email = None
-    with open('templates/template_cancel_meeting.txt', 'r', encoding='utf-8') as fp:
+    with open('app_meeting_server/templates/template_cancel_meeting.txt', 'r', encoding='utf-8') as fp:
         body = fp.read()
         body_of_email = body.replace('{{platform}}', platform). \
                 replace('{{start_time}}', start_time). \
@@ -98,7 +94,7 @@ def sendmail(m):
 
     msg.attach(part)
 
-    sender = settings.DEFAULT_CONF.get('SMTP_SENDER', '')
+    sender = settings.SMTP_SERVER_SENDER
     # 完善邮件信息
     msg['Subject'] = topic
     msg['From'] = 'openGauss conference<%s>' % sender
@@ -106,12 +102,10 @@ def sendmail(m):
 
     # 登录服务器发送邮件
     try:
-        gmail_username = settings.GMAIL_USERNAME
-        gmail_password = settings.GMAIL_PASSWORD
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.ehlo()
         server.starttls()
-        server.login(gmail_username, gmail_password)
+        server.login(settings.SMTP_SERVER_USER, settings.SMTP_SERVER_PASS)
         server.sendmail(sender, toaddrs_list, msg.as_string())
         logger.info('email string: {}'.format(toaddrs))
         logger.info('error addrs: {}'.format(error_addrs))

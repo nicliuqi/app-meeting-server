@@ -65,6 +65,6 @@ urlpatterns = [
     path('mycounts/', MyCountsView.as_view()),  # 我的各类计数
     path('activitiesdata/', ActivitiesDataView.as_view()),  # 活动日历
     path('agree/', AgreePrivacyPolicyView.as_view()),  # 同意更新隐私政策
-    path('logout/', LogoutView.as_view()),
-    path('logoff/', LogoffView.as_view()),
+    path('logout/', LogoutView.as_view()),  # 登出账号
+    path('logoff/', LogoffView.as_view()),  # 注销账号
 ]

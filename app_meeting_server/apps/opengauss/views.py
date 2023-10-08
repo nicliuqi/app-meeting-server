@@ -1,5 +1,4 @@
 import datetime
-import json
 import logging
 import math
 import requests
@@ -198,7 +197,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         data = self.request.data
         platform = data['platform'] if 'platform' in data else 'zoom'
         platform = platform.lower()
-        host_dict = settings.OPENGAUSS_MEETING_HOSTS[platform]
+        host_dict = settings.MEETING_HOSTS[platform]
         date = data['date']
         start = data['start']
         end = data['end']
@@ -501,7 +500,7 @@ class DeleteMeetingView(GenericAPIView, UpdateModelMixin):
         Meeting.objects.filter(mid=mid).update(is_delete=1)
         user = User.objects.get(id=user_id)
         logger.info('{} has canceled meeting {}'.format(user.gitee_id, mid))
-        from meetings.utils.send_cancel_email import sendmail
+        from opengauss.utils.send_cancel_email import sendmail
         meeting = Meeting.objects.get(mid=mid)
         date = meeting.date
         start = meeting.start

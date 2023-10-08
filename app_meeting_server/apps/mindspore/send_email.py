@@ -9,7 +9,7 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from django.conf import settings
-from app_meeting_server.apps.mindspore.models import Meeting
+from mindspore.models import Meeting
 
 logger = logging.getLogger('log')
 
@@ -45,8 +45,8 @@ def sendmail(mid, record=None):
 
     # 添加邮件主体
     body_of_email = None
-    portal_zh = settings.DEFAULT_CONF.get('PORTAL_ZH')
-    portal_en = settings.DEFAULT_CONF.get('PORTAL_EN')
+    portal_zh = settings.PORTAL_ZH
+    portal_en = settings.PORTAL_EN
     if not summary and not record:
         with open('app_meeting_server/templates/template_without_summary_without_recordings.txt', 'r',
                   encoding='utf-8') as fp:
@@ -124,7 +124,7 @@ def sendmail(mid, record=None):
 
     msg.attach(part)
 
-    sender = settings.DEFAULT_CONF.get('SMTP_SENDER', '')
+    sender = settings.SMTP_SERVER_SENDER
     # 完善邮件信息
     msg['Subject'] = topic
     msg['From'] = 'MindSpore conference <%s>' % sender
@@ -132,12 +132,10 @@ def sendmail(mid, record=None):
 
     # 登录服务器发送邮件
     try:
-        gmail_username = settings.GMAIL_USERNAME
-        gmail_password = settings.GMAIL_PASSWORD
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.ehlo()
         server.starttls()
-        server.login(gmail_username, gmail_password)
+        server.login(settings.SMTP_SERVER_USER, settings.SMTP_SERVER_PASS)
         server.sendmail(sender, toaddrs_list, msg.as_string())
         logger.info('email string: {}'.format(toaddrs))
         logger.info('error addrs: {}'.format(error_addrs))

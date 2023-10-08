@@ -2,13 +2,13 @@ from django.urls import path
 from mindspore.views import LoginView, GroupMembersView, NonGroupMembersView, SigsView, GroupUserAddView, \
     GroupUserDelView, UpdateUserInfoView, CreateMeetingView, MeetingsListView, MeetingDetailView, UserGroupView, \
     UserInfoView, CollectMeetingView, CollectionDelView, MyCollectionsView, MyMeetingsView, CancelMeetingView, \
-    HandleRecordView, GroupsView, ParticipantsView, SponsorsView, NonSponsorsView, SponsorsAddView, \
+    GroupsView, ParticipantsView, SponsorsView, NonSponsorsView, SponsorsAddView, \
     SponsorsDelView, ActivityCreateView, ActivityUpdateView, DraftUpdateView, WaitingActivities, WaitingActivity, \
     ApproveActivityView, DenyActivityView, ActivityDeleteView, DraftView, ActivitiesListView, ActivityDetailView, \
     DraftsListView, ActivityCollectView, ActivityCollectionsView, ActivityCollectionDelView, MyCountsView, \
     CityMembersView, NonCityMembersView, CitiesView, AddCityView, CityUserAddView, CityUserDelView, UserCityView, \
     RecentActivitiesView, PublishedActivitiesView, WaitingPublishingActivitiesView, CountActivitiesView, \
-    MeetingsDataView, ActivitiesDataView, AgreePrivacyPolicyView
+    MeetingsDataView, ActivitiesDataView, AgreePrivacyPolicyView, LogoutView, LogoffView
 
 urlpatterns = [
     path('login/', LoginView.as_view()),  # 登录
@@ -28,7 +28,6 @@ urlpatterns = [
     path('collect/<int:pk>/', CollectionDelView.as_view()),  # 取消收藏会议
     path('collections/', MyCollectionsView.as_view()),  # 我收藏的会议
     path('mymeetings/', MyMeetingsView.as_view()),  # 我预定的会议
-    path('handlerecord/', HandleRecordView.as_view()),  # 录像处理
     path('groups/', GroupsView.as_view()),  # 组列表
     path('participants/<int:mid>/', ParticipantsView.as_view()),  # 会议参会者名单
     path('users_include_city/', CityMembersView.as_view()),  # 城市组成员列表
@@ -65,4 +64,6 @@ urlpatterns = [
     path('meetingsdata/', MeetingsDataView.as_view()),  # 会议日历数据
     path('activitiesdata/', ActivitiesDataView.as_view()),  # 活动日历数据
     path('agree/', AgreePrivacyPolicyView.as_view()),  # 同意更新隐私政策
+    path('logout/', LogoutView.as_view()),  # 登出账号
+    path('logoff/', LogoffView.as_view()),  # 注销账号
 ]

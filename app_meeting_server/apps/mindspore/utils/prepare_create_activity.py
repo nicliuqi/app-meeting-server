@@ -1,8 +1,7 @@
 import datetime
 
 
-def prepare(start_date, end_date, activity_category, activity_type, address, detail_address, register_method,
-            register_url):
+def prepare(start_date, end_date, activity_category, activity_type, register_method, register_url):
     if start_date > end_date:
         return {'code': 400, 'msg': ''}
     if start_date < (datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%Y-%m-%d'):

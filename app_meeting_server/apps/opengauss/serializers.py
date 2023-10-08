@@ -1,5 +1,5 @@
 from rest_framework.serializers import ModelSerializer
-from opengauss.models import Meeting, User, Group
+from opengauss.models import Meeting, Group
 from rest_framework import serializers
 
 

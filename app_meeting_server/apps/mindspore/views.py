@@ -1,15 +1,10 @@
 import datetime
 import math
-import os
-import sys
-import tempfile
-import traceback
 from random import random
-import wget
 from django.conf import settings
 from multiprocessing import Process
 from django.db.models import Q
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework.filters import SearchFilter
@@ -19,23 +14,21 @@ from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, ListModelM
 from rest_framework.response import Response
 from rest_framework_simplejwt import authentication
 from rest_framework_simplejwt.tokens import RefreshToken
-from app_meeting_server.apps.mindspore.models import Meeting, Record, Activity, ActivityCollect
-from app_meeting_server.apps.mindspore.permissions import MaintainerPermission, AdminPermission, QueryPermission, \
-    SponsorPermission, ActivityAdminPermission
-from app_meeting_server.apps.mindspore.models import GroupUser, Group, User, Collect, City, CityUser
-from app_meeting_server.apps.mindspore.serializers import LoginSerializer, UsersInGroupSerializer, SigsSerializer, \
-    GroupsSerializer, GroupUserAddSerializer, GroupUserDelSerializer, UserInfoSerializer, UserGroupSerializer, \
-    MeetingSerializer, MeetingDelSerializer, MeetingsListSerializer, CollectSerializer, CitiesSerializer, \
-    CityUserAddSerializer, CityUserDelSerializer, UserCitySerializer, SponsorSerializer, ActivitySerializer, \
-    ActivityUpdateSerializer, ActivityDraftUpdateSerializer, ActivitiesSerializer, ActivityRetrieveSerializer, \
-    ActivityCollectSerializer
-from app_meeting_server.apps.mindspore.send_email import sendmail
-from app_meeting_server.apps.mindspore.utils.tecent_apis import *
-from app_meeting_server.apps.mindspore.utils import prepare_create_activity, gene_wx_code
-from obs import ObsClient
-from app_meeting_server.apps.mindspore.utils import drivers
-from app_meeting_server.apps.mindspore.auth import CustomAuthentication
-from app_meeting_server.apps.mindspore.utils.tecent_apis import get_video_download
+from mindspore.models import Activity, ActivityCollect
+from mindspore.permissions import MaintainerPermission, AdminPermission, QueryPermission, SponsorPermission, \
+    ActivityAdminPermission
+from mindspore.models import GroupUser, Group, User, Collect, City, CityUser
+from mindspore.serializers import LoginSerializer, UsersInGroupSerializer, SigsSerializer, GroupsSerializer, \
+    GroupUserAddSerializer, GroupUserDelSerializer, UserInfoSerializer, UserGroupSerializer, MeetingSerializer, \
+    MeetingDelSerializer, MeetingsListSerializer, CollectSerializer, CitiesSerializer, CityUserAddSerializer, \
+    CityUserDelSerializer, UserCitySerializer, SponsorSerializer, ActivitySerializer, ActivityUpdateSerializer, \
+    ActivityDraftUpdateSerializer, ActivitiesSerializer, ActivityRetrieveSerializer, ActivityCollectSerializer
+from mindspore.send_email import sendmail
+from mindspore.utils.tencent_apis import *
+from mindspore.utils import prepare_create_activity, gene_wx_code
+from mindspore.utils import drivers
+from mindspore.auth import CustomAuthentication
+from app_meeting_server.utils import wx_apis
 
 logger = logging.getLogger('log')
 
@@ -192,7 +185,7 @@ class AddCityView(GenericAPIView, CreateModelMixin):
         name = data.get('name')
         if name in City.objects.all().values_list('name', flat=True):
             return JsonResponse({'code': 400, 'msg': '城市名重复', 'access': access})
-        etherpad = 'https://etherpad.mindspore.cn/p/meetings-MSG/{}'.format(name)
+        etherpad = '{}/p/meetings-MSG/{}'.format(settings.ETHERPAD_PREFIX, name)
         City.objects.create(name=name, etherpad=etherpad)
         return JsonResponse({'code': 201, 'msg': '添加成功', 'access': access})
 
@@ -367,7 +360,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         data = self.request.data
         platform = data['platform'] if 'platform' in data else 'tencent'
         platform = platform.lower()
-        host_list = settings.MINDSPORE_MEETING_HOSTS[platform]
+        host_list = settings.MEETING_HOSTS[platform]
         topic = data['topic']
         sponsor = data['sponsor']
         meeting_type = data['meeting_type']
@@ -489,7 +482,7 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
             # 发送会议取消通知
             collections = Collect.objects.filter(meeting_id=meeting.id)
             if collections:
-                access_token = self.get_token()
+                access_token = wx_apis.get_token()
                 topic = meeting.topic
                 date = meeting.date
                 start_time = meeting.start
@@ -499,10 +492,8 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
                     user = User.objects.get(id=user_id)
                     nickname = user.nickname
                     openid = user.openid
-                    content = self.get_remove_template(openid, topic, time, mid)
-                    r = requests.post(
-                        'https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token={}'.format(access_token),
-                        data=json.dumps(content))
+                    content = wx_apis.get_remove_template(openid, topic, time, mid)
+                    r = wx_apis.send_subscription(content, access_token)
                     if r.status_code != 200:
                         logger.error('status code: {}'.format(r.status_code))
                         logger.error('content: {}'.format(r.json()))
@@ -520,46 +511,6 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
         else:
             logger.error('删除会议失败')
             return JsonResponse({'code': 400, 'msg': '取消失败', 'access': access})
-
-    def get_remove_template(self, openid, topic, time, mid):
-        if len(topic) > 20:
-            topic = topic[:20]
-        content = {
-            "touser": openid,
-            "template_id": settings.MINDSPORE_CANCEL_MEETING_TEMPLATE,
-            "page": "/pages/index/index",
-            "miniprogram_state": "trial",
-            "lang": "zh-CN",
-            "data": {
-                "thing1": {
-                    "value": topic
-                },
-                "time2": {
-                    "value": time
-                },
-                "thing4": {
-                    "value": "会议{}已被取消".format(mid)
-                }
-            }
-        }
-        return content
-
-    def get_token(self):
-        appid = settings.MINDSPORE_APP_CONF['appid']
-        secret = settings.MINDSPORE_APP_CONF['secret']
-        url = 'https://api.weixin.qq.com/cgi-bin/token?appid={}&secret={}&grant_type=client_credential'.format(appid,
-                                                                                                               secret)
-        r = requests.get(url)
-        if r.status_code == 200:
-            try:
-                access_token = r.json()['access_token']
-                return access_token
-            except KeyError as e:
-                logger.error(e)
-        else:
-            logger.error(r.json())
-            logger.error('fail to get access_token,exit.')
-            sys.exit(1)
 
 
 class MeetingDetailView(GenericAPIView, RetrieveModelMixin):
@@ -680,108 +631,6 @@ class MyCollectionsView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class HandleRecordView(GenericAPIView):
-    """处理录像"""
-
-    def get(self, request, *args, **kwargs):
-        check_str = self.request.GET.get('check_str')
-        return HttpResponse(base64.b64decode(check_str.encode('utf-8')).decode('utf-8'))
-
-    def post(self, request, *args, **kwargs):
-        data = self.request.data
-        bdata = data['data']
-        real_data = json.loads(base64.b64decode(bdata.encode('utf-8')).decode('utf-8'))
-        logger.info('completed recording payload: {}'.format(real_data))
-        # 从real_data从获取会议的id, code, record_file_id
-        try:
-            mmid = real_data['payload'][0]['meeting_info']['meeting_id']
-            meeting_code = real_data['payload'][0]['meeting_info']['meeting_code']
-            userid = real_data['payload'][0]['meeting_info']['creator']['userid']
-            record_file_id = real_data['payload'][0]['recording_files'][0]['record_file_id']
-            start_time = real_data['payload'][0]['meeting_info']['start_time']
-            end_time = real_data['payload'][0]['meeting_info']['end_time']
-        except KeyError:
-            logger.info('HandleRecord: Not a completed event')
-            return HttpResponse('successfully received callback')
-        # 根据code查询会议的日期、标题，拼接待上传的objectKey
-        meeting = Meeting.objects.get(mid=meeting_code)
-        meeting_type = meeting.meeting_type
-        group_name = meeting.group_name
-        host_id = meeting.host_id
-        objectKey = None
-        if group_name == 'MSG':
-            objectKey = 'msg/{}.mp4'.format(meeting_code)
-        elif group_name == 'Tech':
-            objectKey = 'tech/{}.mp4'.format(meeting_code)
-        else:
-            objectKey = 'sig/{}/{}.mp4'.format(group_name, meeting_code)
-        logger.info('objectKey ready to upload to OBS: {}'.format(objectKey))
-
-        # 根据record_file_id查询会议录像的download_url
-        download_url = get_video_download(record_file_id, userid)
-        if not download_url:
-            return JsonResponse({'code': 400, 'msg': '获取下载地址失败'})
-        logger.info('download url: {}'.format(download_url))
-
-        # 下载会议录像
-        tmpdir = tempfile.gettempdir()
-        outfile = os.path.join(tmpdir, '{}.mp4'.format(meeting_code))
-        filename = wget.download(download_url, outfile)
-        logger.info('temp record file: {}'.format(filename))
-        file_size = os.path.getsize(filename)
-        if Record.objects.filter(meeting_code=meeting_code, file_size=file_size):
-            logger.info('meeting {}: 录像已上传OBS')
-            try:
-                os.system('rm {}'.format(filename))
-            except:
-                pass
-            return HttpResponse('successfully received callback')
-
-        # 连接OBSClient，上传视频，获取download_url
-        access_key_id = settings.DEFAULT_CONF.get('MINDSPORE_ACCESS_KEY_ID', '')
-        secret_access_key = settings.DEFAULT_CONF.get('MINDSPORE_SECRET_ACCESS_KEY', '')
-        endpoint = settings.DEFAULT_CONF.get('MINDSPORE_OBS_ENDPOINT')
-        bucketName = settings.DEFAULT_CONF.get('MINDSPORE_OBS_BUCKETNAME')
-        if not access_key_id or not secret_access_key or not endpoint or not bucketName:
-            logger.error('losing required argements for ObsClient')
-            sys.exit(1)
-        obs_client = ObsClient(access_key_id=access_key_id,
-                               secret_access_key=secret_access_key,
-                               server='https://{}'.format(endpoint))
-        metadata = {
-            "meeting_id": mmid,
-            "meeting_code": meeting_code,
-            "community": "mindspore",
-            "start": start_time,
-            "end": end_time
-        }
-        try:
-            res = obs_client.uploadFile(bucketName=bucketName, objectKey=objectKey, uploadFile=filename,
-                                        taskNum=10, enableCheckpoint=True, metadata=metadata)
-            if res['status'] == 200:
-                obs_download_url = 'https://{}.{}/{}?response-content-disposition=attachment'.format(bucketName,
-                                                                                                     endpoint,
-                                                                                                     objectKey)
-                logger.info('upload to OBS successfully, the download_url is {}'.format(obs_download_url))
-                # 发送包含download_url的邮件
-                from app_meeting_server.apps.mindspore.utils.send_recording_completed_msg import sendmail
-                topic = meeting.topic
-                date = meeting.date
-                start = meeting.start
-                end = meeting.end
-                sendmail(topic, group_name, date, start, end, meeting_code, obs_download_url)
-                Record.objects.create(meeting_code=meeting_code, file_size=file_size, download_url=obs_download_url)
-                try:
-                    os.system('rm {}'.format(filename))
-                except:
-                    pass
-                return HttpResponse('successfully received callback')
-            else:
-                logger.error(res.errorCode, res.errorMessage)
-        except:
-            logger.info(traceback.format_exc())
-
-
 class ParticipantsView(GenericAPIView):
     """会议参会者信息"""
     permission_classes = (QueryPermission,)
@@ -880,8 +729,8 @@ class ActivityCreateView(GenericAPIView, CreateModelMixin):
         user_id = self.request.user.id
         publish = self.request.GET.get('publish')
 
-        res = prepare_create_activity.prepare(start_date, end_date, activity_category, activity_type, address,
-                                              detail_address, register_method, register_url)
+        res = prepare_create_activity.prepare(start_date, end_date, activity_category, activity_type,register_method,
+                                              register_url)
         if res:
             return JsonResponse(res)
         # 创建并申请发布
@@ -991,8 +840,8 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
         poster = data['poster']
         user_id = self.request.user.id
         publish = self.request.GET.get('publish')
-        res = prepare_create_activity.prepare(start_date, end_date, activity_category, activity_type, address,
-                                              detail_address, register_method, register_url)
+        res = prepare_create_activity.prepare(start_date, end_date, activity_category, activity_type, register_method,
+                                              register_url)
         if res:
             return JsonResponse(res)
         # 修改活动草案并申请发布
@@ -1068,11 +917,9 @@ class ApproveActivityView(GenericAPIView, UpdateModelMixin):
     def put(self, request, *args, **kwargs):
         access = refresh_access(self.request.user)
         activity_id = self.kwargs.get('pk')
-        appid = settings.MINDSPORE_APP_CONF['appid']
-        secret = settings.MINDSPORE_APP_CONF['secret']
         if activity_id in self.queryset.values_list('id', flat=True):
             logger.info('活动id: {}'.format(activity_id))
-            img_url = gene_wx_code.run(appid, secret, activity_id)
+            img_url = gene_wx_code.run(activity_id)
             logger.info('生成活动页面二维码: {}'.format(img_url))
             Activity.objects.filter(id=activity_id, status=2).update(status=3, wx_code=img_url)
             return JsonResponse({'code': 201, 'msg': '活动通过审核', 'access': access})
@@ -1459,6 +1306,7 @@ class ActivitiesDataView(GenericAPIView, ListModelMixin):
 
 
 class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
+    """同意隐私声明"""
     authentication_classes = (CustomAuthentication,)
     permission_classes = (permissions.IsAuthenticated,)
 
@@ -1475,11 +1323,56 @@ class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
             return resp
         User.objects.filter(id=self.request.user.id).update(agree_privacy_policy=True,
                                                             agree_privacy_policy_time=now_time,
-                                                            agree_privacy_policy_version=settings.DEFAULT_CONF.\
-                                                            get('PRIVACY_POLICY_VERSION'))
+                                                            agree_privacy_policy_version=settings.PRIVACY_POLICY_VERSION)
         resp = JsonResponse({
             'code': 201,
             'msg': 'Updated',
             'access': access
         })
+        return resp
+
+
+class RevokeAgreementView(GenericAPIView):
+    """撤销同意隐私声明"""
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        now_time = datetime.datetime.now()
+        refresh_access(self.request.user)
+        User.objects.filter(id=self.request.user.id).update(agree_privacy_policy=False, revoke_agreement_time=now_time)
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'Revoke agreement of privacy policy'
+        })
+        return resp
+
+
+class LogoutView(GenericAPIView):
+    """登出"""
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        refresh_access(self.request.user)
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'User {} logged out'.format(self.request.user.id)
+        })
+        logger.info('User {} logged out'.format(self.request.user.id))
+        return resp
+
+
+class LogoffView(GenericAPIView):
+    """注销"""
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        User.objects.filter(id=self.request.user.id).delete()
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'User {} logged off'.format(self.request.user.id)
+        })
+        logger.info('User {} logged off'.format(self.request.user.id))
         return resp

@@ -11,15 +11,15 @@ logger = logging.getLogger('log')
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        os.system('test -d meetings/tc && rm -rf meetings/tc')
-        os.system('cd meetings; git clone https://gitee.com/opengauss/tc.git')
-        with open('meetings/tc/sigs.yaml', 'r') as f:
+        os.system('test -d opengauss/tc && rm -rf meetings/tc')
+        os.system('cd opengauss; git clone https://gitee.com/opengauss/tc.git')
+        with open('opengauss/tc/sigs.yaml', 'r') as f:
             content = yaml.safe_load(f)
         sigs = []
         for sig in content['sigs']:
             sig_name = sig['name']
             sig['sponsors'] = []
-            with open('meetings/tc/sigs/{}/OWNERS'.format(sig_name), 'r') as f:
+            with open('opengauss/tc/sigs/{}/OWNERS'.format(sig_name), 'r') as f:
                 owners = yaml.safe_load(f)
             for maintainer in owners['maintainers']:
                 sig['sponsors'].append(maintainer)
@@ -35,7 +35,7 @@ class Command(BaseCommand):
                 logger.info({'sig': sig_name, 'members': sig['sponsors']})
             del sig['repositories']
             sigs.append(sig)
-        with open('meetings/tc/OWNERS', 'r') as f:
+        with open('opengauss/tc/OWNERS', 'r') as f:
             owners = yaml.safe_load(f)
         sig = {}
         sig['name'] = 'TC'

@@ -5,20 +5,17 @@ import pytz
 import re
 import smtplib
 import subprocess
-import uuid
 import yaml
 from django.conf import settings
 from email import encoders
 from email.mime.base import MIMEBase
-from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from opengauss.models import Meeting
 
 logger = logging.getLogger('log')
 
 
-def sendmail(meeting, record=None, enclosure_paths=None):
+def sendmail(meeting, record=None):
     mid = meeting.get('mid')
     mid = str(mid)
     topic = meeting.get('topic')
@@ -65,10 +62,10 @@ def sendmail(meeting, record=None, enclosure_paths=None):
 
     # 添加邮件主体
     body_of_email = None
-    portal_zh = settings.DEFAULT_CONF.get('PORTAL_ZH')
-    portal_en = settings.DEFAULT_CONF.get('PORTAL_EN')
+    portal_zh = settings.PORTAL_ZH
+    portal_en = settings.PORTAL_EN
     if not summary and not record:
-        with open('../../templates/template_without_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
+        with open('app_meeting_server/templates/template_without_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
                 replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}'). \
@@ -76,7 +73,7 @@ def sendmail(meeting, record=None, enclosure_paths=None):
                 replace('{{portal_zh}}', '{6}').replace('{{portal_en}}', '{7}'). \
                 format(sig_name, start_time, join_url, topic, etherpad, platform, portal_zh, portal_en)
     elif summary and not record:
-        with open('../../templates/template_with_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
+        with open('app_meeting_server/templates/template_with_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
                 replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}'). \
@@ -84,7 +81,7 @@ def sendmail(meeting, record=None, enclosure_paths=None):
                 replace('{{portal_zh}}', '{7}').replace('{{portal_en}}', '{8}'). \
                 format(sig_name, start_time, join_url, topic, summary, etherpad, platform, portal_zh, portal_en)
     elif not summary and record:
-        with open('../../templates/template_without_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
+        with open('app_meeting_server/templates/template_without_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
                 replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}'). \
@@ -92,7 +89,7 @@ def sendmail(meeting, record=None, enclosure_paths=None):
                 replace('{{portal_zh}}', '{6}').replace('{{portal_en}}', '{7}'). \
                 format(sig_name, start_time, join_url, topic, etherpad, platform, portal_zh, portal_en)
     elif summary and record:
-        with open('../../templates/template_with_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
+        with open('app_meeting_server/templates/template_with_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
                 replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}'). \
@@ -141,20 +138,18 @@ def sendmail(meeting, record=None, enclosure_paths=None):
 
     msg.attach(part)
 
-    sender = settings.DEFAULT_CONF.get('SMTP_SENDER', '')
+    sender = settings.SMTP_SERVER_SENDER
     # 完善邮件信息
     msg['Subject'] = topic
-    msg['From'] = 'openGauss conference <%s>' % sender
+    msg['From'] = settings.MESSAGE_FROM
     msg['To'] = toaddrs_string
 
     # 登录服务器发送邮件
     try:
-        gmail_username = settings.GMAIL_USERNAME
-        gmail_password = settings.GMAIL_PASSWORD
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.ehlo()
         server.starttls()
-        server.login(gmail_username, gmail_password)
+        server.login(settings.SMTP_SERVER_USER, settings.SMTP_SERVER_PASS)
         server.sendmail(sender, toaddrs_list, msg.as_string())
         logger.info('email string: {}'.format(toaddrs))
         logger.info('error addrs: {}'.format(error_addrs))
