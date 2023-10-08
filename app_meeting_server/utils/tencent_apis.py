@@ -7,15 +7,14 @@ import random
 import requests
 import time
 from django.conf import settings
-from app_meeting_server.apps.mindspore.models import Meeting
 
 logger = logging.getLogger('log')
 
 
 def get_signature(method, uri, body):
     """获取签名"""
-    AppId = settings.TX_MEETING_APPID
-    SdkId = settings.TX_MEETING_SDKID
+    AppId = str(settings.TX_MEETING_APPID)
+    SdkId = str(settings.TX_MEETING_SDKID)
     secretKey = settings.TX_MEETING_SECRETKEY
     secretId = settings.TX_MEETING_SECRETID
     timestamp = str(int(time.time()))
@@ -38,22 +37,43 @@ def get_signature(method, uri, body):
     return signature, headers
 
 
+def get_records():
+    """获取有效录像"""
+    uri = '/v1/corp/records'
+    end_time = int(time.time())
+    start_time = end_time - 3600 * 24 * 2
+    signature, headers = get_signature('GET', uri, "")
+    page = 1
+    records = []
+    while True:
+        params = {
+            'start_time': start_time,
+            'end_time': end_time,
+            'page_size': 20,
+            'page': page
+        }
+        r = requests.get(get_url(uri), params=params, headers=headers)
+        if r.status_code != 200:
+            logger.error(r.json())
+            return []
+        if 'record_meetings' not in r.json().keys():
+            break
+        record_meetings = r.json().get('record_meetings')
+        records.extend(record_meetings)
+        page += 1
+    return records
+
+
 def get_video_download(record_file_id, userid):
     """获取录像下载地址"""
     uri = '/v1/addresses/{}?userid={}'.format(record_file_id, userid)
-    url = get_url(uri)
     signature, headers = get_signature('GET', uri, "")
-    r = requests.get(url, headers=headers)
+    r = requests.get(get_url(uri), headers=headers)
     if r.status_code == 200:
         return r.json()['download_address']
     else:
         logger.error(r.text)
         return
-
-
-def get_url(uri):
-    """获取请求url"""
-    return 'https://api.meeting.qq.com' + uri
 
 
 def createMeeting(date, start, end, topic, host_id, record):
@@ -95,33 +115,6 @@ def createMeeting(date, start, end, topic, host_id, record):
     return r.status_code, resp_dict
 
 
-def cancelMeeting(mid):
-    meeting = Meeting.objects.get(mid=mid)
-    host_id = meeting.host_id
-    mmid = meeting.mmid
-    payload = json.dumps({
-        "userid": host_id,
-        "instanceid": 1,
-        "reason_code": 1
-    })
-    uri = '/v1/meetings/' + str(mmid) + '/cancel'
-    url = get_url(uri)
-    signature, headers = get_signature('POST', uri, payload)
-    r = requests.post(url, headers=headers, data=payload)
-    if r.status_code != 200:
-        logger.error('Fail to cancel meeting {}'.format(mid))
-        logger.error(r.json())
-        return r.status_code
-    logger.info('Cancel meeting {}'.format(mid))
-    return r.status_code
-
-
-def getParticipants(mid):
-    meeting = Meeting.objects.get(mid=mid)
-    mmid = meeting.mmid
-    host_id = meeting.host_id
-    uri = '/v1/meetings/{}/participants?userid={}'.format(mmid, host_id)
-    url = get_url(uri)
-    signature, headers = get_signature('GET', uri, "")
-    r = requests.get(url, headers=headers)
-    return r.status_code, r.json()
+def get_url(uri):
+    """获取请求url"""
+    return settings.TENCENT_API_PREIX + uri

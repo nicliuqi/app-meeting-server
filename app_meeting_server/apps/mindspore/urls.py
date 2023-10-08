@@ -2,7 +2,7 @@ from django.urls import path
 from mindspore.views import LoginView, GroupMembersView, NonGroupMembersView, SigsView, GroupUserAddView, \
     GroupUserDelView, UpdateUserInfoView, CreateMeetingView, MeetingsListView, MeetingDetailView, UserGroupView, \
     UserInfoView, CollectMeetingView, CollectionDelView, MyCollectionsView, MyMeetingsView, CancelMeetingView, \
-    HandleRecordView, GroupsView, FeedbackView, ParticipantsView, SponsorsView, NonSponsorsView, SponsorsAddView, \
+    HandleRecordView, GroupsView, ParticipantsView, SponsorsView, NonSponsorsView, SponsorsAddView, \
     SponsorsDelView, ActivityCreateView, ActivityUpdateView, DraftUpdateView, WaitingActivities, WaitingActivity, \
     ApproveActivityView, DenyActivityView, ActivityDeleteView, DraftView, ActivitiesListView, ActivityDetailView, \
     DraftsListView, ActivityCollectView, ActivityCollectionsView, ActivityCollectionDelView, MyCountsView, \
@@ -30,7 +30,6 @@ urlpatterns = [
     path('mymeetings/', MyMeetingsView.as_view()),  # 我预定的会议
     path('handlerecord/', HandleRecordView.as_view()),  # 录像处理
     path('groups/', GroupsView.as_view()),  # 组列表
-    path('feedback/', FeedbackView.as_view()),  # 意见反馈
     path('participants/<int:mid>/', ParticipantsView.as_view()),  # 会议参会者名单
     path('users_include_city/', CityMembersView.as_view()),  # 城市组成员列表
     path('users_exclude_city/', NonCityMembersView.as_view()),  # 非城市组成员列表

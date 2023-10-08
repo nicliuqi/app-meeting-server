@@ -235,57 +235,51 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 STATIC_URL = '/static/'
 
 
-cur_path = os.path.dirname(os.path.realpath(__file__))  # log_path是存放日志的路径
+cur_path = os.path.dirname(os.path.realpath(__file__))
 
 log_path = os.path.join(os.path.dirname(cur_path), 'logs')
 
 if not os.path.exists(log_path):
-    os.mkdir(log_path)  # 如果不存在这个logs文件夹，就自动创建一个
+    os.mkdir(log_path)
+
 
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': True,
     'formatters': {
-        # 日志格式
         'standard': {
             'format': '[%(asctime)s] [%(filename)s:%(lineno)d] [%(module)s:%(funcName)s] '
                       '[%(levelname)s]- %(message)s'},
-        'simple': {  # 简单格式
+        'simple': {
             'format': '%(levelname)s %(message)s'
         },
     },
-    # 过滤
     'filters': {
     },
-    # 定义具体处理日志的方式
     'handlers': {
-        # 默认记录所有日志
         'default': {
             'level': 'INFO',
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(log_path, 'all-{}.log'.format(time.strftime('%Y-%m-%d'))),
-            'maxBytes': 1024 * 1024 * 5,  # 文件大小
-            'backupCount': 5,  # 备份数
-            'formatter': 'standard',  # 输出格式
-            'encoding': 'utf-8',  # 设置默认编码，否则打印出来汉字乱码
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 5,
+            'formatter': 'standard',
+            'encoding': 'utf-8',
         },
-        # 输出错误日志
         'error': {
             'level': 'ERROR',
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(log_path, 'error-{}.log'.format(time.strftime('%Y-%m-%d'))),
-            'maxBytes': 1024 * 1024 * 5,  # 文件大小
-            'backupCount': 5,  # 备份数
-            'formatter': 'standard',  # 输出格式
-            'encoding': 'utf-8',  # 设置默认编码
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 5,
+            'formatter': 'standard',
+            'encoding': 'utf-8',
         },
-        # 控制台输出
         'console': {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'standard'
         },
-        # 输出info日志
         'info': {
             'level': 'INFO',
             'class': 'logging.handlers.RotatingFileHandler',
@@ -293,18 +287,15 @@ LOGGING = {
             'maxBytes': 1024 * 1024 * 5,
             'backupCount': 5,
             'formatter': 'standard',
-            'encoding': 'utf-8',  # 设置默认编码
+            'encoding': 'utf-8',
         },
     },
-    # 配置用哪几种 handlers 来处理日志
     'loggers': {
-        # 类型 为 django 处理所有类型的日志， 默认调用
         'django': {
             'handlers': ['default', 'console'],
             'level': 'INFO',
             'propagate': False
         },
-        # log 调用时需要当作参数传入
         'log': {
             'handlers': ['error', 'info', 'console', 'default'],
             'level': 'INFO',
@@ -321,3 +312,30 @@ SMTP_SERVER_USER = DEFAULT_CONF.get('SMTP_SERVER_USER')
 SMTP_SERVER_PASS = DEFAULT_CONF.get('SMTP_SERVER_PASS')
 ZOOM_AUTH_URL = DEFAULT_CONF.get('ZOOM_AUTH_URL')
 ZOOM_AUTH_HEADER = DEFAULT_CONF.get('ZOOM_AUTH_HEADER')
+ACCESS_KEY_ID = DEFAULT_CONF.get('QUERY_AK')
+SECRET_ACCESS_KEY = DEFAULT_CONF.get('QUERY_SK')
+ENDPOINT = DEFAULT_CONF.get('QUERY_ENDPOINT')
+BUCKET_NAME = DEFAULT_CONF.get('QUERY_BUCKETNAME')
+OBJ_KEY = DEFAULT_CONF.get('QUERY_OBJ')
+ZOOM_API_PREFIX = DEFAULT_CONF.get('ZOOM_API_PREFIX')
+TENCENT_API_PREFIX = DEFAULT_CONF.get('TENCENT_API_PREFIX')
+WELINK_API_PREFIX = DEFAULT_CONF.get('WELINK_API_PREFIX')
+WX_API_PREFIX = DEFAULT_CONF.get('WX_API_PREFIX')
+ACCESS_KEY_ID_2 = DEFAULT_CONF.get('ACCESS_KEY_ID_2')
+SECRET_ACCESS_KEY_2 = DEFAULT_CONF.get('SECRET_ACCESS_KEY_2')
+OBS_ENDPOINT_2 = DEFAULT_CONF.get('OBS_ENDPOINT_2')
+OBS_BUCKETNAME_2 = DEFAULT_CONF.get('OBS_BUCKETNAME_2')
+ZOOM_TOKEN_OBJECT = DEFAULT_CONF.get('ZOOM_TOKEN_OBJECT')
+QUERY_AK = DEFAULT_CONF.get('QUERY_AK')
+QUERY_SK = DEFAULT_CONF.get('QUERY_SK')
+QUERY_ENDPOINT = DEFAULT_CONF.get('QUERY_ENDPOINT')
+QUERY_BUCKETNAME = DEFAULT_CONF.get('QUERY_BUCKETNAME')
+QUERY_OBJ = DEFAULT_CONF.get('QUERY_OBJ')
+QUERY_INTERVAL = DEFAULT_CONF.get('QUERY_INTERVAL')
+MAILLIST_API = DEFAULT_CONF.get('MAILLIST_API')
+GITEE_V5_API_PREFIX = DEFAULT_CONF.get('GITEE_V5_API_PREFIX')
+ETHERPAD_PREFIX = DEFAULT_CONF.get('ETHERPAD_PREFIX')
+COMMUNITY_REPO_URL = DEFAULT_CONF.get('COMMUNITY_REPO_URL')
+SESSDATA = DEFAULT_CONF.get('SESSDATA')
+BILI_JCT = DEFAULT_CONF.get('BILI_JCT')
+MESSAGE_FROM = DEFAULT_CONF.get('MESSAGE_FROM')

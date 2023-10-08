@@ -17,28 +17,17 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         os.system('test -d community && rm -rf community')
-        os.system('git clone https://gitee.com/openeuler/community.git')
+        os.system('git clone {}'.format(settings.COMMUNITY_REPO_URL))
         access_token = settings.CI_BOT_TOKEN
-        genegroup_auth = settings.DEFAULT_CONF.get('GENEGROUP_AUTH', '')
         if not access_token:
             self.logger.error('missing CI_BOT_TOKEN, exit...')
-            sys.exit(1)
-        if not genegroup_auth:
-            self.logger.error('missing GENEGROUP_AUTH, exit...')
             sys.exit(1)
         t1 = time.time()
         self.logger.info('Starting to genegroup...')
         mail_lists = []
-        headers = {
-            'Authorization': settings.DEFAULT_CONF.get('GENEGROUP_AUTH', '')
-        }
-        r = requests.get('https://www.openeuler.org/api/mail/list', headers=headers)
-        if r.status_code == 401:
-            self.logger.error('401 Unauthorized. Do check GENEGROUP_AUTH!')
-            sys.exit(1)
+        r = requests.get(settings.MAILLIST_API)
         if r.status_code == 200:
-            mail_lists = [x['fqdn_listname'] for x in r.json()['entries']]
-
+            mail_lists = [x['fqdn_listname'] for x in r.json()]
         sigs = []
         for i in os.listdir('community/sig'):
             if i in ['README.md', 'sig-recycle', 'sig-template', 'create_sig_info_template.py']:
@@ -47,8 +36,8 @@ class Command(BaseCommand):
         sigs_list = []
         for sig in sigs:
             sig_name = sig['name']
-            sig_page = 'https://gitee.com/openeuler/community/tree/master/sig/{}'.format(sig_name)
-            etherpad = 'https://etherpad.openeuler.org/p/{}-meetings'.format(sig_name)
+            sig_page = '{}/tree/master/sig/{}'.format(settings.COMMUNITY_REPO_URL, sig_name)
+            etherpad = '{}/p/{}-meetings'.format(settings.ETHERPAD_PREFIX, sig_name)
             if Group.objects.filter(group_name=sig_name):
                 etherpad = Group.objects.get(group_name=sig_name).etherpad
             sigs_list.append([sig_name, sig_page, etherpad])
@@ -154,7 +143,7 @@ class Command(BaseCommand):
                 params = {
                     'access_token': access_token
                 }
-                r = requests.get('https://gitee.com/api/v5/users/{}'.format(maintainer), params=params)
+                r = requests.get('{}/users/{}'.format(settings.GITEE_V5_API_PREFIX, maintainer), params=params)
                 owner = {}
                 if r.status_code == 200:
                     owner['gitee_id'] = maintainer

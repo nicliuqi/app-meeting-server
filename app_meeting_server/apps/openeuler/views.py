@@ -1,11 +1,10 @@
 import datetime
-import json
-import random
-import re
-import requests
 import logging
-import time
+import json
+import requests
+import secrets
 import sys
+import time
 from django.conf import settings
 from django.db.models import Q
 from django.http import JsonResponse
@@ -15,21 +14,21 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import ListModelMixin, CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, \
     UpdateModelMixin
 from rest_framework_simplejwt import authentication
-from openeuler.models import User, Group, Meeting, GroupUser, Collect, Video, Record, Activity, ActivityCollect, \
-    Feedback
-from openeuler.permissions import MaintainerPermission, AdminPermission, ActivityAdminPermission, SponsorPermission, \
-        QueryPermission
-from openeuler.serializers import LoginSerializer, GroupsSerializer, MeetingSerializer, UsersSerializer, \
-    UserSerializer, GroupUserAddSerializer, GroupSerializer, UsersInGroupSerializer, UserGroupSerializer, \
-    MeetingListSerializer, GroupUserDelSerializer, UserInfoSerializer, SigsSerializer, MeetingsDataSerializer, \
-    AllMeetingsSerializer, CollectSerializer, SponsorSerializer, SponsorInfoSerializer, ActivitySerializer, \
-    ActivitiesSerializer, ActivityDraftUpdateSerializer, ActivityUpdateSerializer,  ActivityCollectSerializer, \
-    FeedbackSerializer, ActivityRetrieveSerializer
+from openeuler.models import User, Group, Meeting, GroupUser, Collect, Video, Record, \
+    Activity, ActivityCollect
+from openeuler.permissions import MaintainerPermission, AdminPermission, \
+    ActivityAdminPermission, SponsorPermission, QueryPermission
+from openeuler.serializers import LoginSerializer, GroupsSerializer, MeetingSerializer, \
+    UsersSerializer, UserSerializer, GroupUserAddSerializer, GroupSerializer, UsersInGroupSerializer, \
+    UserGroupSerializer, MeetingListSerializer, GroupUserDelSerializer, UserInfoSerializer, SigsSerializer, \
+    MeetingsDataSerializer, AllMeetingsSerializer, CollectSerializer, SponsorSerializer, SponsorInfoSerializer, \
+    ActivitySerializer, ActivitiesSerializer, ActivityDraftUpdateSerializer, ActivityUpdateSerializer, \
+    ActivityCollectSerializer, ActivityRetrieveSerializer
 from rest_framework.response import Response
 from multiprocessing import Process
 from openeuler.send_email import sendmail
 from rest_framework import permissions
-from openeuler.utils import gene_wx_code, send_feedback, invite, drivers
+from openeuler.utils import gene_wx_code, drivers
 from rest_framework_simplejwt.tokens import RefreshToken
 from openeuler.auth import CustomAuthentication
 
@@ -288,7 +287,7 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
         logger.info('{} has canceled the meeting which mid was {}'.format(request.user.gitee_name, mid))
 
         # 发送删除通知邮件
-        from openeuler.utils.send_cancel_email import sendmail
+        from app_meeting_server.apps.openeuler.utils.send_cancel_email import sendmail
         sendmail(mid)
 
         # 发送会议取消通知
@@ -537,7 +536,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
             logger.warning('{}暂无可用host'.format(platform))
             return JsonResponse({'code': 1000, 'message': '暂无可用host,请前往官网查看预定会议', 'access': access})
         # 从available_host_id中随机生成一个host_id,并在host_dict中取出
-        host_id = random.choice(available_host_id)
+        host_id = secrets.choice(available_host_id)
         host = host_dict[host_id]
         logger.info('host_id:{}'.format(host_id))
         logger.info('host:{}'.format(host))
@@ -1329,41 +1328,6 @@ class MyActivityCollectionsView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class FeedbackView(GenericAPIView, CreateModelMixin):
-    """意见反馈"""
-    serializer_class = FeedbackSerializer
-    queryset = Feedback.objects.all()
-    permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (CustomAuthentication,)
-
-    def post(self, request, *args, **kwargs):
-        access = refresh_access(self.request.user)
-        data = self.request.data
-        try:
-            feedback_type = data['feedback_type']
-            feedback_content = data['feedback_content']
-            feedback_email = data['feedback_email']
-            if not re.match(r'^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$', feedback_email):
-                return JsonResponse({'code': 400, 'msg': '请填入正确的收件邮箱', 'access': access})
-            user_id = self.request.user.id
-            Feedback.objects.create(
-                feedback_type=feedback_type,
-                feedback_content=feedback_content,
-                feedback_email=feedback_email,
-                user_id=user_id
-            )
-            if feedback_type == 1:
-                feedback_type = '问题反馈'
-            if feedback_type == 2:
-                feedback_type = '产品建议'
-            send_feedback.run(feedback_type, feedback_email, feedback_content)
-            return JsonResponse({'code': 201, 'msg': '反馈意见已收集', 'access': access})
-        except KeyError:
-            return JsonResponse(
-                {'code': 400, 'msg': 'feedback_type, feedback_content and feedback_email are all required!', 'access':
-                 access})
-
-
 class CountActivitiesView(GenericAPIView, ListModelMixin):
     """各类活动计数"""
     queryset = Activity.objects.filter(is_delete=0, status__gt=2).order_by('-date', 'id')
@@ -1508,4 +1472,34 @@ class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
             'msg': 'Updated',
             'access': access
         })
+        return resp
+
+
+class LogoutView(GenericAPIView):
+    """登出"""
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        refresh_access(self.request.user)
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'User {} logged out'.format(self.request.user.id)
+        })
+        logger.info('User {} logged out'.format(self.request.user.id))
+        return resp
+
+
+class LogoffView(GenericAPIView):
+    """注销"""
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        User.objects.filter(id=self.request.user.id).delete()
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'User {} logged off'.format(self.request.user.id)
+        })
+        logger.info('User {} logged off'.format(self.request.user.id))
         return resp

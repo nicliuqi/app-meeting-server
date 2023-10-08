@@ -5,8 +5,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
-from mindspore.models import Group, Meeting, Collect, User, GroupUser, Feedback, City, CityUser, Activity, \
-    ActivityCollect, ActivityRegister, ActivitySign
+from mindspore.models import Group, Meeting, Collect, User, GroupUser, City, CityUser, Activity, \
+    ActivityCollect
 
 logger = logging.getLogger('log')
 
@@ -282,12 +282,6 @@ class CollectSerializer(ModelSerializer):
         fields = ['meeting']
 
 
-class FeedbackSerializer(ModelSerializer):
-    class Meta:
-        model = Feedback
-        fields = ['feedback_type', 'feedback_email', 'feedback_content']
-
-
 class SponsorSerializer(ModelSerializer):
     class Meta:
         model = User
@@ -319,10 +313,9 @@ class ActivitiesSerializer(ModelSerializer):
 
     class Meta:
         model = Activity
-        fields = ['id', 'collection_id', 'register_id', 'title', 'start_date', 'end_date', 'activity_category',
+        fields = ['id', 'collection_id', 'title', 'start_date', 'end_date', 'activity_category',
                   'activity_type', 'register_method', 'register_url', 'synopsis', 'address', 'detail_address',
-                  'online_url', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user', 'register_count',
-                  'replay_url']
+                  'online_url', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user', 'replay_url']
 
     def get_collection_id(self, obj):
         user = None
@@ -333,20 +326,6 @@ class ActivitiesSerializer(ModelSerializer):
             return ActivityCollect.objects.filter(user_id=user.pk, activity_id=obj.id).values()[0]['id']
         except IndexError:
             return
-
-    def get_register_id(self, obj):
-        user = None
-        request = self.context.get("request")
-        if request and hasattr(request, "user"):
-            user = request.user
-        try:
-            return ActivityRegister.objects.filter(user_id=user.pk, activity_id=obj.id).values()[0]['id']
-        except IndexError:
-            return
-
-    def get_register_count(self, obj):
-        activity_id = obj.id
-        return len(ActivityRegister.objects.filter(activity_id=activity_id).values())
 
 
 class ActivityRetrieveSerializer(ActivitiesSerializer):
@@ -362,49 +341,6 @@ class ActivityCollectSerializer(ModelSerializer):
     class Meta:
         model = ActivityCollect
         fields = ['activity']
-
-
-class ActivityRegisterSerializer(ModelSerializer):
-    class Meta:
-        model = ActivityRegister
-        fields = ['activity']
-
-
-class ActivitySignSerializer(ModelSerializer):
-    class Meta:
-        model = ActivitySign
-        fields = ['activity']
-
-
-class ActivityRegistrantsSerializer(ModelSerializer):
-    registrants = serializers.SerializerMethodField()
-
-    class Meta:
-        model = User
-        fields = ['registrants']
-
-    def get_registrants(self, obj):
-        user_ids = ActivityRegister.objects.filter(activity_id=obj.id).values_list('user_id', flat=True)
-        users = User.objects.filter(id__in=user_ids)
-        registrants = [
-            {
-                'id': x.id,
-                'name': x.name,
-                'wx_account': x.wx_account,
-                'gender': x.gender,
-                'age': x.age,
-                'telephone': x.telephone,
-                'email': x.email,
-                'company': x.company,
-                'career_direction': x.career_direction,
-                'profession': x.profession,
-                'working_years': x.working_years,
-                'gitee_id': x.gitee_name,
-                'sign': True if ActivitySign.objects.filter(activity_id=obj.id, user_id=x.id) else False
-            }
-            for x in users
-        ]
-        return registrants
 
 
 class ApplicantInfoSerializer(ModelSerializer):
