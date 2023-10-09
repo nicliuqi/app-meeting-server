@@ -28,47 +28,11 @@ if sys.argv[0] == 'uwsgi':
     if os.path.basename(XARMOR_CONF) in os.listdir():
         os.remove(os.path.basename(XARMOR_CONF))
 
-CI_BOT_TOKEN = DEFAULT_CONF.get('CI_BOT_TOKEN')
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = DEFAULT_CONF.get('SECRET_KEY')
-
-APP_CONF = {
-    'appid': DEFAULT_CONF.get('APP_ID'),
-    'secret': DEFAULT_CONF.get('APP_SECRET')
-}
-
-MEETING_HOSTS = {
-    'zoom': {
-        DEFAULT_CONF.get('NEW_HOST_1'): DEFAULT_CONF.get('HOST_1_ACCOUNT'),
-        DEFAULT_CONF.get('NEW_HOST_2'): DEFAULT_CONF.get('HOST_2_ACCOUNT'),
-        DEFAULT_CONF.get('NEW_HOST_3'): DEFAULT_CONF.get('HOST_3_ACCOUNT'),
-        DEFAULT_CONF.get('NEW_HOST_4'): DEFAULT_CONF.get('HOST_4_ACCOUNT')
-    },
-    'welink': {
-        DEFAULT_CONF.get('WELINK_HOST_1'): DEFAULT_CONF.get('WELINK_HOST_1')
-    },
-    'tencent': {
-        DEFAULT_CONF.get('TENCENT_ACCOUNT_1'): DEFAULT_CONF.get('TENCENT_ACCOUNT_1'),
-        DEFAULT_CONF.get('TENCENT_ACCOUNT_2'): DEFAULT_CONF.get('TENCENT_ACCOUNT_2')
-    }
-}
-
-WELINK_HOSTS = {
-    DEFAULT_CONF.get('WELINK_HOST_1'): {
-        'account': DEFAULT_CONF.get('WELINK_HOST_1_ACCOUNT'),
-        'pwd': DEFAULT_CONF.get('WELINK_HOST_1_PWD')
-    }
-}
-
-TX_MEETING_APPID = DEFAULT_CONF.get('TX_MEETING_APPID')
-TX_MEETING_SDKID = DEFAULT_CONF.get('TX_MEETING_SDKID')
-TX_MEETING_SECRETKEY = DEFAULT_CONF.get('TX_MEETING_SECRETKEY')
-TX_MEETING_SECRETID = DEFAULT_CONF.get('TX_MEETING_SECRETID')
-TENCENT_HOST_KEY = DEFAULT_CONF.get('TENCENT_HOST_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -84,13 +48,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    DEFAULT_CONF["app"],  # DEFAULT_CONF["app"]='openeuler.apps.OpeneulerConfig'/'opengauss.apps.OpengaussConfig'/'mindspore.apps.MindsporeConfig'
+    # DEFAULT_CONF["app"]='openeuler.apps.OpeneulerConfig'/'opengauss.apps.OpengaussConfig'/'mindspore.apps.MindsporeConfig'
+    DEFAULT_CONF["app"],
     'rest_framework',
     'corsheaders',
     'rest_framework.authtoken',
     'django_filters'
 ]
-AUTH_USER_MODEL = DEFAULT_CONF["user_model"]  # DEFAULT_CONF["user_model"]='openeuler.User'/'opengauss.User'/'mindspore.User'
+
+# DEFAULT_CONF["user_model"]='openeuler.User'/'opengauss.User'/'mindspore.User'
+AUTH_USER_MODEL = DEFAULT_CONF["user_model"]
+
+COMMUNITY = AUTH_USER_MODEL.split(".")[0].lower()
 
 CORS_ALLOW_METHODS = (
     'GET',
@@ -127,40 +96,48 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 ROOT_URLCONF = 'app_meeting_server.urls'
 
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
-}
+if COMMUNITY == "openeuler" or COMMUNITY == "mindspore":
+    REST_FRAMEWORK = {
+        'DEFAULT_AUTHENTICATION_CLASSES': (
+            'rest_framework_simplejwt.authentication.JWTAuthentication',
+        )
+    }
 
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=10080),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-    'ROTATE_REFRESH_TOKENS': False,
-    'BLACKLIST_AFTER_ROTATION': True,
+    SIMPLE_JWT = {
+        'ACCESS_TOKEN_LIFETIME': timedelta(minutes=10080),
+        'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+        'ROTATE_REFRESH_TOKENS': False,
+        'BLACKLIST_AFTER_ROTATION': True,
 
-    'ALGORITHM': 'HS256',
-    'SIGNING_KEY': SECRET_KEY,
-    'VERIFYING_KEY': None,
+        'ALGORITHM': 'HS256',
+        'SIGNING_KEY': SECRET_KEY,
+        'VERIFYING_KEY': None,
 
-    # 'AUTH_HEADER_TYPES': (,),
-    'USER_ID_FIELD': 'id',
-    'USER_ID_CLAIM': 'user_id',
+        # 'AUTH_HEADER_TYPES': (,),
+        'USER_ID_FIELD': 'id',
+        'USER_ID_CLAIM': 'user_id',
 
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-    'TOKEN_TYPE_CLAIM': 'token_type',
+        'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+        'TOKEN_TYPE_CLAIM': 'token_type',
 
-    'JTI_CLAIM': 'jti',
+        'JTI_CLAIM': 'jti',
 
-    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
-    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=1000),
-    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
-}
+        'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+        'SLIDING_TOKEN_LIFETIME': timedelta(minutes=1000),
+        'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+    }
+
+elif COMMUNITY == "openguass":
+    CSRF_COOKIE_NAME = 'meeting-csrftoken'
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_SAMESITE = 'strict'
+    COOKIE_EXPIRE = timedelta(minutes=30)
+    ACCESS_TOKEN_NAME = 'meeting-accesstoken'
 
 
 TEMPLATES = [
@@ -226,7 +203,6 @@ USE_L10N = True
 
 USE_TZ = False
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
@@ -234,14 +210,11 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 STATIC_URL = '/static/'
 
-
-cur_path = os.path.dirname(os.path.realpath(__file__))
-
-log_path = os.path.join(os.path.dirname(cur_path), 'logs')
+# cur_path = os.path.dirname(os.path.realpath(__file__))
+log_path = os.path.join(os.path.dirname(BASE_DIR), 'logs')
 
 if not os.path.exists(log_path):
     os.mkdir(log_path)
-
 
 LOGGING = {
     'version': 1,
@@ -303,6 +276,94 @@ LOGGING = {
         },
     }
 }
+
+# community config
+if COMMUNITY == "openeuler":
+    CI_BOT_TOKEN = DEFAULT_CONF.get('CI_BOT_TOKEN')
+
+    APP_CONF = {
+        'appid': DEFAULT_CONF.get('APP_ID'),
+        'secret': DEFAULT_CONF.get('APP_SECRET')
+    }
+
+    MEETING_HOSTS = {
+        'zoom': {
+            DEFAULT_CONF.get('NEW_HOST_1'): DEFAULT_CONF.get('HOST_1_ACCOUNT'),
+            DEFAULT_CONF.get('NEW_HOST_2'): DEFAULT_CONF.get('HOST_2_ACCOUNT'),
+            DEFAULT_CONF.get('NEW_HOST_3'): DEFAULT_CONF.get('HOST_3_ACCOUNT'),
+            DEFAULT_CONF.get('NEW_HOST_4'): DEFAULT_CONF.get('HOST_4_ACCOUNT')
+        },
+        'welink': {
+            DEFAULT_CONF.get('WELINK_HOST_1'): DEFAULT_CONF.get('WELINK_HOST_1')
+        },
+        'tencent': {
+            DEFAULT_CONF.get('TENCENT_ACCOUNT_1'): DEFAULT_CONF.get('TENCENT_ACCOUNT_1'),
+            DEFAULT_CONF.get('TENCENT_ACCOUNT_2'): DEFAULT_CONF.get('TENCENT_ACCOUNT_2')
+        }
+    }
+
+    WELINK_HOSTS = {
+        DEFAULT_CONF.get('WELINK_HOST_1'): {
+            'account': DEFAULT_CONF.get('WELINK_HOST_1_ACCOUNT'),
+            'pwd': DEFAULT_CONF.get('WELINK_HOST_1_PWD')
+        }
+    }
+
+    TX_MEETING_APPID = DEFAULT_CONF.get('TX_MEETING_APPID')
+    TX_MEETING_SDKID = DEFAULT_CONF.get('TX_MEETING_SDKID')
+    TX_MEETING_SECRETKEY = DEFAULT_CONF.get('TX_MEETING_SECRETKEY')
+    TX_MEETING_SECRETID = DEFAULT_CONF.get('TX_MEETING_SECRETID')
+    TENCENT_HOST_KEY = DEFAULT_CONF.get('TENCENT_HOST_KEY')
+
+elif COMMUNITY == "opengauss":
+    GITEE_OAUTH_CLIENT_ID = DEFAULT_CONF.get('GITEE_OAUTH_CLIENT_ID')
+    GITEE_OAUTH_CLIENT_SECRET = DEFAULT_CONF.get('GITEE_OAUTH_CLIENT_SECRET')
+    GITEE_OAUTH_REDIRECT = DEFAULT_CONF.get('GITEE_OAUTH_REDIRECT')
+    REDIRECT_HOME_PAGE = DEFAULT_CONF.get('REDIRECT_HOME_PAGE')
+
+    OPENGAUSS_MEETING_HOSTS = {
+        'zoom': {
+            DEFAULT_CONF.get('ZOOM_HOST_FIRST', ''): DEFAULT_CONF.get('ZOOM_ACCOUNT_FIRST', ''),
+            DEFAULT_CONF.get('ZOOM_HOST_SECOND', ''): DEFAULT_CONF.get('ZOOM_ACCOUNT_SECOND', '')
+        },
+        'welink': {
+            DEFAULT_CONF.get('WELINK_HOST_1', ''): DEFAULT_CONF.get('WELINK_HOST_1', '')
+        }
+    }
+
+    WELINK_HOSTS = {
+        DEFAULT_CONF.get('WELINK_HOST_1', ''): {
+            'account': DEFAULT_CONF.get('WELINK_HOST_1_ACCOUNT', ''),
+            'pwd': DEFAULT_CONF.get('WELINK_HOST_1_PWD', '')
+        }
+    }
+
+
+elif COMMUNITY == "mindspore":
+    MINDSPORE_APP_CONF = {
+        'appid': DEFAULT_CONF.get('APP_ID'),
+        'secret': DEFAULT_CONF.get('APP_SECRET')
+    }
+
+    MINDSPORE_MEETING_HOSTS = {
+        'tencent': ['meeting48318'],
+        'welink': [DEFAULT_CONF.get('WELINK_HOST_1')]
+    }
+
+    WELINK_HOSTS = {
+        DEFAULT_CONF.get('WELINK_HOST_1'): {
+            'account': DEFAULT_CONF.get('WELINK_HOST_1_ACCOUNT'),
+            'pwd': DEFAULT_CONF.get('WELINK_HOST_1_PWD')
+        }
+    }
+
+    RECORDING_RECEIVER = DEFAULT_CONF.get('RECORDING_RECEIVER')
+    TX_MEETING_APPID = DEFAULT_CONF.get('TX_MEETING_APPID')
+    TX_MEETING_SDKID = DEFAULT_CONF.get('TX_MEETING_SDKID')
+    TX_MEETING_SECRETKEY = DEFAULT_CONF.get('TX_MEETING_SECRETKEY')
+    TX_MEETING_SECRETID = DEFAULT_CONF.get('TX_MEETING_SECRETID')
+    MINDSPORE_MEETING_ATTENTION_TEMPLATE = DEFAULT_CONF.get('MINDSPORE_MEETING_ATTENTION_TEMPLATE')
+    MINDSPORE_CANCEL_MEETING_TEMPLATE = DEFAULT_CONF.get('MINDSPORE_CANCEL_MEETING_TEMPLATE')
 
 GMAIL_USERNAME = DEFAULT_CONF.get('GMAIL_USERNAME')
 GMAIL_PASSWORD = DEFAULT_CONF.get('GMAIL_PASSWORD')
