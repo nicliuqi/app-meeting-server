@@ -19,23 +19,23 @@ from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, ListModelM
 from rest_framework.response import Response
 from rest_framework_simplejwt import authentication
 from rest_framework_simplejwt.tokens import RefreshToken
-from app_meeting_server.apps.mindspore.models import Meeting, Record, Activity, ActivityCollect
-from app_meeting_server.apps.mindspore.permissions import MaintainerPermission, AdminPermission, QueryPermission, \
+from mindspore.models import Meeting, Record, Activity, ActivityCollect
+from mindspore.permissions import MaintainerPermission, AdminPermission, QueryPermission, \
     SponsorPermission, ActivityAdminPermission
-from app_meeting_server.apps.mindspore.models import GroupUser, Group, User, Collect, City, CityUser
-from app_meeting_server.apps.mindspore.serializers import LoginSerializer, UsersInGroupSerializer, SigsSerializer, \
+from mindspore.models import GroupUser, Group, User, Collect, City, CityUser
+from mindspore.serializers import LoginSerializer, UsersInGroupSerializer, SigsSerializer, \
     GroupsSerializer, GroupUserAddSerializer, GroupUserDelSerializer, UserInfoSerializer, UserGroupSerializer, \
     MeetingSerializer, MeetingDelSerializer, MeetingsListSerializer, CollectSerializer, CitiesSerializer, \
     CityUserAddSerializer, CityUserDelSerializer, UserCitySerializer, SponsorSerializer, ActivitySerializer, \
     ActivityUpdateSerializer, ActivityDraftUpdateSerializer, ActivitiesSerializer, ActivityRetrieveSerializer, \
     ActivityCollectSerializer
-from app_meeting_server.apps.mindspore.send_email import sendmail
-from app_meeting_server.apps.mindspore.utils.tecent_apis import *
-from app_meeting_server.apps.mindspore.utils import prepare_create_activity, gene_wx_code
+from mindspore.send_email import sendmail
+from mindspore.utils.tecent_apis import *
+from mindspore.utils import prepare_create_activity, gene_wx_code
 from obs import ObsClient
-from app_meeting_server.apps.mindspore.utils import drivers
-from app_meeting_server.apps.mindspore.auth import CustomAuthentication
-from app_meeting_server.apps.mindspore.utils.tecent_apis import get_video_download
+from mindspore.utils import drivers
+from mindspore.auth import CustomAuthentication
+from mindspore.utils.tecent_apis import get_video_download
 
 logger = logging.getLogger('log')
 

@@ -23,7 +23,7 @@ if not os.path.exists(CONFIG_PATH):
 with open(CONFIG_PATH, 'r') as f:
     content = yaml.safe_load(f)
 DEFAULT_CONF = content
-if sys.argv[0] == 'uwsgi':
+if sys.argv[0] == 'uwsgi' or (len(sys.argv) >= 3 and sys.argv[2] not in ["collectstatic", "migrate"]):
     os.remove(CONFIG_PATH)
     if os.path.basename(XARMOR_CONF) in os.listdir():
         os.remove(os.path.basename(XARMOR_CONF))

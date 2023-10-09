@@ -9,7 +9,7 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from django.conf import settings
-from app_meeting_server.apps.mindspore.models import Meeting
+from mindspore.models import Meeting
 
 logger = logging.getLogger('log')
 

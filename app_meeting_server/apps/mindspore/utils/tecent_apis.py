@@ -7,7 +7,7 @@ import random
 import requests
 import time
 from django.conf import settings
-from app_meeting_server.apps.mindspore.models import Meeting
+from mindspore.models import Meeting
 
 logger = logging.getLogger('log')
 
