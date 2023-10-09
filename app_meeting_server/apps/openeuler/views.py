@@ -1007,11 +1007,9 @@ class ActivityPublishView(GenericAPIView, UpdateModelMixin):
     def put(self, request, *args, **kwargs):
         access = refresh_access(self.request.user)
         activity_id = self.kwargs.get('pk')
-        appid = settings.APP_CONF['appid']
-        secret = settings.APP_CONF['secret']
         if activity_id in self.queryset.values_list('id', flat=True):
             logger.info('活动id: {}'.format(activity_id))
-            img_url = gene_wx_code.run(appid, secret, activity_id)
+            img_url = gene_wx_code.run(activity_id)
             logger.info('生成活动页面二维码: {}'.format(img_url))
             Activity.objects.filter(id=activity_id, status=2).update(status=3, wx_code=img_url)
             logger.info('活动通过审核')

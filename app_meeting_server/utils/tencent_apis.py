@@ -117,4 +117,4 @@ def createMeeting(date, start, end, topic, host_id, record):
 
 def get_url(uri):
     """获取请求url"""
-    return settings.TENCENT_API_PREIX + uri
+    return settings.TENCENT_API_PREFIX + uri

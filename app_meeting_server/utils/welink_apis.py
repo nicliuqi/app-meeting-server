@@ -159,5 +159,5 @@ def downloadHWCloudRecording(token, target_filename, download_url):
 
 
 def get_url(uri):
-    prefix = settings.WELINK_PREFIX
+    prefix = settings.WELINK_API_PREFIX
     return prefix + uri
