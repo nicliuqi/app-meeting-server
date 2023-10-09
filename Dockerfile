@@ -2,7 +2,7 @@ FROM openeuler/openeuler:22.03
 
 MAINTAINER TommyLike<tommylikehu@gmail.com>
 
-RUN yum install -y vim wget git openssl openssl-devel tzdata python3-devel mariadb-devel python3-pip libXext libjpeg xorg-x11-fonts-75dpi xorg-x11-fonts-Type1
+RUN yum install -y vim wget git openssl openssl-devel tzdata python3-devel mariadb-devel python3-pip libXext libjpeg xorg-x11-fonts-75dpi xorg-x11-fonts-Type1 gcc
 
 WORKDIR /work/app-meeting-server
 COPY . /work/app-meeting-server
@@ -11,7 +11,9 @@ COPY ./deploy/fonts/simsun.ttc /usr/share/fonts
 RUN cd /work/app-meeting-server && pip3 install -r requirements.txt
 RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox-0.12.6-1.centos8.x86_64.rpm && \
     rpm -i wkhtmltox-0.12.6-1.centos8.x86_64.rpm && \
-    rm -f wkhtmltox-0.12.6-1.centos8.x86_64.rpm
+    rm -f wkhtmltox-0.12.6-1.centos8.x86_64.rpm \
+
+RUN yum remove -y gcc
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN chmod -R 550 /work/app-meeting-server/docker-entrypoint.sh
