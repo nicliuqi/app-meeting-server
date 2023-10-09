@@ -51,9 +51,8 @@ def sendmail(meeting, record=None):
     body_of_email = None
     portal_zh = settings.DEFAULT_CONF.get('PORTAL_ZH')
     portal_en = settings.DEFAULT_CONF.get('PORTAL_EN')
-    print(os.getcwd())
     if not summary and not record:
-        with open('../../../templates/template_without_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
+        with open('app_meeting_server/templates/template_without_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
                 replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').\
@@ -61,7 +60,7 @@ def sendmail(meeting, record=None):
                 replace('{{portal_zh}}', '{6}').replace('{{portal_en}}', '{7}').\
                 format(sig_name, start_time, join_url, topic, platform, etherpad, portal_zh, portal_en)
     elif summary and not record:
-        with open('../../../templates/template_with_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
+        with open('app_meeting_server/templates/template_with_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
                 replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').\
@@ -70,14 +69,14 @@ def sendmail(meeting, record=None):
                 replace('{{portal_en}}', '{8}').\
                 format(sig_name, start_time, join_url, topic, summary, platform, etherpad, portal_zh, portal_en)
     elif not summary and record:
-        with open('../../../templates/template_without_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
+        with open('app_meeting_server/templates/template_without_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}').\
                 replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{platform}}', '{4}').\
                 replace('{{etherpad}}', '{5}').replace('{{portal_zh}}', '{6}').replace('{{portal_en}}', '{7}').\
                 format(sig_name, start_time, join_url, topic, platform, etherpad, portal_zh, portal_en)
     elif summary and record:
-        with open('../../../templates/template_with_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
+        with open('app_meeting_server/templates/template_with_summary_with_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
             body_of_email = body.replace('{{sig_name}}', '{0}').replace( '{{start_time}}', '{1}').\
                 replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').\
