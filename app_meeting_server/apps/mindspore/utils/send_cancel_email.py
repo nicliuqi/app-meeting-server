@@ -1,11 +1,9 @@
 import datetime
 import icalendar
 import logging
-import os
 import pytz
 import re
 import smtplib
-import uuid
 from django.conf import settings
 from email import encoders
 from email.mime.base import MIMEBase
@@ -23,13 +21,10 @@ def sendmail(mid):
     date = meeting.date
     start = meeting.start
     end = meeting.end
-    join_url = meeting.join_url
     sig_name = meeting.group_name
     toaddrs = meeting.emaillist
-    etherpad = meeting.etherpad
     platform = meeting.mplatform
     platform = platform.replace('tencent', 'Tencent').replace('welink', 'WeLink')
-    summary = meeting.agenda
     if sig_name == 'Tech':
         sig_name = '专家委员会'
     start_time = ' '.join([date, start])
@@ -47,8 +42,7 @@ def sendmail(mid):
     msg = MIMEMultipart()
 
     # 添加邮件主体
-    body_of_email = None
-    with open('templates/template_cancel_meeting.txt', 'r', encoding='utf-8') as fp:
+    with open('app_meeting_server/templates/template_cancel_meeting.txt', 'r', encoding='utf-8') as fp:
         body = fp.read()
         body_of_email = body.replace('{{platform}}', platform). \
                 replace('{{start_time}}', start_time). \
@@ -84,19 +78,17 @@ def sendmail(mid):
     msg.attach(part)
 
     # 完善邮件信息
-    sender = settings.DEFAULT_CONF.get('SMTP_SENDER', '')
+    sender = settings.SMTP_SERVER_SENDER
     msg['Subject'] = topic
-    msg['From'] = 'MindSpore conference <%s>' % sender
+    msg['From'] = settings.MESSAGE_FROM
     msg['To'] = toaddrs_string
 
     # 登录服务器发送邮件
     try:
-        gmail_username = settings.GMAIL_USERNAME
-        gmail_password = settings.GMAIL_PASSWORD
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.ehlo()
         server.starttls()
-        server.login(gmail_username, gmail_password)
+        server.login(settings.SMTP_SERVER_USER, settings.SMTP_SERVER_PASS)
         server.sendmail(sender, toaddrs_list, msg.as_string())
         logger.info('email string: {}'.format(toaddrs))
         logger.info('error addrs: {}'.format(error_addrs))
@@ -104,4 +96,3 @@ def sendmail(mid):
         server.quit()
     except smtplib.SMTPException as e:
         logger.error(e)
-

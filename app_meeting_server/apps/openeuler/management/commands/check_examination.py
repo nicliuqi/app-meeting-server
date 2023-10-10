@@ -11,7 +11,7 @@ logger = logging.getLogger('log')
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        uid = int(settings.DEFAULT_CONF.get('BILI_UID', ''))
+        uid = int(settings.BILI_UID)
         if not uid:
             logger.error('uid is required')
             sys.exit(1)

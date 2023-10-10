@@ -2,7 +2,7 @@ import datetime
 import logging
 from django.core.management import BaseCommand
 from app_meeting_server.utils import wx_apis
-from openeuler.models import Collect, Meeting, User
+from mindspore.models import Collect, Meeting, User
 
 logger = logging.getLogger('log')
 

@@ -9,7 +9,7 @@ logger = logging.getLogger('log')
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        subprocess.call('git clone {} meetings/community'.format(settings.COMMUNITY_REPO_URL).split())
+        subprocess.call('git clone {} mindspore/community'.format(settings.COMMUNITY_REPO_URL).split())
         etherpad_pre = '{}/p/meetings-'.format(settings.ETHERPAD_PREFIX)
         if not Group.objects.filter(name='MSG'):
             Group.objects.create(name='MSG', group_type=2, etherpad=etherpad_pre + 'MSG')
@@ -17,7 +17,7 @@ class Command(BaseCommand):
         if not Group.objects.filter(name='Tech'):
             Group.objects.create(name='Tech', group_type=3, etherpad=etherpad_pre + 'Tech')
             logger.info('Create group Tech')
-        with open('meetings/community/sigs/README.md', 'r') as f:
+        with open('mindspore/community/sigs/README.md', 'r') as f:
             for line in f.readlines():
                 if line.startswith('| ['):
                     sig_name = line[3:].split(']')[0]
@@ -27,7 +27,7 @@ class Command(BaseCommand):
                     else:
                         Group.objects.filter(name=sig_name).update(group_type=1, etherpad=etherpad_pre + sig_name)
                         logger.info('Update sig {}'.format(sig_name))
-        with open('meetings/community/working-groups/README.md', 'r') as f:
+        with open('mindspore/community/working-groups/README.md', 'r') as f:
             for line in f.readlines():
                 if line.startswith('| ['):
                     sig_name = line[3:].split(']')[0]

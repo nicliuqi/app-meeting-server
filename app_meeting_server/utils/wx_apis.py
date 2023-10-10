@@ -9,8 +9,8 @@ logger = logging.getLogger('log')
 
 def get_token():
     """获取微信小程序token"""
-    appid = settings.MINDSPORE_APP_CONF['appid']
-    secret = settings.MINDSPORE_APP_CONF['secret']
+    appid = settings.APP_CONF['appid']
+    secret = settings.APP_CONF['secret']
     uri = '/cgi-bin/token'
     params = {
         'appid': appid,
@@ -77,7 +77,7 @@ def get_start_template(openid, meeting_id, topic, time):
         page = '/package-meeting/meeting/detail?id={}'.format(meeting_id)
     content = {
         'touser': openid,
-        'template_id': settings.MINDSPORE_MEETING_ATTENTION_TEMPLATE,
+        'template_id': settings.MEETING_ATTENTION_TEMPLATE,
         'page': page,
         'lang': 'zh-CN',
         'data': {
@@ -101,7 +101,7 @@ def get_remove_template(openid, topic, time, mid):
         topic = topic[:20]
     content = {
         'touser': openid,
-        'template_id': settings.MINDSPORE_CANCEL_MEETING_TEMPLATE,
+        'template_id': settings.CANCEL_MEETING_TEMPLATE,
         'page': '/pages/index/index',
         'lang': 'zh-CN',
         'data': {

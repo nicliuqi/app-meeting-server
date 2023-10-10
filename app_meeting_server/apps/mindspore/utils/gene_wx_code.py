@@ -1,45 +1,13 @@
-import requests
 import logging
 import stat
 import sys
-import json
 import tempfile
 import os
 from django.conf import settings
 from obs import ObsClient
+from app_meeting_server.utils import wx_apis
 
 logger = logging.getLogger('log')
-
-
-def get_token(appid, secret):
-    url = 'https://api.weixin.qq.com/cgi-bin/token?appid={}&secret={}&grant_type=client_credential'.format(appid,
-                                                                                                           secret)
-    r = requests.get(url)
-    if r.status_code == 200:
-        try:
-            access_token = r.json()['access_token']
-            return access_token
-        except KeyError as e:
-            logger.error(e)
-    else:
-        logger.error(r.json())
-        logger.error('fail to get access_token,exit.')
-        sys.exit(1)
-
-
-def gene_code_img(appid, secret, activity_id):
-    wx_token = get_token(appid, secret)
-    url = 'https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token={}'.format(wx_token)
-    data = {
-        "scene": activity_id,
-        "page": "package-events/events/event-detail"
-    }
-    res = requests.post(url, data=json.dumps(data))
-    if res.status_code != 200:
-        logger.error(res.json())
-        logger.error('fail to get QR code')
-        sys.exit(1)
-    return res.content
 
 
 def save_temp_img(content):
@@ -53,10 +21,10 @@ def save_temp_img(content):
 
 
 def upload_to_obs(tmp_file, activity_id):
-    access_key_id = settings.DEFAULT_CONF.get('MINDSPORE_ACCESS_KEY_ID', '')
-    secret_access_key = settings.DEFAULT_CONF.get('MINDSPORE_SECRET_ACCESS_KEY', '')
-    endpoint = settings.DEFAULT_CONF.get('MINDSPORE_OBS_ENDPOINT', '')
-    bucketName = settings.DEFAULT_CONF.get('MINDSPORE_OBS_BUCKETNAME', '')
+    access_key_id = settings.ACCESS_KEY_ID
+    secret_access_key = settings.SECRET_ACCESS_KEY
+    endpoint = settings.OBS_ENDPOINT
+    bucketName = settings.OBS_BUCKETNAME
     if not access_key_id or not secret_access_key or not endpoint or not bucketName:
         logger.error('losing required arguments for ObsClient')
         sys.exit(1)
@@ -70,9 +38,8 @@ def upload_to_obs(tmp_file, activity_id):
     return img_url
 
 
-def run(appid, secret, activity_id):
-    content = gene_code_img(appid, secret, activity_id)
+def run(activity_id):
+    content = wx_apis.gene_code_img(activity_id)
     tmp_file = save_temp_img(content)
     img_url = upload_to_obs(tmp_file, activity_id)
     return img_url
-

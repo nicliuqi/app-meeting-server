@@ -1,5 +1,5 @@
 from rest_framework.serializers import ModelSerializer
-from opengauss.models import Meeting, User, Group
+from opengauss.models import Meeting, Group
 from rest_framework import serializers
 
 
@@ -24,14 +24,6 @@ class MeetingDeleteSerializer(ModelSerializer):
     class Meta:
         model = Meeting
         fields = ['mid']
-
-
-class MeetingDetailSerializer(ModelSerializer):
-    avatar = serializers.CharField(source='user.avatar')
-    class Meta:
-        model = Meeting
-        fields = ['id', 'mid', 'topic', 'sponsor', 'avatar', 'group_name', 'date', 'start', 'end', 'etherpad', 'agenda',
-                  'join_url', 'emaillist', 'mplatform']
 
 
 class GroupsSerializer(ModelSerializer):

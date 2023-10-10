@@ -49,8 +49,8 @@ def sendmail(meeting, record=None):
 
     # 添加邮件主体
     body_of_email = None
-    portal_zh = settings.DEFAULT_CONF.get('PORTAL_ZH')
-    portal_en = settings.DEFAULT_CONF.get('PORTAL_EN')
+    portal_zh = settings.PORTAL_ZH
+    portal_en = settings.PORTAL_EN
     if not summary and not record:
         with open('app_meeting_server/templates/template_without_summary_without_recordings.txt', 'r', encoding='utf-8') as fp:
             body = fp.read()
@@ -129,12 +129,12 @@ def sendmail(meeting, record=None):
 
     # 登录服务器发送邮件
     try:
-        gmail_username = settings.GMAIL_USERNAME
+        sender = settings.SMTP_SERVER_SENDER
         server = smtplib.SMTP(settings.SMTP_SERVER_HOST, settings.SMTP_SERVER_PORT)
         server.ehlo()
         server.starttls()
         server.login(settings.SMTP_SERVER_USER, settings.SMTP_SERVER_PASS)
-        server.sendmail(gmail_username, toaddrs_list, msg.as_string())
+        server.sendmail(sender, toaddrs_list, msg.as_string())
         logger.info('email string: {}'.format(toaddrs))
         logger.info('error addrs: {}'.format(error_addrs))
         logger.info('email sent: {}'.format(toaddrs_string))

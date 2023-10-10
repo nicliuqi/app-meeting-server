@@ -12,8 +12,10 @@ from django.core.management.base import BaseCommand
 from opengauss.models import Meeting, Video, Record
 from multiprocessing.dummy import Pool as ThreadPool
 from opengauss.utils.html_template import cover_content
-from opengauss.utils.welink_apis import getParticipants, listRecordings, downloadHWCloudRecording, getDetailDownloadUrl
-from opengauss.utils.zoom_apis import getOauthToken
+from app_meeting_server.utils.welink_apis import listRecordings, downloadHWCloudRecording, getDetailDownloadUrl
+from opengauss.utils.welink_apis import getParticipants
+from app_meeting_server.utils.zoom_apis import getOauthToken
+from app_meeting_server.utils import zoom_apis
 
 logger = logging.getLogger('log')
 
@@ -42,7 +44,7 @@ def get_recordings(mid):
     :return: the json-encoded content of a response or none
     """
     host_id = Meeting.objects.get(mid=mid).host_id
-    url = 'https://api.zoom.us/v2/users/{}/recordings'.format(host_id)
+    uri = '/v2/users/{}/recordings'.format(host_id)
     token = getOauthToken()
     headers = {
         'authorization': 'Bearer {}'.format(token)
@@ -51,7 +53,7 @@ def get_recordings(mid):
         'from': (datetime.datetime.now() - datetime.timedelta(days=7)).strftime("%Y-%m-%d"),
         'page_size': 50
     }
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(zoom_apis.get_url(uri), headers=headers, params=params)
     if response.status_code != 200:
         logger.error('get recordings: {} {}'.format(response.status_code, response.json()['message']))
         return
@@ -75,12 +77,12 @@ def get_participants(mid):
     :param mid: 会议ID
     :return: the json-encoded content of a response or none
     """
-    url = 'https://api.zoom.us/v2/past_meetings/{}/participants'.format(mid)
+    uri = '/v2/past_meetings/{}/participants'.format(mid)
     token = getOauthToken()
     headers = {
         'authorization': 'Bearer {}'.format(token)
     }
-    response = requests.get(url, headers=headers)
+    response = requests.get(zoom_apis.get_url(uri), headers=headers)
     if response.status_code != 200:
         logger.error('mid: {}, get participants {} {}'.format(mid, response.status_code, response.json()['message']))
         return
@@ -157,7 +159,7 @@ def download_upload_recordings(start, end, zoom_download_url, mid, total_size, v
             topic = video.topic
             agenda = video.agenda
             community = video.community
-            bucketName = settings.DEFAULT_CONF.get('OBS_BUCKETNAME', '')
+            bucketName = settings.OBS_BUCKETNAME
             if not bucketName:
                 logger.error('mid: {}, bucketName required'.format(mid))
                 return
@@ -261,10 +263,10 @@ def handle_zoom_recordings(mid):
             logger.info('meeting {}: 文件过小，不予操作'.format(mid))
         else:
             # 连接obs服务，实例化ObsClient
-            access_key_id = settings.DEFAULT_CONF.get('ACCESS_KEY_ID', '')
-            secret_access_key = settings.DEFAULT_CONF.get('SECRET_ACCESS_KEY', '')
-            endpoint = settings.DEFAULT_CONF.get('OBS_ENDPOINT', '')
-            bucketName = settings.DEFAULT_CONF.get('OBS_BUCKETNAME', '')
+            access_key_id = settings.ACCESS_KEY_ID
+            secret_access_key = settings.SECRET_ACCESS_KEY
+            endpoint = settings.OBS_ENDPOINT
+            bucketName = settings.OBS_BUCKETNAME
             if not (access_key_id and secret_access_key and endpoint and bucketName):
                 logger.error('losing required arguments for ObsClient')
                 return
@@ -363,7 +365,7 @@ def download_upload_welink_recordings(start, end, mid, filename, object_key, end
         topic = (video.topic + '-{}'.format(order_number))
     agenda = video.agenda
     community = video.community
-    bucketName = settings.DEFAULT_CONF.get('OBS_BUCKETNAME', '')
+    bucketName = settings.OBS_BUCKETNAME
     if not bucketName:
         logger.error('mid: {}, bucketName required'.format(mid))
         return
@@ -436,10 +438,10 @@ def after_download_recording(target_filename, start, end, mid, target_name):
     if os.path.exists(target_filename):
         total_size = os.path.getsize(target_filename)
         # 连接obs服务，实例化ObsClient
-        access_key_id = settings.DEFAULT_CONF.get('ACCESS_KEY_ID', '')
-        secret_access_key = settings.DEFAULT_CONF.get('SECRET_ACCESS_KEY', '')
-        endpoint = settings.DEFAULT_CONF.get('OBS_ENDPOINT', '')
-        bucketName = settings.DEFAULT_CONF.get('OBS_BUCKETNAME', '')
+        access_key_id = settings.ACCESS_KEY_ID
+        secret_access_key = settings.SECRET_ACCESS_KEY
+        endpoint = settings.OBS_ENDPOINT
+        bucketName = settings.OBS_BUCKETNAME
         if not (access_key_id and secret_access_key and endpoint and bucketName):
             logger.error('losing required arguments for ObsClient')
             return

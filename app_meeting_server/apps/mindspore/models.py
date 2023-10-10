@@ -34,6 +34,7 @@ class User(AbstractBaseUser):
     agree_privacy_policy = models.BooleanField(verbose_name='同意隐私政策', default=False)
     agree_privacy_policy_time = models.DateTimeField(verbose_name='同意隐私政策时间', null=True, blank=True)
     agree_privacy_policy_version = models.CharField(verbose_name='同意隐私政策版本', max_length=20, null=True, blank=True)
+    revoke_agreement_time = models.DateTimeField(verbose_name='撤销同意隐私声明时间', null=True, blank=True)
 
     USERNAME_FIELD = 'openid'
 
