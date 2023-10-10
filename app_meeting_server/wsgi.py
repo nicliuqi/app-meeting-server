@@ -7,6 +7,14 @@ For more information on this file, see
 https://docs.djangoproject.com/en/2.2/howto/deployment/wsgi/
 """
 
+try:
+    import armorrasp
+    armorrasp.start()
+except ImportError:
+    pass
+except Exception as e:
+    print(e)
+
 import os
 
 from django.core.wsgi import get_wsgi_application

@@ -16,16 +16,15 @@ Including another URLconf
 from django.urls import path, include
 from django.conf import settings
 
-community = settings.AUTH_USER_MODEL.split(".")[0].lower()
-if community == "openeuler":
+if settings.COMMUNITY == "openeuler":
     urlpatterns = [
         path('', include('openeuler.urls')),
     ]
-elif community == "mindspore":
+elif settings.COMMUNITY == "mindspore":
     urlpatterns = [
         path('', include('mindspore.urls')),
     ]
-elif community == "opengauss":
+elif settings.COMMUNITY == "opengauss":
     urlpatterns = [
         path('', include('opengauss.urls')),
     ]

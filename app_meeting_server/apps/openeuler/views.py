@@ -30,6 +30,7 @@ from openeuler.utils import gene_wx_code, drivers
 from rest_framework_simplejwt.tokens import RefreshToken
 from openeuler.auth import CustomAuthentication
 from app_meeting_server.utils import wx_apis
+from app_meeting_server.apps.openeuler.utils import send_cancel_email
 
 logger = logging.getLogger('log')
 offline = 1
@@ -286,8 +287,7 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
         logger.info('{} has canceled the meeting which mid was {}'.format(request.user.gitee_name, mid))
 
         # 发送删除通知邮件
-        from app_meeting_server.apps.openeuler.utils.send_cancel_email import sendmail
-        sendmail(mid)
+        send_cancel_email.sendmail(mid)
 
         # 发送会议取消通知
         collections = Collect.objects.filter(meeting_id=meeting_id)

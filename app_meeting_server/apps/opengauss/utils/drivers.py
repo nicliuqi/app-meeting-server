@@ -1,5 +1,6 @@
 from opengauss.models import Meeting
 from app_meeting_server.utils import zoom_apis, welink_apis
+from opengauss.utils import welink_apis as owa
 
 
 def createMeeting(platform, date, start, end, topic, host, record):
@@ -18,8 +19,7 @@ def updateMeeting(mid, date, start, end, topic, record):
     if platform == 'zoom':
         status = zoom_apis.updateMeeting(mid, date, start, end, topic, record)
     elif platform == 'welink':
-        from opengauss.utils import welink_apis
-        status = welink_apis.updateMeeting(mid, date, start, end, topic, record)
+        status = owa.updateMeeting(mid, date, start, end, topic, record)
     return status
 
 
@@ -42,6 +42,5 @@ def getParticipants(mid):
     if mplatform == 'zoom':
         status, res = zoom_apis.getParticipants(mid)
     elif mplatform == 'welink':
-        from opengauss.utils import welink_apis
-        status, res = welink_apis.getParticipants(mid)
+        status, res = owa.getParticipants(mid)
     return status, res

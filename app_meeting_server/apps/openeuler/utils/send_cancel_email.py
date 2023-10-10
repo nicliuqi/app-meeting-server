@@ -44,6 +44,8 @@ def sendmail(mid):
 
     # 添加邮件主体
     with open('app_meeting_server/templates/template_cancel_meeting.txt', 'r', encoding='utf-8') as fp:
+    body_of_email = None
+    with open('app_meeting_server/templates/template_cancel_meeting.txt', 'r', encoding='utf-8') as fp:
         body = fp.read()
         body_of_email = body.replace('{{platform}}', platform). \
             replace('{{start_time}}', start_time). \

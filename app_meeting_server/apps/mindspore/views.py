@@ -14,21 +14,23 @@ from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, ListModelM
 from rest_framework.response import Response
 from rest_framework_simplejwt import authentication
 from rest_framework_simplejwt.tokens import RefreshToken
+from app_meeting_server.utils import wx_apis
 from mindspore.models import Activity, ActivityCollect
-from mindspore.permissions import MaintainerPermission, AdminPermission, QueryPermission, SponsorPermission, \
-    ActivityAdminPermission
+from mindspore.permissions import MaintainerPermission, AdminPermission, QueryPermission, \
+    SponsorPermission, ActivityAdminPermission
 from mindspore.models import GroupUser, Group, User, Collect, City, CityUser
-from mindspore.serializers import LoginSerializer, UsersInGroupSerializer, SigsSerializer, GroupsSerializer, \
-    GroupUserAddSerializer, GroupUserDelSerializer, UserInfoSerializer, UserGroupSerializer, MeetingSerializer, \
-    MeetingDelSerializer, MeetingsListSerializer, CollectSerializer, CitiesSerializer, CityUserAddSerializer, \
-    CityUserDelSerializer, UserCitySerializer, SponsorSerializer, ActivitySerializer, ActivityUpdateSerializer, \
-    ActivityDraftUpdateSerializer, ActivitiesSerializer, ActivityRetrieveSerializer, ActivityCollectSerializer
+from mindspore.serializers import LoginSerializer, UsersInGroupSerializer, SigsSerializer, \
+    GroupsSerializer, GroupUserAddSerializer, GroupUserDelSerializer, UserInfoSerializer, UserGroupSerializer, \
+    MeetingSerializer, MeetingDelSerializer, MeetingsListSerializer, CollectSerializer, CitiesSerializer, \
+    CityUserAddSerializer, CityUserDelSerializer, UserCitySerializer, SponsorSerializer, ActivitySerializer, \
+    ActivityUpdateSerializer, ActivityDraftUpdateSerializer, ActivitiesSerializer, ActivityRetrieveSerializer, \
+    ActivityCollectSerializer
 from mindspore.send_email import sendmail
 from mindspore.utils.tencent_apis import *
 from mindspore.utils import prepare_create_activity, gene_wx_code
 from mindspore.utils import drivers
 from mindspore.auth import CustomAuthentication
-from app_meeting_server.utils import wx_apis
+from app_meeting_server.apps.mindspore.utils import send_cancel_email
 
 logger = logging.getLogger('log')
 
@@ -475,8 +477,7 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
         # 数据库更改Meeting的is_delete=1
         if status == 200:
             # 发送删除通知邮件
-            from app_meeting_server.apps.mindspore.utils.send_cancel_email import sendmail
-            sendmail(mid)
+            send_cancel_email.sendmail(mid)
 
             Meeting.objects.filter(mid=mid).update(is_delete=1)
             # 发送会议取消通知

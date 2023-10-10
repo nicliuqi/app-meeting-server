@@ -1,7 +1,6 @@
 from django.urls import path
 from opengauss.views import GiteeAuthView, GiteeBackView, UserInfoView, MeetingsDataView, CreateMeetingView, \
-    UpdateMeetingView, DeleteMeetingView, MeetingDetailView, GroupsView, AllMeetingsView, ParticipantsView, \
-    LogoutView
+    UpdateMeetingView, DeleteMeetingView, GroupsView, AllMeetingsView, ParticipantsView, LogoutView
 
 
 urlpatterns = [
@@ -10,7 +9,6 @@ urlpatterns = [
     path('user/', UserInfoView.as_view()),
     path('meetingsdata/', MeetingsDataView.as_view()),
     path('meetings/', CreateMeetingView.as_view()),
-    path('meeting/<int:pk>/', MeetingDetailView.as_view()),
     path('meeting/action/update/<int:mid>/', UpdateMeetingView.as_view()),
     path('meeting/action/delete/<int:mid>/', DeleteMeetingView.as_view()),
     path('groups/', GroupsView.as_view()),

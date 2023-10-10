@@ -1,5 +1,7 @@
 from mindspore.models import Meeting
 from app_meeting_server.utils import tencent_apis, welink_apis
+from mindspore.utils import tencent_apis as mta
+from mindspore.utils import welink_apis as mwa
 
 
 def createMeeting(platform, date, start, end, topic, host, record):
@@ -17,8 +19,7 @@ def cancelMeeting(mid):
     host_id = meeting.host_id
     status = None
     if mplatform == 'tencent':
-        from mindspore.utils import tencent_apis
-        status = tencent_apis.cancelMeeting(mid)
+        status = mta.cancelMeeting(mid)
     elif mplatform == 'welink':
         status = welink_apis.cancelMeeting(mid, host_id)
     return status
@@ -29,9 +30,7 @@ def getParticipants(mid):
     mplatform = meeting.mplatform
     status, res = (None, None)
     if mplatform == 'tencent':
-        from mindspore.utils import tencent_apis
-        status, res = tencent_apis.getParticipants(mid)
+        status, res = mta.getParticipants(mid)
     elif mplatform == 'welink':
-        from mindspore.utils import welink_apis
-        status, res = welink_apis.getParticipants(mid)
+        status, res = mwa.getParticipants(mid)
     return status, res

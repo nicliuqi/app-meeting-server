@@ -26,14 +26,6 @@ class MeetingDeleteSerializer(ModelSerializer):
         fields = ['mid']
 
 
-class MeetingDetailSerializer(ModelSerializer):
-    avatar = serializers.CharField(source='user.avatar')
-    class Meta:
-        model = Meeting
-        fields = ['id', 'mid', 'topic', 'sponsor', 'avatar', 'group_name', 'date', 'start', 'end', 'etherpad', 'agenda',
-                  'join_url', 'emaillist', 'mplatform']
-
-
 class GroupsSerializer(ModelSerializer):
     class Meta:
         model = Group

@@ -17,13 +17,17 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE_DIR, "apps"))
 
 CONFIG_PATH = os.getenv('CONFIG_PATH')
+XARMOR_CONF = os.getenv('XARMOR_CONF')
 if not os.path.exists(CONFIG_PATH):
     sys.exit()
 with open(CONFIG_PATH, 'r') as f:
     content = yaml.safe_load(f)
 DEFAULT_CONF = content
-if sys.argv[0] == 'uwsgi':
+if sys.argv[0] == 'uwsgi' or (len(sys.argv) >= 3 and sys.argv[2] not in ["collectstatic", "migrate"]):
     os.remove(CONFIG_PATH)
+
+    if os.path.basename(XARMOR_CONF) in os.listdir():
+        os.remove(os.path.basename(XARMOR_CONF))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
@@ -45,13 +49,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    DEFAULT_CONF["app"],  # DEFAULT_CONF["app"]='openeuler.apps.OpeneulerConfig'/'opengauss.apps.OpengaussConfig'/'mindspore.apps.MindsporeConfig'
+    # DEFAULT_CONF["app"]='openeuler.apps.OpeneulerConfig'/'opengauss.apps.OpengaussConfig'/'mindspore.apps.MindsporeConfig'
+    DEFAULT_CONF["app"],
     'rest_framework',
     'corsheaders',
     'rest_framework.authtoken',
     'django_filters'
 ]
-AUTH_USER_MODEL = DEFAULT_CONF["user_model"]  # DEFAULT_CONF["user_model"]='openeuler.User'/'opengauss.User'/'mindspore.User'
+
+# DEFAULT_CONF["user_model"]='openeuler.User'/'opengauss.User'/'mindspore.User'
+AUTH_USER_MODEL = DEFAULT_CONF["user_model"]
+
+COMMUNITY = AUTH_USER_MODEL.split(".")[0].lower()
 
 CORS_ALLOW_METHODS = (
     'GET',
@@ -88,39 +97,48 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 ROOT_URLCONF = 'app_meeting_server.urls'
 
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
-}
+if COMMUNITY == "openeuler" or COMMUNITY == "mindspore":
+    REST_FRAMEWORK = {
+        'DEFAULT_AUTHENTICATION_CLASSES': (
+            'rest_framework_simplejwt.authentication.JWTAuthentication',
+        )
+    }
 
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=10080),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-    'ROTATE_REFRESH_TOKENS': False,
-    'BLACKLIST_AFTER_ROTATION': True,
+    SIMPLE_JWT = {
+        'ACCESS_TOKEN_LIFETIME': timedelta(minutes=10080),
+        'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+        'ROTATE_REFRESH_TOKENS': False,
+        'BLACKLIST_AFTER_ROTATION': True,
 
-    'ALGORITHM': 'HS256',
-    'SIGNING_KEY': SECRET_KEY,
-    'VERIFYING_KEY': None,
+        'ALGORITHM': 'HS256',
+        'SIGNING_KEY': SECRET_KEY,
+        'VERIFYING_KEY': None,
 
-    # 'AUTH_HEADER_TYPES': (,),
-    'USER_ID_FIELD': 'id',
-    'USER_ID_CLAIM': 'user_id',
+        # 'AUTH_HEADER_TYPES': (,),
+        'USER_ID_FIELD': 'id',
+        'USER_ID_CLAIM': 'user_id',
 
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-    'TOKEN_TYPE_CLAIM': 'token_type',
+        'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+        'TOKEN_TYPE_CLAIM': 'token_type',
 
-    'JTI_CLAIM': 'jti',
+        'JTI_CLAIM': 'jti',
 
-    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
-    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=1000),
-    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
-}
+        'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+        'SLIDING_TOKEN_LIFETIME': timedelta(minutes=1000),
+        'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+    }
+
+elif COMMUNITY == "openguass":
+    CSRF_COOKIE_NAME = 'meeting-csrftoken'
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_SAMESITE = 'strict'
+    COOKIE_EXPIRE = timedelta(minutes=30)
+    ACCESS_TOKEN_NAME = 'meeting-accesstoken'
 
 
 TEMPLATES = [
@@ -186,7 +204,6 @@ USE_L10N = True
 
 USE_TZ = False
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
@@ -194,14 +211,11 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 STATIC_URL = '/static/'
 
-
-cur_path = os.path.dirname(os.path.realpath(__file__))
-
-log_path = os.path.join(os.path.dirname(cur_path), 'logs')
+# cur_path = os.path.dirname(os.path.realpath(__file__))
+log_path = os.path.join(os.path.dirname(BASE_DIR), 'logs')
 
 if not os.path.exists(log_path):
     os.mkdir(log_path)
-
 
 LOGGING = {
     'version': 1,
@@ -266,7 +280,7 @@ LOGGING = {
 }
 
 # common config
-ACCESS_KEY_ID = DEFAULT_CONF.get('QUERY_AK')
+ACCESS_KEY_ID = DEFAULT_CONF.get('ACCESS_KEY_ID')
 COMMUNITY = DEFAULT_CONF.get('COMMUNITY')
 FOR_OPENEULER = DEFAULT_CONF.get('FOR_OPENEULER')
 FOR_OPENGAUSS = DEFAULT_CONF.get('FOR_OPENGAUSS')
@@ -373,7 +387,7 @@ elif DEFAULT_CONF.FOR_MINDSPORE:
     ETHERPAD_PREFIX = DEFAULT_CONF.get('ETHERPAD_PREFIX')
     MEETING_ATTENTION_TEMPLATE = DEFAULT_CONF.get('MEETING_ATTENTION_TEMPLATE')
     MEETING_HOSTS = {
-        'tencent': ['meeting48318'],
+        'tencent': ['TENCENT_ACCOUNT_1'],
         'welink': [DEFAULT_CONF.get('WELINK_HOST_1', '')]
     }
     QUERY_AK = DEFAULT_CONF.get('QUERY_AK')

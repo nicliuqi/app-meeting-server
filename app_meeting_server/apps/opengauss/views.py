@@ -18,10 +18,11 @@ from rest_framework.response import Response
 from opengauss.send_email import sendmail
 from opengauss.models import Meeting, Video, User, Group, Record
 from opengauss.serializers import MeetingsSerializer, MeetingUpdateSerializer, MeetingDeleteSerializer, \
-    MeetingDetailSerializer, GroupsSerializer, AllMeetingsSerializer
+    GroupsSerializer, AllMeetingsSerializer
 from opengauss.utils import cryptos
 from opengauss.permissions import QueryPermission
 from opengauss.utils import drivers
+from opengauss.utils import send_cancel_email
 
 logger = logging.getLogger('log')
 
@@ -500,7 +501,6 @@ class DeleteMeetingView(GenericAPIView, UpdateModelMixin):
         Meeting.objects.filter(mid=mid).update(is_delete=1)
         user = User.objects.get(id=user_id)
         logger.info('{} has canceled meeting {}'.format(user.gitee_id, mid))
-        from opengauss.utils.send_cancel_email import sendmail
         meeting = Meeting.objects.get(mid=mid)
         date = meeting.date
         start = meeting.start
@@ -522,24 +522,13 @@ class DeleteMeetingView(GenericAPIView, UpdateModelMixin):
             'platform': platform,
             'sequence': sequence
         }
-        sendmail(m)
+        send_cancel_email.sendmail(m)
         Meeting.objects.filter(mid=mid).update(sequence=sequence + 1)
         access_token = refresh_token(user_id)
         response = JsonResponse({'code': 204, 'msg': '已删除会议{}'.format(mid), 'en_msg': 'Delete successfully'})
         refresh_cookie(user_id, response, access_token)
         request.META['CSRF_COOKIE'] = get_token(request)
         return response
-
-
-class MeetingDetailView(GenericAPIView, RetrieveModelMixin):
-    """
-    Meeting detail
-    """
-    serializer_class = MeetingDetailSerializer
-    queryset = Meeting.objects.filter(is_delete=0)
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
 
 
 class GroupsView(GenericAPIView, ListModelMixin):
