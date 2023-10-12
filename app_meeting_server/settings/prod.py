@@ -129,7 +129,7 @@ WELINK_HOSTS = {
     }
 }
 
-if DEFAULT_CONF.FOR_OPENEULER or DEFAULT_CONF.FOR_MINDSPORE:
+if FOR_OPENEULER or FOR_MINDSPORE:
     REST_FRAMEWORK = {
         'DEFAULT_AUTHENTICATION_CLASSES': (
             'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -160,7 +160,7 @@ if DEFAULT_CONF.FOR_OPENEULER or DEFAULT_CONF.FOR_MINDSPORE:
         'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
     }
 
-elif DEFAULT_CONF.FOR_OPENGAUSS:
+elif FOR_OPENGAUSS:
     CSRF_COOKIE_SECURE = True
     CSRF_COOKIE_SAMESITE = 'strict'
     COOKIE_EXPIRE = timedelta(minutes=30)
