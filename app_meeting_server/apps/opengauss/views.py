@@ -63,6 +63,8 @@ def refresh_cookie(user_id, response, access_token):
 
 
 def check_expire(expire_time, now_time):
+    if not isinstance(expire_time, int) or not isinstance(now_time, int):
+        return False
     if expire_time == 0:
         return False
     if now_time > expire_time:
@@ -96,12 +98,18 @@ class GiteeBackView(GenericAPIView, ListModelMixin):
         client_id = settings.GITEE_OAUTH_CLIENT_ID
         client_secret = settings.GITEE_OAUTH_CLIENT_SECRET
         redirect_uri = settings.GITEE_OAUTH_REDIRECT
-        r = requests.post(
-            'https://gitee.com/oauth/token?grant_type=authorization_code&code={}&client_id={}&redirect_uri={}&client_secret={}'.format(
-                code, client_id, redirect_uri, client_secret))
+        url = settings.GITEE_OAUTH_URL
+        params = {
+            'grant_type': 'authorization_code',
+            'code': code,
+            'client_id': client_id,
+            'redirect_uri': redirect_uri,
+            'client_secret': client_secret
+        }
+        r = requests.post(url, params=params)
         if r.status_code == 200:
             access_token = r.json()['access_token']
-            r = requests.get('https://gitee.com/api/v5/user?access_token={}'.format(access_token))
+            r = requests.get('{}/user?access_token={}'.format(settings.GITEE_V5_API_PREFIX, access_token))
             if r.status_code == 200:
                 gid = r.json()['id']
                 gitee_id = r.json()['login']
@@ -184,6 +192,75 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
     serializer_class = MeetingsSerializer
     queryset = Meeting.objects.all()
 
+    def validate(self, request, user_id):
+        now_time = datetime.datetime.now()
+        err_msgs = []
+        data = self.request.data
+        platform = data.get('platform', 'zoom')
+        host_dict = None
+        date = data.get('date')
+        start = data.get('start')
+        end = data.get('end')
+        topic = data.get('topic')
+        sponsor = data.get('sponsor')
+        group_name = data.get('group_name')
+        etherpad = data.get('etherpad')
+        if not etherpad:
+            etherpad = '{}/p/{}-meetings'.format(settings.ETHERPAD_PREFIX, group_name)
+        community = data.get('community', 'opengauss')
+        emaillist = data.get('emaillist')
+        summary = data.get('agenda')
+        record = data.get('record')
+        if not isinstance(platform, str):
+            err_msgs.append('Field platform must be string type')
+        else:
+            host_dict = settings.MEETING_HOSTS.get(platform.lower())
+            if not host_dict:
+                err_msgs.append('Could not match any meeting host')
+        try:
+            start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
+            end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
+            if start_time <= now_time:
+                err_msgs.append('The start time should not be later than the current time')
+            if start_time <= end_time:
+                err_msgs.append('The start time should not be later than the end time')
+        except ValueError:
+            err_msgs.append('Invalid start time or end time')
+        if date > (datetime.datetime.today() + datetime.timedelta(days=14)).strftime('%Y-%m-%d'):
+            err_msgs.append('The scheduled time cannot exceed 14')
+        if sponsor != User.objects.get(id=user_id).gitee_id:
+            err_msgs.append('Invalid sponsor: {}'.format(sponsor))
+        if group_name not in list(Group.objects.all().values_list('name', flat=True)):
+            err_msgs.append('Invalid group name: {}'.format(group_name))
+        if User.objects.get(id=user_id).gitee_id not in Group.objects.get(name=group_name).members:
+            err_msgs.append('Sponsor {} is not a member of group {}'.format(sponsor, group_name))
+        if not etherpad.startswith(settings.ETHERPAD_PREFIX):
+            err_msgs.append('Invalid etherpad address')
+        if community != settings.COMMUNITY.lower():
+            err_msgs.append('The field community must be the same as configure')
+        if len(emaillist) > 100:
+            emaillist = emaillist[:100]
+        if err_msgs:
+            logger.error('[CreateMeetingView] Fail to validate when creating meetings, the error messages are {}'.
+                         format(','.join(err_msgs)))
+            return False, None
+        res = {
+            'platform': platform,
+            'host_dict': host_dict,
+            'date': date,
+            'start': start,
+            'end': end,
+            'topic': topic,
+            'sponsor': sponsor,
+            'group_name': group_name,
+            'etherpad': etherpad,
+            'communinty': community,
+            'emaillist': emaillist,
+            'summary': summary,
+            'record': record
+        }
+        return True, res
+
     def post(self, request, *args, **kwargs):
         if request.COOKIES.get(settings.CSRF_COOKIE_NAME) != request.META.get('HTTP_X_CSRFTOKEN'):
             return JsonResponse({'code': 403, 'msg': 'Forbidden'})
@@ -195,44 +272,24 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
                 return JsonResponse({'code': 401, 'msg': '身份认证过期', 'en_msg': 'Unauthorised'})
         except:
             return JsonResponse({'code': 401, 'msg': '用户未认证', 'en_msg': 'Unauthorised'})
-        data = self.request.data
-        platform = data['platform'] if 'platform' in data else 'zoom'
+        is_validated, data = self.validate(request, user_id)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request', 'en_msg': 'Bad Request'})
+        platform = data.get('platform', 'zoom')
         platform = platform.lower()
-        host_dict = settings.MEETING_HOSTS[platform]
-        date = data['date']
-        start = data['start']
-        end = data['end']
-        topic = data['topic']
-        sponsor = data['sponsor']
-        group_name = data['group_name']
-        etherpad = data['etherpad'] if 'etherpad' in data else None
-        if not etherpad:
-            etherpad = 'https://etherpad.opengauss.org/p/{}-meetings'.format(group_name)
-        community = data['community'] if 'community' in data else 'opengauss'
-        emaillist = data['emaillist'] if 'emaillist' in data else None
-        summary = data['agenda'] if 'agenda' in data else None
-        record = data['record'] if 'record' in data else None
-        try:
-            group_id = Group.objects.get(name=group_name).id
-        except Exception:
-            logger.error('Invalid group_name')
-            return JsonResponse({'code': 400, 'msg': '错误的SIG组名', 'en_msg': 'Invalid SIG name'})
-        if User.objects.get(id=user_id).gitee_id not in Group.objects.get(name=group_name).members:
-            logger.error('user is not member of {}'.format(group_name))
-            return JsonResponse(
-                {'code': 400, 'msg': '用户未在该组', 'en_msg': 'The user is not member of {}'.format(group_name)})
-        start_time = ' '.join([date, start])
-        if start_time < datetime.datetime.now().strftime('%Y-%m-%d %H:%M'):
-            logger.warning('The start time should not be earlier than the current time.')
-            return JsonResponse({'code': 1005, 'msg': '请输入正确的开始时间',
-                                 'en_msg': 'The start time should not be earlier than the current time'})
-        if start >= end:
-            logger.warning('The end time must be greater than the start time.')
-            return JsonResponse(
-                {'code': 1001, 'msg': '请输入正确的结束时间', 'en_msg': 'The end time must be greater than the start time'})
-        if date > (datetime.datetime.today() + datetime.timedelta(days=14)).strftime('%Y-%m-%d'):
-            logger.warning('The date is more than 14.')
-            return JsonResponse({'code': 1002, 'msg': '预定时间不能超过当前14天', 'en_msg': 'The scheduled time cannot exceed 14'})
+        host_dict = settings.MEETING_HOSTS.get('platform')
+        date = data.get('date')
+        start = data.get('start')
+        end = data.get('end')
+        topic = data.get('topic')
+        sponsor = data.get('sponsor')
+        group_name = data.get('group_name')
+        etherpad = data.get('etherpad')
+        community = data.get('community')
+        emaillist = data.get('emaillist')
+        summary = data.get('agenda')
+        record = data.get('record')
+        group_id = Group.objects.get(name=group_name).id
         start_search = datetime.datetime.strftime(
             (datetime.datetime.strptime(start, '%H:%M') - datetime.timedelta(minutes=30)),
             '%H:%M')
@@ -345,6 +402,70 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
     serializer_class = MeetingUpdateSerializer
     queryset = Meeting.objects.filter(is_delete=0)
 
+    def validate(self, request, user_id, mid):
+        now_time = datetime.datetime.now()
+        err_msgs = []
+        data = self.request.data
+        topic = data.get('topic')
+        sponsor = data.get('sponsor')
+        date = data.get('date')
+        start = data.get('start')
+        end = data.get('end')
+        group_name = data.get('group_name')
+        community = data.get('community', 'opengauss')
+        summary = data.get('agenda')
+        emaillist = data.get('emaillist')
+        record = data.get('record')
+        etherpad = data.get('etherpad')
+        if not etherpad:
+            etherpad = '{}/p/{}-meetings'.format(settings.ETHERPAD_PREFIX, group_name)
+        if not Meeting.objects.filter(user_id=user_id, mid=mid, is_delete=0):
+            err_msgs.append('Meeting {} is not exist'.format(mid))
+        else:
+            if Meeting.objects.get(mid=mid).user_id != user_id:
+                err_msgs.append('Invalid operation: could not update a meeting others create')
+        try:
+            start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
+            end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
+            if start_time <= now_time:
+                err_msgs.append('The start time should not be later than the current time')
+            if start_time <= end_time:
+                err_msgs.append('The start time should not be later than the end time')
+        except ValueError:
+            err_msgs.append('Invalid start time or end time')
+        if date > (datetime.datetime.today() + datetime.timedelta(days=14)).strftime('%Y-%m-%d'):
+            err_msgs.append('The scheduled time cannot exceed 14')
+        if sponsor != User.objects.get(id=user_id).gitee_id:
+            err_msgs.append('Invalid sponsor: {}'.format(sponsor))
+        if group_name not in list(Group.objects.all().values_list('name', flat=True)):
+            err_msgs.append('Invalid group name: {}'.format(group_name))
+        if User.objects.get(id=user_id).gitee_id not in Group.objects.get(name=group_name).members:
+            err_msgs.append('Sponsor {} is not a member of group {}'.format(sponsor, group_name))
+        if not etherpad.startswith(settings.ETHERPAD_PREFIX):
+            err_msgs.append('Invalid etherpad address')
+        if community != settings.COMMUNITY.lower():
+            err_msgs.append('The field community must be the same as configure')
+        if len(emaillist) > 100:
+            emaillist = emaillist[:100]
+        if err_msgs:
+            logger.error('[UpdateMeetingsView] Fail to validate when creating meetings, the error messages are {}'.
+                         format(','.join(err_msgs)))
+            return False, None
+        res = {
+            'date': date,
+            'start': start,
+            'end': end,
+            'topic': topic,
+            'sponsor': sponsor,
+            'group_name': group_name,
+            'etherpad': etherpad,
+            'communinty': community,
+            'emaillist': emaillist,
+            'summary': summary,
+            'record': record
+        }
+        return True, res
+
     def put(self, request, *args, **kwargs):
         if request.COOKIES.get(settings.CSRF_COOKIE_NAME) != request.META.get('HTTP_X_CSRFTOKEN'):
             return JsonResponse({'code': 403, 'msg': 'Forbidden'})
@@ -361,32 +482,24 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         if not Meeting.objects.filter(user_id=user_id, mid=mid, is_delete=0):
             return JsonResponse({'code': 404, 'msg': '会议不存在', 'en_msg': 'The meeting does not exist'})
 
+        is_validated, data = self.validate(request, user_id, mid)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request', 'en_msg': 'Bad Request'})
         # 获取data
         data = self.request.data
-        topic = data['topic']
-        sponsor = data['sponsor']
-        date = data['date']
-        start = data['start']
-        end = data['end']
-        group_name = data['group_name']
-        community = 'opengauss'
-        summary = data['agenda'] if 'agenda' in data else None
-        emaillist = data['emaillist'] if 'emaillist' in data else None
-        record = data['record'] if 'record' in data else None
-        etherpad = data['etherpad'] if 'etherpad' in data else 'https://etherpad.opengauss.org/p/{}-meetings'.format(
-            group_name)
+        topic = data.get('topic')
+        sponsor = data.get('sponsor')
+        date = data.get('date')
+        start = data.get('start')
+        end = data.get('end')
+        group_name = data.get('group_name')
+        community = data.get('community')
+        summary = data.get('agenda')
+        emaillist = data.get('emaillist')
+        record = data.get('record')
+        etherpad = data.get('etherpad')
         group_id = Group.objects.get(name=group_name).id
 
-        # 根据时间判断冲突
-        start_time = ' '.join([date, start])
-        if start_time < datetime.datetime.now().strftime('%Y-%m-%d %H:%M'):
-            logger.warning('The start time should not be earlier than the current time.')
-            return JsonResponse({'code': 1005, 'msg': '请输入正确的开始时间',
-                                 'en_msg': 'The start time should not be earlier than the current time'})
-        if start >= end:
-            logger.warning('The end time must be greater than the start time.')
-            return JsonResponse(
-                {'code': 1001, 'msg': '请输入正确的结束时间', 'en_msg': 'The end time must be greater than the start time'})
         start_search = datetime.datetime.strftime(
             (datetime.datetime.strptime(start, '%H:%M') - datetime.timedelta(minutes=30)),
             '%H:%M')
@@ -400,16 +513,6 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
             logger.info('会议冲突！主持人在{}-{}已经创建了会议'.format(start_search, end_search))
             return JsonResponse({'code': 400, 'msg': '会议冲突！主持人在{}-{}已经创建了会议'.format(start_search, end_search),
                                  'en_msg': 'Schedule time conflict'})
-        # start_time拼接
-        if int(start.split(':')[0]) >= 8:
-            start_time = date + 'T' + ':'.join([str(int(start.split(':')[0]) - 8), start.split(':')[1], '00Z'])
-        else:
-            d = datetime.datetime.strptime(date, '%Y-%m-%d') - datetime.timedelta(days=1)
-            d2 = datetime.datetime.strftime(d, '%Y-%m-%d %H%M%S')[:10]
-            start_time = d2 + 'T' + ':'.join([str(int(start.split(':')[0]) + 16), start.split(':')[1], '00Z'])
-        # 计算duration
-        duration = (int(end.split(':')[0]) - int(start.split(':')[0])) * 60 + (
-                int(end.split(':')[1]) - int(start.split(':')[1]))
 
         update_topic = '[Update] ' + topic
         status = drivers.updateMeeting(mid, date, start, end, update_topic, record)
@@ -496,6 +599,8 @@ class DeleteMeetingView(GenericAPIView, UpdateModelMixin):
         mid = self.kwargs.get('mid')
         if not Meeting.objects.filter(user_id=user_id, mid=mid, is_delete=0):
             return JsonResponse({'code': 404, 'msg': '会议不存在', 'en_msg': 'The meeting does not exist'})
+        if Meeting.objects.get(mid=mid).user_id != user_id:
+            return JsonResponse({'code': 401, 'msg': 'Forbidden', 'en_msg': 'Forbidden'})
         drivers.cancelMeeting(mid)
         # 数据库软删除数据
         Meeting.objects.filter(mid=mid).update(is_delete=1)

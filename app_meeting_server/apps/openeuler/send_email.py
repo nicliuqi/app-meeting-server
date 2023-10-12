@@ -1,6 +1,4 @@
 import datetime
-import os
-
 import icalendar
 import logging
 import pytz

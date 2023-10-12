@@ -1341,7 +1341,7 @@ class RevokeAgreementView(GenericAPIView):
     def post(self, request, *args, **kwargs):
         now_time = datetime.datetime.now()
         refresh_access(self.request.user)
-        User.objects.filter(id=self.request.user.id).update(agree_privacy_policy=False, revoke_agreement_time=now_time)
+        User.objects.filter(id=self.request.user.id).update(revoke_agreement_time=now_time)
         resp = JsonResponse({
             'code': 201,
             'msg': 'Revoke agreement of privacy policy'
