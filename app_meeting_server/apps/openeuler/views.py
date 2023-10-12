@@ -30,7 +30,8 @@ from openeuler.utils import gene_wx_code, drivers
 from rest_framework_simplejwt.tokens import RefreshToken
 from openeuler.auth import CustomAuthentication
 from app_meeting_server.utils import wx_apis
-from app_meeting_server.apps.openeuler.utils import send_cancel_email
+from openeuler.utils import send_cancel_email
+from app_meeting_server.utils.operation_log import loggerwrapper, OperationLogModule, OperationLogDesc, OperationLogType
 
 logger = logging.getLogger('log')
 offline = 1
@@ -49,6 +50,9 @@ class LoginView(GenericAPIView, CreateModelMixin, ListModelMixin):
     serializer_class = LoginSerializer
     queryset = User.objects.all()
 
+    @loggerwrapper(OperationLogModule.OP_MODULE_USER,
+                   OperationLogDesc.OP_DESC_USER_LOGIN_CODE,
+                   OperationLogType.OP_TYPE_LOGIN)
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
 
@@ -968,8 +972,6 @@ class RecentActivitiesView(GenericAPIView, ListModelMixin):
     """最近的活动列表"""
     serializer_class = ActivitiesSerializer
     queryset = Activity.objects.filter(is_delete=0)
-    filter_backends = [SearchFilter]
-    # search_fields = ['enterprise']
 
     def get(self, request, *args, **kwargs):
         self.queryset = self.queryset.filter(status__gt=2, date__gt=datetime.datetime.now().strftime('%Y-%m-%d')).\

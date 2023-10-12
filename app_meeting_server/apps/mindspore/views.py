@@ -30,7 +30,7 @@ from mindspore.utils.tencent_apis import *
 from mindspore.utils import prepare_create_activity, gene_wx_code
 from mindspore.utils import drivers
 from mindspore.auth import CustomAuthentication
-from app_meeting_server.apps.mindspore.utils import send_cancel_email
+from mindspore.utils import send_cancel_email
 
 logger = logging.getLogger('log')
 

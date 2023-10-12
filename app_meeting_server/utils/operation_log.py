@@ -11,7 +11,7 @@ from functools import wraps
 from rest_framework.response import Response
 from django.http import JsonResponse
 
-logger = getLogger("log")
+logger = getLogger("django")
 
 logger_template = "[operation log] Client ip:{}, User id:{}, Module:{},Type:{},Desc:{},Result:{}."
 
@@ -119,8 +119,8 @@ class OperationLogDesc(OperationBase):
 
     CN_OPERATION = {
         # user
-        OP_DESC_USER_LOGIN_CODE: "用户（%s）登录",
-        OP_DESC_USER_LOGOUT_CODE: "用户（%s）登出",
+        OP_DESC_USER_LOGIN_CODE: "用户登录",
+        OP_DESC_USER_LOGOUT_CODE: "用户登出",
 
         # meeting
         OP_DESC_MEETING_DEMO_CODE: "会议（%s）demo",
@@ -132,8 +132,8 @@ class OperationLogDesc(OperationBase):
 
     EN_OPERATION = {
         # user
-        OP_DESC_USER_LOGIN_CODE: "The user(%s) login.",
-        OP_DESC_USER_LOGOUT_CODE: "The user(%s) logout.",
+        OP_DESC_USER_LOGIN_CODE: "The user login.",
+        OP_DESC_USER_LOGOUT_CODE: "The user logout.",
 
         # meeting
         OP_DESC_MEETING_DEMO_CODE: "meeting（%s）demo",
@@ -178,23 +178,3 @@ def loggerwrapper(log_module, log_desc, log_type=None, log_vars=None):
 
     return wrapper
 
-
-"""
-eg:
-class LogoutView(GenericAPIView):
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (permissions.IsAuthenticated,)
-    
-    @loggerwrapper(OperationLogModule.OP_MODULE_USER, 
-               OperationLogDesc.OP_DESC_USER_LOGOUT_CODE, 
-               OperationLogType.OP_TYPE_LOGOUT, 
-               log_vars=[requests.data.get("username")])
-    def post(self, request, *args, **kwargs):
-        refresh_access(self.request.user)
-        resp = JsonResponse({
-            'code': 201,
-            'msg': 'User {} logged out'.format(self.request.user.id)
-        })
-        logger.info('User {} logged out'.format(self.request.user.id))
-        return resp
-"""
