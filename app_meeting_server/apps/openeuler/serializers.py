@@ -253,13 +253,13 @@ class AllMeetingsSerializer(ModelSerializer):
 class SponsorSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'nickname', 'avatar', 'gitee_name', 'enterprise', 'telephone', 'email']
+        fields = ['id', 'nickname', 'avatar', 'gitee_name', 'telephone', 'email']
 
 
 class SponsorInfoSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'gitee_name', 'enterprise', 'telephone', 'email']
+        fields = ['id', 'gitee_name', 'telephone', 'email']
 
 
 class ActivitySerializer(ModelSerializer):
@@ -275,7 +275,7 @@ class ActivitiesSerializer(ModelSerializer):
         model = Activity
         fields = ['id', 'collection_id', 'title', 'date', 'activity_type', 'synopsis', 'live_address',
                   'address', 'detail_address', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user',
-                  'enterprise', 'start', 'end', 'join_url', 'replay_url', 'register_url']
+                  'start', 'end', 'join_url', 'replay_url', 'register_url']
 
     def get_collection_id(self, obj):
         user = None
@@ -293,7 +293,7 @@ class ActivityRetrieveSerializer(ActivitiesSerializer):
         model = Activity
         fields = ['id', 'collection_id', 'title', 'date', 'activity_type', 'synopsis', 'live_address',
                   'address', 'detail_address', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user',
-                  'enterprise', 'wx_code', 'start', 'end', 'join_url', 'replay_url', 'register_url']
+                  'wx_code', 'start', 'end', 'join_url', 'replay_url', 'register_url']
 
 
 class ActivityUpdateSerializer(ModelSerializer):

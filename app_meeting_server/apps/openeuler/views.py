@@ -882,7 +882,7 @@ class ActivityView(GenericAPIView, CreateModelMixin):
         synopsis = data.get('synopsis')
         poster = data.get('poster')
         user_id = self.request.user.id
-        enterprise = User.objects.get(id=user_id).enterprise
+
         register_url = data.get('register_url')
         # 线下活动
         if activity_type == offline:
@@ -903,7 +903,6 @@ class ActivityView(GenericAPIView, CreateModelMixin):
                 poster=poster,
                 user_id=user_id,
                 status=2,
-                enterprise=enterprise,
                 register_url=register_url
             )
         # 线上活动
@@ -921,7 +920,6 @@ class ActivityView(GenericAPIView, CreateModelMixin):
                 poster=poster,
                 user_id=user_id,
                 status=2,
-                enterprise=enterprise,
                 register_url=register_url
             )
         return JsonResponse({'code': 201, 'msg': '活动申请发布成功！', 'access': access})
@@ -932,7 +930,7 @@ class ActivitiesView(GenericAPIView, ListModelMixin):
     serializer_class = ActivitiesSerializer
     queryset = Activity.objects.filter(is_delete=0, status__gt=2).order_by('-date', 'id')
     filter_backends = [SearchFilter]
-    search_fields = ['title', 'enterprise']
+    search_fields = ['title']
 
     def get(self, request, *args, **kwargs):
         activity_status = self.request.GET.get('activity')
@@ -971,7 +969,7 @@ class RecentActivitiesView(GenericAPIView, ListModelMixin):
     serializer_class = ActivitiesSerializer
     queryset = Activity.objects.filter(is_delete=0)
     filter_backends = [SearchFilter]
-    search_fields = ['enterprise']
+    # search_fields = ['enterprise']
 
     def get(self, request, *args, **kwargs):
         self.queryset = self.queryset.filter(status__gt=2, date__gt=datetime.datetime.now().strftime('%Y-%m-%d')).\
@@ -1107,7 +1105,6 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
         synopsis = data.get('synopsis')
         poster = data.get('poster')
         user_id = self.request.user.id
-        enterprise = User.objects.get(id=user_id).enterprise
         register_url = data.get('register_url')
         # 线下活动
         if activity_type == offline:
@@ -1127,7 +1124,6 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
                 schedules=json.dumps(data['schedules']),
                 poster=poster,
                 user_id=user_id,
-                enterprise=enterprise,
                 register_url=register_url
             )
         # 线上活动
@@ -1144,7 +1140,6 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
                 schedules=json.dumps(data['schedules']),
                 poster=poster,
                 user_id=user_id,
-                enterprise=enterprise,
                 register_url=register_url
             )
         return JsonResponse({'code': 201, 'msg': '活动草案创建成功！', 'access': access})
@@ -1372,13 +1367,13 @@ class CountActivitiesView(GenericAPIView, ListModelMixin):
     """各类活动计数"""
     queryset = Activity.objects.filter(is_delete=0, status__gt=2).order_by('-date', 'id')
     filter_backends = [SearchFilter]
-    search_fields = ['title', 'enterprise']
+    search_fields = ['title']
 
     def get(self, request, *args, **kwargs):
         search = self.request.GET.get('search')
         activity_type = self.request.GET.get('activity_type')
         if search and not activity_type:
-            self.queryset = self.queryset.filter(Q(title__icontains=search) | Q(enterprise__icontains=search))
+            self.queryset = self.queryset.filter(Q(title__icontains=search))
         if activity_type:
             try:
                 if int(activity_type) == 1:
@@ -1387,10 +1382,10 @@ class CountActivitiesView(GenericAPIView, ListModelMixin):
                     self.queryset = self.queryset.filter(activity_type=2)
                 if int(activity_type) == 1 and search:
                     self.queryset = self.queryset.filter(activity_type=1).filter(
-                        Q(title__icontains=search) | Q(enterprise__icontains=search))
+                        Q(title__icontains=search))
                 if int(activity_type) == 2 and search:
                     self.queryset = self.queryset.filter(activity_type=2).filter(
-                        Q(title__icontains=search) | Q(enterprise__icontains=search))
+                        Q(title__icontains=search))
             except TypeError:
                 pass
         all_activities_count = len(self.queryset.filter(is_delete=0, status__gt=2).values())

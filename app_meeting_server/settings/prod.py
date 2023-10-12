@@ -23,9 +23,9 @@ if not os.path.exists(CONFIG_PATH):
 with open(CONFIG_PATH, 'r') as f:
     content = yaml.safe_load(f)
 DEFAULT_CONF = content
-if sys.argv[0] == 'uwsgi' or (len(sys.argv) >= 3 and sys.argv[2] not in ["collectstatic", "migrate"]):
+is_delete_config = sys.argv[0] == 'uwsgi' or (len(sys.argv) >= 3 and sys.argv[2] not in ["collectstatic", "migrate"])
+if is_delete_config:
     os.remove(CONFIG_PATH)
-
     if os.path.basename(XARMOR_CONF) in os.listdir():
         os.remove(os.path.basename(XARMOR_CONF))
 
@@ -49,7 +49,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # DEFAULT_CONF["app"]='openeuler.apps.OpeneulerConfig'/'opengauss.apps.OpengaussConfig'/'mindspore.apps.MindsporeConfig'
     DEFAULT_CONF["app"],
     'rest_framework',
     'corsheaders',
@@ -57,7 +56,6 @@ INSTALLED_APPS = [
     'django_filters'
 ]
 
-# DEFAULT_CONF["user_model"]='openeuler.User'/'opengauss.User'/'mindspore.User'
 AUTH_USER_MODEL = DEFAULT_CONF["user_model"]
 
 
@@ -131,7 +129,7 @@ WELINK_HOSTS = {
     }
 }
 
-if COMMUNITY == "openeuler" or COMMUNITY == "mindspore":
+if DEFAULT_CONF.FOR_OPENEULER or DEFAULT_CONF.FOR_MINDSPORE:
     REST_FRAMEWORK = {
         'DEFAULT_AUTHENTICATION_CLASSES': (
             'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -162,7 +160,7 @@ if COMMUNITY == "openeuler" or COMMUNITY == "mindspore":
         'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
     }
 
-elif COMMUNITY == "openguass":
+elif DEFAULT_CONF.FOR_OPENGAUSS:
     CSRF_COOKIE_SECURE = True
     CSRF_COOKIE_SAMESITE = 'strict'
     COOKIE_EXPIRE = timedelta(minutes=30)
@@ -184,7 +182,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'community_meetings.wsgi.application'
+WSGI_APPLICATION = 'app_meeting_server.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
@@ -238,7 +236,6 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 STATIC_URL = '/static/'
 
-# cur_path = os.path.dirname(os.path.realpath(__file__))
 log_path = os.path.join(os.path.dirname(BASE_DIR), 'logs')
 
 if not os.path.exists(log_path):

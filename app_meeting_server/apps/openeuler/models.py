@@ -151,7 +151,6 @@ class Activity(models.Model):
                                       default=1)
     status = models.SmallIntegerField(verbose_name='状态',
                                       choices=((1, '草稿'), (2, '审核中'), (3, '报名中'), (4, '进行中'), (5, '已结束')), default=1)
-    enterprise = models.CharField(verbose_name='企业', max_length=50, null=True, blank=True)
     wx_code = models.TextField(verbose_name='微信二维码', null=True, blank=True)
     is_delete = models.SmallIntegerField(verbose_name='是否删除', choices=((0, '未删除'), (1, '已删除')), default=0)
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True)
