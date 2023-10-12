@@ -101,7 +101,6 @@ ROOT_URLCONF = 'app_meeting_server.urls'
 
 # common config
 ACCESS_KEY_ID = DEFAULT_CONF.get('ACCESS_KEY_ID')
-COMMUNITY = DEFAULT_CONF.get('COMMUNITY')
 ETHERPAD_PREFIX = DEFAULT_CONF.get('ETHERPAD_PREFIX')
 FOR_OPENEULER = DEFAULT_CONF.get('FOR_OPENEULER')
 FOR_OPENGAUSS = DEFAULT_CONF.get('FOR_OPENGAUSS')
@@ -277,7 +276,6 @@ LOGGING = {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'standard',
-            'encoding': 'utf-8',
         },
         'info': {
             'level': 'INFO',

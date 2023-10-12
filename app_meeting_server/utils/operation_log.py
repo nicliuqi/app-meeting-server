@@ -4,7 +4,6 @@
 # @FileName: operation_log.py
 # @Software: PyCharm
 
-from enum import Enum
 from django.conf import settings
 from logging import getLogger
 from functools import wraps
@@ -19,7 +18,7 @@ logger_template = "[operation log] Client ip:{}, User id:{}, Module:{},Type:{},D
 def is_en(): return settings.LANGUAGE_CODE == 'en-us'
 
 
-class OperationBase(Enum):
+class OperationBase:
     @classmethod
     def get_name_by_code(cls, code):
         if is_en():
@@ -103,19 +102,20 @@ class OperationLogResult(OperationBase):
     }
 
 
+# noinspection PyTypeChecker
 class OperationLogDesc(OperationBase):
     # USER CODE START 0
     # MEETING CODE START 1000
     # Activity CODE START 2000
     OP_DESC_USER_BASE_CODE = 0
-    OP_DESC_USER_LOGIN_CODE = OP_DESC_USER_BASE_CODE.value + 1
-    OP_DESC_USER_LOGOUT_CODE = OP_DESC_USER_BASE_CODE.value + 2
+    OP_DESC_USER_LOGIN_CODE = OP_DESC_USER_BASE_CODE + 1
+    OP_DESC_USER_LOGOUT_CODE = OP_DESC_USER_BASE_CODE + 2
 
     OP_DESC_MEETING_BASE_CODE = 1000
-    OP_DESC_MEETING_DEMO_CODE = OP_DESC_MEETING_BASE_CODE.value + 1
+    OP_DESC_MEETING_DEMO_CODE = OP_DESC_MEETING_BASE_CODE + 1
 
     OP_DESC_ACTIVITY_BASE_CODE = 2000
-    OP_DESC_ACTIVITY_DEMO_CODE = OP_DESC_ACTIVITY_BASE_CODE.value + 1
+    OP_DESC_ACTIVITY_DEMO_CODE = OP_DESC_ACTIVITY_BASE_CODE + 1
 
     CN_OPERATION = {
         # user
@@ -145,8 +145,8 @@ class OperationLogDesc(OperationBase):
 
 
 def console_log(request, log_module, log_desc, log_type, log_vars, resp=None):
-    ip = request.META["x-forward-for"]
-    user_id = "anonymous" if request.is_anonymous() else str(request.user.id)
+    ip = request.META.get("x-forward-for") or request.META.get("REMOTE_ADDR")
+    user_id = "anonymous" if request.user.is_anonymous else str(request.user.id)
     result = OperationLogResult.OP_RESULT_FAILED
     if isinstance(resp, Response) and str(resp.status_code).startswith("20"):
         result = OperationLogResult.OP_RESULT_SUCCEED
@@ -165,9 +165,9 @@ def console_log(request, log_module, log_desc, log_type, log_vars, resp=None):
 def loggerwrapper(log_module, log_desc, log_type=None, log_vars=None):
     def wrapper(fn):
         @wraps(fn)
-        def inner(request, *args, **kwargs):
+        def inner(view, request, *args, **kwargs):
             try:
-                resp = fn(request, *args, **kwargs)
+                resp = fn(view, request, *args, **kwargs)
                 console_log(request, log_module, log_desc, log_type, log_vars, resp)
                 return resp
             except Exception as e:
