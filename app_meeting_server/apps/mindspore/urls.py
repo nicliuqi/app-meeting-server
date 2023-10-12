@@ -8,7 +8,7 @@ from mindspore.views import LoginView, GroupMembersView, NonGroupMembersView, Si
     DraftsListView, ActivityCollectView, ActivityCollectionsView, ActivityCollectionDelView, MyCountsView, \
     CityMembersView, NonCityMembersView, CitiesView, AddCityView, CityUserAddView, CityUserDelView, UserCityView, \
     RecentActivitiesView, PublishedActivitiesView, WaitingPublishingActivitiesView, CountActivitiesView, \
-    MeetingsDataView, ActivitiesDataView, AgreePrivacyPolicyView, LogoutView, LogoffView
+    MeetingsDataView, ActivitiesDataView, AgreePrivacyPolicyView, RevokeAgreementView, LogoutView, LogoffView
 
 urlpatterns = [
     path('login/', LoginView.as_view()),  # 登录
@@ -64,6 +64,7 @@ urlpatterns = [
     path('meetingsdata/', MeetingsDataView.as_view()),  # 会议日历数据
     path('activitiesdata/', ActivitiesDataView.as_view()),  # 活动日历数据
     path('agree/', AgreePrivacyPolicyView.as_view()),  # 同意更新隐私政策
+    path('revoke/', RevokeAgreementView.as_view()),  # 撤销同意更新隐私政策
     path('logout/', LogoutView.as_view()),  # 登出账号
     path('logoff/', LogoffView.as_view()),  # 注销账号
 ]

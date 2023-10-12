@@ -17,6 +17,11 @@ class GroupUserAddSerializer(ModelSerializer):
         model = GroupUser
         fields = ['group_id', 'ids']
 
+    def validate_group_id(self, value):
+        if not Group.objects.filter(id=value):
+            raise serializers.ValidationError('Invalid group id')
+        return value
+
     def validate_ids(self, value):
         try:
             list_ids = value.split('-')
@@ -54,6 +59,15 @@ class GroupUserDelSerializer(ModelSerializer):
         model = GroupUser
         fields = ['group_id', 'ids']
 
+    def validate_ids(self, value):
+        try:
+            list_ids = value.split('-')
+        except Exception as e:
+            logger.error('Invalid input.The ids should be like "1-2-3".')
+            logger.error(e)
+            raise serializers.ValidationError('输入格式有误！', code='code_error')
+        return list_ids
+
 
 class GroupsSerializer(ModelSerializer):
     class Meta:
@@ -76,7 +90,7 @@ class UsersSerializer(ModelSerializer):
 class UserSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'gitee_name', 'email', 'telephone']
+        fields = ['id', 'gitee_name']
 
 
 class MeetingSerializer(ModelSerializer):

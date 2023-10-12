@@ -192,7 +192,7 @@ class CityUserDelSerializer(ModelSerializer):
 class UserInfoSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'level', 'activity_level', 'gitee_name', 'email', 'telephone']
+        fields = ['id', 'level', 'activity_level', 'gitee_name']
 
 
 class UserGroupSerializer(ModelSerializer):
