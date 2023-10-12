@@ -16,15 +16,15 @@ Including another URLconf
 from django.urls import path, include
 from django.conf import settings
 
-if settings.COMMUNITY == "openeuler":
+if settings.FOR_OPENEULER:
     urlpatterns = [
         path('', include('openeuler.urls')),
     ]
-elif settings.COMMUNITY == "mindspore":
+elif settings.FOR_MINDSPORE:
     urlpatterns = [
         path('', include('mindspore.urls')),
     ]
-elif settings.COMMUNITY == "opengauss":
+elif settings.FOR_OPENGAUSS:
     urlpatterns = [
         path('', include('opengauss.urls')),
     ]
