@@ -27,7 +27,7 @@ from mindspore.serializers import LoginSerializer, UsersInGroupSerializer, SigsS
     ActivityCollectSerializer
 from mindspore.send_email import sendmail
 from mindspore.utils.tencent_apis import *
-from mindspore.utils import prepare_create_activity, gene_wx_code
+from mindspore.utils import gene_wx_code
 from mindspore.utils import drivers
 from mindspore.auth import CustomAuthentication
 from app_meeting_server.apps.mindspore.utils import send_cancel_email
@@ -60,21 +60,22 @@ class GroupMembersView(GenericAPIView, ListModelMixin):
     queryset = User.objects.all()
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
+    authentication_classes = (authentication.JWTAuthentication,)
+    permission_classes = (AdminPermission,)
 
     def get(self, request, *args, **kwargs):
+        group_name = self.request.GET.get('group')
+        if not Group.objects.filter(name=group_name):
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        try:
-            group_name = self.request.GET.get('group')
-            if Group.objects.filter(name=group_name):
-                group_id = Group.objects.get(name=group_name).id
-                groupusers = GroupUser.objects.filter(group_id=group_id)
-                ids = [x.user_id for x in groupusers]
-                user = User.objects.filter(id__in=ids)
-                return user
-        except KeyError:
-            pass
+        group_name = self.request.GET.get('group')
+        group_id = Group.objects.get(name=group_name).id
+        groupusers = GroupUser.objects.filter(group_id=group_id)
+        ids = [x.user_id for x in groupusers]
+        user = User.objects.filter(id__in=ids)
+        return user
 
 
 class NonGroupMembersView(GenericAPIView, ListModelMixin):
@@ -83,21 +84,22 @@ class NonGroupMembersView(GenericAPIView, ListModelMixin):
     queryset = User.objects.all()
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
+    authentication_classes = (authentication.JWTAuthentication,)
+    permission_classes = (AdminPermission,)
 
     def get(self, request, *args, **kwargs):
+        group_name = self.request.GET.get('group')
+        if not Group.objects.filter(name=group_name):
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        try:
-            group_name = self.request.GET.get('group')
-            if Group.objects.filter(name=group_name):
-                group_id = Group.objects.get(name=group_name).id
-                groupusers = GroupUser.objects.filter(group_id=group_id)
-                ids = [x.user_id for x in groupusers]
-                user = User.objects.filter().exclude(id__in=ids)
-                return user
-        except KeyError:
-            pass
+        group_name = self.request.GET.get('group')
+        group_id = Group.objects.get(name=group_name).id
+        groupusers = GroupUser.objects.filter(group_id=group_id)
+        ids = [x.user_id for x in groupusers]
+        user = User.objects.filter().exclude(id__in=ids)
+        return user
 
 
 class CityMembersView(GenericAPIView, ListModelMixin):
@@ -106,21 +108,22 @@ class CityMembersView(GenericAPIView, ListModelMixin):
     queryset = User.objects.all()
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
+    authentication_classes = (authentication.JWTAuthentication,)
+    permission_classes = (AdminPermission,)
 
     def get(self, request, *args, **kwargs):
+        city_name = self.request.GET.get('city')
+        if not City.objects.filter(name=city_name):
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        try:
-            city_name = self.request.GET.get('city')
-            if City.objects.filter(name=city_name):
-                city_id = City.objects.get(name=city_name).id
-                cityUsers = CityUser.objects.filter(city_id=city_id)
-                ids = [x.user_id for x in cityUsers]
-                user = User.objects.filter(id__in=ids)
-                return user
-        except KeyError:
-            pass
+        city_name = self.request.GET.get('city')
+        city_id = City.objects.get(name=city_name).id
+        cityUsers = CityUser.objects.filter(city_id=city_id)
+        ids = [x.user_id for x in cityUsers]
+        user = User.objects.filter(id__in=ids)
+        return user
 
 
 class NonCityMembersView(GenericAPIView, ListModelMixin):
@@ -129,21 +132,22 @@ class NonCityMembersView(GenericAPIView, ListModelMixin):
     queryset = User.objects.all()
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
+    authentication_classes = (authentication.JWTAuthentication,)
+    permission_classes = (AdminPermission,)
 
     def get(self, request, *args, **kwargs):
+        city_name = self.request.GET.get('city')
+        if City.objects.filter(name=city_name):
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        try:
-            city_name = self.request.GET.get('city')
-            if City.objects.filter(name=city_name):
-                city_id = City.objects.get(name=city_name).id
-                cityUsers = CityUser.objects.filter(city_id=city_id)
-                ids = [x.user_id for x in cityUsers]
-                user = User.objects.filter().exclude(id__in=ids)
-                return user
-        except KeyError:
-            pass
+        city_name = self.request.GET.get('city')
+        city_id = City.objects.get(name=city_name).id
+        cityUsers = CityUser.objects.filter(city_id=city_id)
+        ids = [x.user_id for x in cityUsers]
+        user = User.objects.filter().exclude(id__in=ids)
+        return user
 
 
 class SigsView(GenericAPIView, ListModelMixin):
@@ -169,6 +173,8 @@ class CitiesView(GenericAPIView, ListModelMixin):
     """城市列表"""
     serializer_class = CitiesSerializer
     queryset = City.objects.all()
+    authentication_classes = (authentication.JWTAuthentication,)
+    permission_classes = (AdminPermission,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -182,13 +188,13 @@ class AddCityView(GenericAPIView, CreateModelMixin):
     permission_classes = (AdminPermission,)
 
     def post(self, request, *args, **kwargs):
-        access = refresh_access(self.request.user)
         data = self.request.data
         name = data.get('name')
         if name in City.objects.all().values_list('name', flat=True):
-            return JsonResponse({'code': 400, 'msg': '城市名重复', 'access': access})
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         etherpad = '{}/p/meetings-MSG/{}'.format(settings.ETHERPAD_PREFIX, name)
         City.objects.create(name=name, etherpad=etherpad)
+        access = refresh_access(self.request.user)
         return JsonResponse({'code': 201, 'msg': '添加成功', 'access': access})
 
 
@@ -224,10 +230,36 @@ class GroupUserDelView(GenericAPIView, CreateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (AdminPermission,)
 
-    def post(self, request, *args, **kwargs):
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
         group_id = self.request.data.get('group_id')
         ids = self.request.data.get('ids')
-        ids_list = [int(x) for x in ids.split('-')]
+        if not Group.objects.filter(id=group_id):
+            err_msgs.append('Group {} is not exist'.format(group_id))
+        else:
+            validated_data['group_id'] = group_id
+        try:
+            ids_list = [int(x) for x in ids.split('-')]
+            match_queryset = GroupUser.objects.filter(group_id=group_id, user_id__in=ids_list)
+            if len(ids_list) != len(match_queryset):
+                err_msgs.append('Improper parameter: ids')
+            else:
+                validated_data['ids_list'] = ids_list
+        except ValueError:
+            err_msgs.append('Invalid parameter: ids')
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[GroupUserDelView] Fail to validate when deleting groups members, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def post(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        group_id = validated_data.get('group_id')
+        ids_list = validated_data.get('ids_list')
         GroupUser.objects.filter(group_id=group_id, user_id__in=ids_list).delete()
         access = refresh_access(self.request.user)
         return JsonResponse({'code': 204, 'msg': '删除成功', 'access': access})
@@ -265,10 +297,36 @@ class CityUserDelView(GenericAPIView, CreateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (AdminPermission,)
 
-    def post(self, request, *args, **kwargs):
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
         city_id = self.request.data.get('city_id')
         ids = self.request.data.get('ids')
-        ids_list = [int(x) for x in ids.split('-')]
+        if not City.objects.filter(id=city_id):
+            err_msgs.append('City {} is not exist'.format(city_id))
+        else:
+            validated_data['city_id'] = city_id
+        try:
+            ids_list = [int(x) for x in ids.split('-')]
+            match_queryset = CityUser.objects.filter(group_id=city_id, user_id__in=ids_list)
+            if len(ids_list) != len(match_queryset):
+                err_msgs.append('Improper parameter: ids')
+            else:
+                validated_data['ids_list'] = ids_list
+        except ValueError:
+            err_msgs.append('Invalid parameter: ids')
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[GroupUserDelView] Fail to validate when deleting groups members, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def post(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        city_id = validated_data.get('city_id')
+        ids_list = validated_data.get('ids_list')
         CityUser.objects.filter(city_id=city_id, user_id__in=ids_list).delete()
         for user_id in ids_list:
             if not CityUser.objects.filter(user_id=user_id):
@@ -358,40 +416,104 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (MaintainerPermission,)
 
-    def post(self, *args, **kwargs):
+    def validate(self, request):
+        now_time = datetime.datetime.now()
+        err_msgs = []
         data = self.request.data
-        platform = data['platform'] if 'platform' in data else 'tencent'
-        platform = platform.lower()
-        host_list = settings.MEETING_HOSTS[platform]
-        topic = data['topic']
-        sponsor = data['sponsor']
-        meeting_type = data['meeting_type']
-        date = data['date']
-        start = data['start']
-        end = data['end']
-        etherpad = data['etherpad']
-        group_name = data['group_name']
-        community = 'mindspore'
-        city = data['city'] if 'city' in data else None
-        emaillist = data['emaillist'] if 'emaillist' in data else None
-        agenda = data['agenda'] if 'agenda' in data else None
-        record = data['record'] if 'record' in data else None
+        platform = data.get('platform', 'tencent')
+        host_list = None
+        topic = data.get('topic')
+        sponsor = data.get('sponsor')
+        meeting_type = data.get('meeting_type')
+        date = data.get('date')
+        start = data.get('start')
+        end = data.get('end')
+        etherpad = data.get('etherpad')
+        group_name = data.get('group_name')
+        community = data.get('community', 'openeuler')
+        city = data.get('city')
+        emaillist = data.get('emaillist')
+        agenda = data.get('agenda')
+        record = data.get('record')
+
+        if not isinstance(platform, str):
+            err_msgs.append('Field platform must be string type')
+        else:
+            host_list = settings.MEETING_HOSTS.get(platform.lower())
+            if not host_list or not isinstance(host_list, list):
+                err_msgs.append('Could not match any meeting host')
+        try:
+            start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
+            end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
+            if start_time <= now_time:
+                err_msgs.append('The start time should not be later than the current time')
+            elif (start_time - now_time).days > 60:
+                err_msgs.append('The start time is at most 60 days later than the current time')
+            if start_time <= end_time:
+                err_msgs.append('The start time should not be later than the end time')
+        except ValueError:
+            err_msgs.append('Invalid start time or end time')
+        if meeting_type not in range(1, 4):
+            err_msgs.append('Invalid meeting type: {}'.format(meeting_type))
+        elif meeting_type == 2 and not city:
+            err_msgs.append('MSG Meeting must apply field city')
+        if not Group.objects.filter(name=group_name):
+            err_msgs.append('Invalid group name: {}'.format(group_name))
+        if not etherpad.startswith(settings.ETHERPAD_PREFIX):
+            err_msgs.append('Invalid etherpad address')
+        if community != settings.COMMUNITY.lower():
+            err_msgs.append('The field community must be the same as configure')
+        if len(emaillist) > 100:
+            emaillist = emaillist[:100]
+        if err_msgs:
+            logger.error('[CreateMeetingView] Fail to validate when creating meetings, the error messages are {}'.
+                         format(','.join(err_msgs)))
+            return False, None
+        validated_data = {
+            'platform': platform,
+            'host_list': host_list,
+            'topic': topic,
+            'sponsor': sponsor,
+            'meeting_type': meeting_type,
+            'date': date,
+            'start': start,
+            'end': end,
+            'etherpad': etherpad,
+            'group_name': group_name,
+            'communinty': community,
+            'city': city,
+            'emaillist': emaillist,
+            'agenda': agenda,
+            'record': record,
+            'user_id': request.user.id,
+            'group_id': Group.objects.get(group_name=group_name).id
+        }
+        return True, validated_data
+
+
+    def post(self, request, *args, **kwargs):
+        is_validated, data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        platform = data.get('platform')
+        host_list = data.get('host_list')
+        topic = data.get('topic')
+        sponsor = data.get('sponsor')
+        meeting_type = data.get('meeting_type')
+        date = data.get('date')
+        start = data.get('start')
+        end = data.get('end')
+        etherpad = data.get('etherpad')
+        group_name = data.get('group_name')
+        community = data.get('community')
+        city = data.get('city')
+        emaillist = data.get('emaillist')
+        agenda = data.get('agenda')
+        record = data.get('record')
         user_id = self.request.user.id
         access = refresh_access(self.request.user)
-        if meeting_type == 2 and not city:
-            return JsonResponse({'code': 400, 'msg': 'MSG会议的城市不能为空', 'access': access})
-        if not Group.objects.filter(name=group_name):
-            return JsonResponse({'code': 400, 'msg': '错误的group_name', 'access': access})
         group_id = Group.objects.get(name=group_name).id
         # 根据时间判断当前可用host，并选择host
-        start_time = date + ' ' + start
-        end_time = date + ' ' + end
-        if start_time < datetime.datetime.now().strftime('%Y-%m-%d %H:%M'):
-            logger.warning('The start time should not be earlier than the current time.')
-            return JsonResponse({'code': 1005, 'message': '请输入正确的开始时间', 'access': access})
-        if start >= end:
-            logger.warning('The end time must be greater than the start time.')
-            return JsonResponse({'code': 1001, 'message': '请输入正确的结束时间', 'access': access})
         start_search = datetime.datetime.strftime(
             (datetime.datetime.strptime(start, '%H:%M') - datetime.timedelta(minutes=30)),
             '%H:%M')
@@ -466,52 +588,66 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (MaintainerPermission,)
 
-    def put(self, *args, **kwargs):
+    def validate(self, request):
+        err_msgs = []
         user_id = self.request.user.id
         mid = self.kwargs.get('mmid')
-        access = refresh_access(self.request.user)
-        if not Meeting.objects.filter(mid=mid, user_id=user_id, is_delete=0) and User.objects.get(id=user_id).level != 3:
-            return JsonResponse({'code': 400, 'msg': '会议不存在', 'access': access})
+        if not Meeting.objects.filter(mid=mid, is_delete=0):
+            err_msgs.append('Meeting {} is not exist'.format(mid))
+        elif not Meeting.objects.filter(mid=mid, user_id=user_id, is_delete=0) or User.objects.get(id=user_id).level != 3:
+            err_msgs.append('User {} has no access to delete meeting {}'.format(user_id, mid))
+        if not err_msgs:
+            return True
+        logger.error('[CancelMeetingView] Fail to validate when deleting meeting, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False
+
+
+    def put(self, request, *args, **kwargs):
+        if not self.validate(request):
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        user_id = self.request.user.id
+        mid = self.kwargs.get('mmid')
         status = drivers.cancelMeeting(mid)
         meeting = Meeting.objects.get(mid=mid)
         # 数据库更改Meeting的is_delete=1
-        if status == 200:
-            # 发送删除通知邮件
-            send_cancel_email.sendmail(mid)
-
-            Meeting.objects.filter(mid=mid).update(is_delete=1)
-            # 发送会议取消通知
-            collections = Collect.objects.filter(meeting_id=meeting.id)
-            if collections:
-                access_token = wx_apis.get_token()
-                topic = meeting.topic
-                date = meeting.date
-                start_time = meeting.start
-                time = date + ' ' + start_time
-                for collection in collections:
-                    user_id = collection.user_id
-                    user = User.objects.get(id=user_id)
-                    nickname = user.nickname
-                    openid = user.openid
-                    content = wx_apis.get_remove_template(openid, topic, time, mid)
-                    r = wx_apis.send_subscription(content, access_token)
-                    if r.status_code != 200:
-                        logger.error('status code: {}'.format(r.status_code))
-                        logger.error('content: {}'.format(r.json()))
-                    else:
-                        if r.json()['errcode'] != 0:
-                            logger.warning('Error Code: {}'.format(r.json()['errcode']))
-                            logger.warning('Error Msg: {}'.format(r.json()['errmsg']))
-                            logger.warning('receiver: {}'.format(nickname))
-                        else:
-                            logger.info('meeting {} cancel message sent to {}.'.format(mid, nickname))
-                    # 删除收藏
-                    collection.delete()
-            logger.info('{} has canceled the meeting which mid was {}'.format(self.request.user.gitee_name, mid))
-            return JsonResponse({'code': 200, 'msg': '取消会议', 'access': access})
-        else:
+        if status != 200:
             logger.error('删除会议失败')
-            return JsonResponse({'code': 400, 'msg': '取消失败', 'access': access})
+            return JsonResponse({'code': 400, 'msg': '取消失败'})
+        # 发送删除通知邮件
+        send_cancel_email.sendmail(mid)
+
+        Meeting.objects.filter(mid=mid).update(is_delete=1)
+        # 发送会议取消通知
+        collections = Collect.objects.filter(meeting_id=meeting.id)
+        if collections:
+            access_token = wx_apis.get_token()
+            topic = meeting.topic
+            date = meeting.date
+            start_time = meeting.start
+            time = date + ' ' + start_time
+            for collection in collections:
+                user_id = collection.user_id
+                user = User.objects.get(id=user_id)
+                nickname = user.nickname
+                openid = user.openid
+                content = wx_apis.get_remove_template(openid, topic, time, mid)
+                r = wx_apis.send_subscription(content, access_token)
+                if r.status_code != 200:
+                    logger.error('status code: {}'.format(r.status_code))
+                    logger.error('content: {}'.format(r.json()))
+                else:
+                    if r.json()['errcode'] != 0:
+                        logger.warning('Error Code: {}'.format(r.json()['errcode']))
+                        logger.warning('Error Msg: {}'.format(r.json()['errmsg']))
+                        logger.warning('receiver: {}'.format(nickname))
+                    else:
+                        logger.info('meeting {} cancel message sent to {}.'.format(mid, nickname))
+                # 删除收藏
+                collection.delete()
+        logger.info('{} has canceled the meeting which mid was {}'.format(self.request.user.gitee_name, mid))
+        access = refresh_access(self.request.user)
+        return JsonResponse({'code': 200, 'msg': '取消会议', 'access': access})
 
 
 class MeetingDetailView(GenericAPIView, RetrieveModelMixin):
@@ -560,15 +696,32 @@ class CollectMeetingView(GenericAPIView, CreateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (permissions.IsAuthenticated,)
 
-    def post(self, request, *args, **kwargs):
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
         user_id = self.request.user.id
-        meeting_id = self.request.data['meeting']
-        access = refresh_access(self.request.user)
-        if not meeting_id:
-            return JsonResponse({'code': 400, 'msg': 'meeting不能为空', 'access': access})
-        if not Collect.objects.filter(meeting_id=meeting_id, user_id=user_id):
-            Collect.objects.create(meeting_id=meeting_id, user_id=user_id)
+        meeting_id = self.request.data.get('meeting')
+        if not Meeting.objects.filter(mid=meeting_id, is_delete=0):
+            err_msgs.append('Meeting {} is not exist'.format(meeting_id))
+        elif Collect.objects.filter(meeting_id=meeting_id, user_id=user_id):
+            err_msgs.append('User {} had collected meeting {}'.format(user_id, meeting_id))
+        else:
+            validated_data['meeting_id'] = meeting_id
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[CollectMeetingView] Fail to validate when creating meetings, the error messages are {}'.format(
+            ','.join(err_msgs)))
+        return False, None
+
+    def post(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'Request': 'Bad Request'})
+        user_id = self.request.user.id
+        meeting_id = validated_data.get('meeting')
+        Collect.objects.create(meeting_id=meeting_id, user_id=user_id)
         collection_id = Collect.objects.get(meeting_id=meeting_id, user_id=user_id).id
+        access = refresh_access(self.request.user)
         return JsonResponse({'code': 201, 'msg': '收藏成功', 'collection_id': collection_id, 'access':
             access})
 
@@ -580,7 +733,21 @@ class CollectionDelView(GenericAPIView, DestroyModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (permissions.IsAuthenticated,)
 
+    def validate(self, request):
+        err_msgs = []
+        if not Meeting.objects.filter(id=self.kwargs.get('pk'), is_delete=0):
+            err_msgs.append('Meeting {} is not exist'.format(self.kwargs.get('pk')))
+        if not Collect.objects.filter(meeting_id=self.kwargs.get('pk'), user_id=self.request.user.id):
+            err_msgs.append('User {} had not collected meeting {}'.format(self.request.user.id, self.kwargs.get('pk')))
+        if not err_msgs:
+            return True
+        logger.error('[CollectionDelView] Fail to validate when deleting meeting collection, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False
+
     def delete(self, request, *args, **kwargs):
+        if not self.validate(request):
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         return self.destroy(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
@@ -680,9 +847,30 @@ class SponsorsAddView(GenericAPIView, CreateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
 
-    def post(self, request, *args, **kwargs):
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
         ids = self.request.data.get('ids')
-        ids_list = [int(x) for x in ids.split('-')]
+        try:
+            ids_list = [int(x) for x in ids.split('-')]
+            match_queryset = User.objects.filter(id__in=ids_list, activity_level=1)
+            if len(ids_list) != len(match_queryset):
+                err_msgs.append('Improper parameter: ids')
+            else:
+                validated_data['ids_list'] = ids_list
+        except ValueError:
+            err_msgs.append('Invalid parameter: ids')
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[SponsorsAddView] Fail to validate when adding activity sponsors, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def post(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        ids_list = validated_data.get('ids_list')
         User.objects.filter(id__in=ids_list, activity_level=1).update(activity_level=2)
         access = refresh_access(self.request.user)
         return JsonResponse({'code': 201, 'msg': '添加成功', 'access': access})
@@ -694,11 +882,32 @@ class SponsorsDelView(GenericAPIView, CreateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
 
-    def post(self, request, *args, **kwargs):
-        access = refresh_access(self.request.user)
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
         ids = self.request.data.get('ids')
-        ids_list = [int(x) for x in ids.split('-')]
+        try:
+            ids_list = [int(x) for x in ids.split('-')]
+            match_queryset = User.objects.filter(id__in=ids_list, activity_level=2)
+            if len(ids_list) != len(match_queryset):
+                err_msgs.append('Improper parameter: ids')
+            else:
+                validated_data['ids_list'] = ids_list
+        except ValueError:
+            err_msgs.append('Invalid parameter: ids')
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[SponsorDelView] Fail to validate when deleting activity sponsors, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def post(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        ids_list = validated_data.get('ids_list')
         User.objects.filter(id__in=ids_list, activity_level=2).update(activity_level=1)
+        access = refresh_access(self.request.user)
         return JsonResponse({'code': 204, 'msg': '删除成功', 'access': access})
 
 
@@ -709,31 +918,90 @@ class ActivityCreateView(GenericAPIView, CreateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (SponsorPermission,)
 
-    def post(self, request, *args, **kwargs):
+    def validated(self, request):
+        now_time = datetime.datetime.now()
+        err_msgs = []
         data = self.request.data
-        access = refresh_access(self.request.user)
-        title = data['title']
-        start_date = data['start_date']
-        end_date = data['end_date']
-        activity_category = data['activity_category']
-        activity_type = data['activity_type']
-        address = data.get('address', None)
-        detail_address = data.get('detail_address', None)
-        longitude = data.get('longitude', None)
-        latitude = data.get('latitude', None)
-        register_method = data['register_method']
-        online_url = data.get('online_url', None)
-        register_url = data.get('register_url', None)
-        synopsis = data.get('synopsis', None)
-        schedules = data['schedules']
-        poster = data['poster']
+        title = data.get('title')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        activity_category = data.get('activity_category')
+        activity_type = data.get('activity_type')
+        address = data.get('address')
+        detail_address = data.get('detail_address')
+        longitude = data.get('longitude')
+        latitude = data.get('latitude')
+        online_url = data.get('online_url')
+        register_url = data.get('register_url')
+        synopsis = data.get('synopsis')
+        schedules = data.get('schedules')
+        poster = data.get('post')
+        try:
+            if start_date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
+                err_msgs.append('The start date should be earlier than tomorrow')
+            start_time = datetime.datetime.strptime(start_date, '%Y-%m-%d')
+            end_time = datetime.datetime.strptime(end_date, '%Y-%m-%d')
+            if (start_time - now_time).days > 60:
+                err_msgs.append('The start time is at most 60 days later than the current time')
+            if start_time <= end_time:
+                err_msgs.append('The start time should not be later than the end time')
+        except ValueError:
+            err_msgs.append('Invalid datetime params')
+        if not title:
+            err_msgs.append('Activity title could not be empty')
+        if activity_category not in range(1, 5):
+            err_msgs.append('Invalid activity category: {}'.format(activity_category))
+        if activity_type not in range(1, 4):
+            err_msgs.append('Invalid activity type: {}'.format(activity_type))
+        if not online_url.startswith('https://'):
+            err_msgs.append('Invalid online url: {}'.format(online_url))
+        if not register_url.startswith('https://'):
+            err_msgs.append('Invalid register url: {}'.format(register_url))
+        if poster not in range(1, 5):
+            err_msgs.append('Invalid poster: {}'.format(poster))
+        if err_msgs:
+            logger.error('[ActivityCreateView] Fail to validate when creating activity, the error messages are {}'.
+                         format(','.join(err_msgs)))
+            return False, None
+        validated_data = {
+            'title': title,
+            'start_date': start_date,
+            'end_date': end_date,
+            'activity_category': activity_category,
+            'activity_type': activity_type,
+            'address': address,
+            'detail_address': detail_address,
+            'longitude': longitude,
+            'latitude': latitude,
+            'online_url': online_url,
+            'register_url': register_url,
+            'synopsis': synopsis,
+            'schedules': schedules,
+            'poster': poster
+        }
+        return True, validated_data
+
+    def post(self, request, *args, **kwargs):
+        is_validated, data = self.validated(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        title = data.get('title')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        activity_category = data.get('activity_category')
+        activity_type = data.get('activity_type')
+        address = data.get('address')
+        detail_address = data.get('detail_address')
+        longitude = data.get('longitude')
+        latitude = data.get('latitude')
+        online_url = data.get('online_url')
+        register_url = data.get('register_url')
+        synopsis = data.get('synopsis')
+        schedules = data.get('schedules')
+        poster = data.get('post')
         user_id = self.request.user.id
         publish = self.request.GET.get('publish')
 
-        res = prepare_create_activity.prepare(start_date, end_date, activity_category, activity_type,register_method,
-                                              register_url)
-        if res:
-            return JsonResponse(res)
         # 创建并申请发布
         if publish and publish.lower() == 'true':
             Activity.objects.create(
@@ -746,7 +1014,7 @@ class ActivityCreateView(GenericAPIView, CreateModelMixin):
                 detail_address=detail_address,
                 longitude=longitude,
                 latitude=latitude,
-                register_method=register_method,
+                register_method=2,
                 online_url=online_url,
                 register_url=register_url,
                 synopsis=synopsis,
@@ -755,6 +1023,7 @@ class ActivityCreateView(GenericAPIView, CreateModelMixin):
                 status=2,
                 user_id=user_id
             )
+            access = refresh_access(self.request.user)
             return JsonResponse({'code': 201, 'msg': '活动申请发布成功！', 'access': access})
         # 创建活动草案
         Activity.objects.create(
@@ -767,7 +1036,7 @@ class ActivityCreateView(GenericAPIView, CreateModelMixin):
             detail_address=detail_address,
             longitude=longitude,
             latitude=latitude,
-            register_method=register_method,
+            register_method=2,
             online_url=online_url,
             register_url=register_url,
             synopsis=synopsis,
@@ -775,6 +1044,7 @@ class ActivityCreateView(GenericAPIView, CreateModelMixin):
             poster=poster,
             user_id=user_id,
         )
+        access = refresh_access(self.request.user)
         return JsonResponse({'code': 201, 'msg': '活动草案创建成功！', 'access': access})
 
 
@@ -820,31 +1090,95 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (SponsorPermission,)
 
-    def put(self, request, *args, **kwargs):
-        access = refresh_access(self.request.user)
-        activity_id = self.kwargs.get('pk')
+    def validated(self, request):
+        now_time = datetime.datetime.now()
+        err_msgs = []
         data = self.request.data
-        title = data['title']
-        start_date = data['start_date']
-        end_date = data['end_date']
-        activity_category = data['activity_category']
-        activity_type = data['activity_type']
-        address = data.get('address', None)
-        detail_address = data.get('detail_address', None)
-        longitude = data.get('longitude', None)
-        latitude = data.get('latitude', None)
-        register_method = data['register_method']
-        online_url = data.get('online_url', None)
-        register_url = data.get('register_url', None)
-        synopsis = data.get('synopsis', None)
-        schedules = data['schedules']
-        poster = data['poster']
+        activity_id = self.kwargs.get('pk')
+        title = data.get('title')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        activity_category = data.get('activity_category')
+        activity_type = data.get('activity_type')
+        address = data.get('address')
+        detail_address = data.get('detail_address')
+        longitude = data.get('longitude')
+        latitude = data.get('latitude')
+        online_url = data.get('online_url')
+        register_url = data.get('register_url')
+        synopsis = data.get('synopsis')
+        schedules = data.get('schedules')
+        poster = data.get('post')
+        if Activity.objects.filter(id=activity_id, user_id=self.request.user.id, status=1):
+            err_msgs.append('Invalid activity id: {}'.format(activity_id))
+        try:
+            if start_date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
+                err_msgs.append('The start date should be earlier than tomorrow')
+            start_time = datetime.datetime.strptime(start_date, '%Y-%m-%d')
+            end_time = datetime.datetime.strptime(end_date, '%Y-%m-%d')
+            if (start_time - now_time).days > 60:
+                err_msgs.append('The start time is at most 60 days later than the current time')
+            if start_time <= end_time:
+                err_msgs.append('The start time should not be later than the end time')
+        except ValueError:
+            err_msgs.append('Invalid datetime params')
+        if not title:
+            err_msgs.append('Activity title could not be empty')
+        if activity_category not in range(1, 5):
+            err_msgs.append('Invalid activity category: {}'.format(activity_category))
+        if activity_type not in range(1, 4):
+            err_msgs.append('Invalid activity type: {}'.format(activity_type))
+        if not online_url.startswith('https://'):
+            err_msgs.append('Invalid online url: {}'.format(online_url))
+        if not register_url.startswith('https://'):
+            err_msgs.append('Invalid register url: {}'.format(register_url))
+        if poster not in range(1, 5):
+            err_msgs.append('Invalid poster: {}'.format(poster))
+        if err_msgs:
+            logger.error('[ActivityCreateView] Fail to validate when creating activity, the error messages are {}'.
+                         format(','.join(err_msgs)))
+            return False, None
+        validated_data = {
+            'activity_id': activity_id,
+            'title': title,
+            'start_date': start_date,
+            'end_date': end_date,
+            'activity_category': activity_category,
+            'activity_type': activity_type,
+            'address': address,
+            'detail_address': detail_address,
+            'longitude': longitude,
+            'latitude': latitude,
+            'online_url': online_url,
+            'register_url': register_url,
+            'synopsis': synopsis,
+            'schedules': schedules,
+            'poster': poster
+        }
+        return True, validated_data
+
+    def put(self, request, *args, **kwargs):
+        is_validated, data = self.validated(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        activity_id = data.get('activity_id')
+        title = data.get('title')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        activity_category = data.get('activity_category')
+        activity_type = data.get('activity_type')
+        address = data.get('address')
+        detail_address = data.get('detail_address')
+        longitude = data.get('longitude')
+        latitude = data.get('latitude')
+        online_url = data.get('online_url')
+        register_url = data.get('register_url')
+        synopsis = data.get('synopsis')
+        schedules = data.get('schedules')
+        poster = data.get('post')
         user_id = self.request.user.id
         publish = self.request.GET.get('publish')
-        res = prepare_create_activity.prepare(start_date, end_date, activity_category, activity_type, register_method,
-                                              register_url)
-        if res:
-            return JsonResponse(res)
+
         # 修改活动草案并申请发布
         if publish and publish.lower() == 'true':
             Activity.objects.filter(id=activity_id, user_id=user_id).update(
@@ -857,7 +1191,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
                 detail_address=detail_address,
                 longitude=longitude,
                 latitude=latitude,
-                register_method=register_method,
+                register_method=2,
                 online_url=online_url,
                 register_url=register_url,
                 synopsis=synopsis,
@@ -865,6 +1199,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
                 poster=poster,
                 status=2
             )
+            access = refresh_access(self.request.user)
             return JsonResponse({'code': 201, 'msg': '修改活动草案并申请发布成功！', 'access': access})
         # 修改活动草案并保存
         Activity.objects.filter(id=activity_id, user_id=user_id).update(
@@ -877,13 +1212,14 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
             detail_address=detail_address,
             longitude=longitude,
             latitude=latitude,
-            register_method=register_method,
+            register_method=2,
             online_url=online_url,
             register_url=register_url,
             synopsis=synopsis,
             schedules=json.dumps(schedules),
             poster=poster,
         )
+        access = refresh_access(self.request.user)
         return JsonResponse({'code': 201, 'msg': '修改并保存活动草案', 'access': access})
 
 
@@ -915,17 +1251,31 @@ class ApproveActivityView(GenericAPIView, UpdateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
 
-    def put(self, request, *args, **kwargs):
-        access = refresh_access(self.request.user)
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
         activity_id = self.kwargs.get('pk')
-        if activity_id in self.queryset.values_list('id', flat=True):
-            logger.info('活动id: {}'.format(activity_id))
-            img_url = gene_wx_code.run(activity_id)
-            logger.info('生成活动页面二维码: {}'.format(img_url))
-            Activity.objects.filter(id=activity_id, status=2).update(status=3, wx_code=img_url)
-            return JsonResponse({'code': 201, 'msg': '活动通过审核', 'access': access})
+        if not Activity.objects.filter(id=activity_id, status=2):
+            err_msgs.append('Invalid activity id')
         else:
-            return JsonResponse({'code': 400, 'msg': '活动不存在', 'access': access})
+            validated_data['activity_id'] = activity_id
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[ApproveActivityView] Fail to validate when publishing activity, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def put(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        activity_id = validated_data.get('activity_id')
+        logger.info('活动id: {}'.format(activity_id))
+        img_url = gene_wx_code.run(activity_id)
+        logger.info('生成活动页面二维码: {}'.format(img_url))
+        Activity.objects.filter(id=activity_id, status=2).update(status=3, wx_code=img_url)
+        access = refresh_access(self.request.user)
+        return JsonResponse({'code': 201, 'msg': '活动通过审核', 'access': access})
 
 
 class DenyActivityView(GenericAPIView, UpdateModelMixin):
@@ -934,14 +1284,28 @@ class DenyActivityView(GenericAPIView, UpdateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
 
-    def put(self, request, *args, **kwargs):
-        access = refresh_access(self.request.user)
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
         activity_id = self.kwargs.get('pk')
-        if activity_id in self.queryset.values_list('id', flat=True):
-            Activity.objects.filter(id=activity_id, status=2).update(status=1)
-            return JsonResponse({'code': 201, 'msg': '活动申请已驳回', 'access': access})
+        if not Activity.objects.filter(id=activity_id, status=2):
+            err_msgs.append('Invalid activity id')
         else:
-            return JsonResponse({'code': 400, 'msg': '活动不存在', 'access': access})
+            validated_data['activity_id'] = activity_id
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[DenyActivityView] Fail to validate when rejecting activity, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def put(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        activity_id = validated_data.get('activity_id')
+        Activity.objects.filter(id=activity_id, status=2).update(status=1)
+        access = refresh_access(self.request.user)
+        return JsonResponse({'code': 201, 'msg': '活动申请已驳回', 'access': access})
 
 
 class ActivityDeleteView(GenericAPIView, UpdateModelMixin):
@@ -950,10 +1314,27 @@ class ActivityDeleteView(GenericAPIView, UpdateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
 
-    def put(self, request, *args, **kwargs):
-        access = refresh_access(self.request.user)
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
         activity_id = self.kwargs.get('pk')
+        if not Activity.objects.filter(id=activity_id, status__gt=2, is_delete=0):
+            err_msgs.append('Invalid activity id: {}'.format(activity_id))
+        else:
+            validated_data['activity_id'] = activity_id
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[ActivityDeleteView] Fail to validate when deleting activity, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def put(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        activity_id = validated_data.get('activity_id')
         Activity.objects.filter(id=activity_id).update(is_delete=1)
+        access = refresh_access(self.request.user)
         return JsonResponse({'code': 204, 'msg': '成功删除活动', 'access': access})
 
 
@@ -1089,9 +1470,24 @@ class ActivityCollectView(GenericAPIView, CreateModelMixin):
     permission_classes = (permissions.IsAuthenticated,)
     authentication_classes = (CustomAuthentication,)
 
+    def validate(self, request):
+        err_msgs = []
+        activity_id = self.request.data.get('activity')
+        if not isinstance(activity_id, int):
+            err_msgs.append('Invalid activity id: {}'.format(activity_id))
+        if not Activity.objects.filter(id=activity_id, status__in=[3, 4, 5], is_delete=0):
+            err_msgs.append('Activity {} is not exist'.format(activity_id))
+        if err_msgs:
+            logger.error('[ActivityCollectView] Fail to validate when collect activity, the error messages are {}'.
+                         format(','.join(err_msgs)))
+            return False
+        return True
+
     def post(self, request, *args, **kwargs):
+        if not self.validate(request):
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         user_id = self.request.user.id
-        activity_id = self.request.data['activity']
+        activity_id = self.request.data.get('activity')
         ActivityCollect.objects.create(activity_id=activity_id, user_id=user_id)
         access = refresh_access(self.request.user)
         return JsonResponse({'code': 201, 'msg': '收藏活动', 'access': access})
@@ -1121,7 +1517,21 @@ class ActivityCollectionDelView(GenericAPIView, DestroyModelMixin):
     permission_classes = (permissions.IsAuthenticated,)
     authentication_classes = (CustomAuthentication,)
 
+    def validate(self, request):
+        err_msgs = []
+        if not Activity.objects.filter(id=self.kwargs.get('pk'), is_delete=0):
+            err_msgs.append('Activity {} is not exist'.format(self.kwargs.get('pk')))
+        if not ActivityCollect.objects.filter(activity_id=self.kwargs.get('pk'), user_id=self.request.user.id):
+            err_msgs.append('User {} had not collected activity {}'.format(self.request.user.id, self.kwargs.get('pk')))
+        if not err_msgs:
+            return True
+        logger.error('[ActivityCollectDelView] Fail to validate when deleting meeting collection, the error messages'
+                     'are {}'.format(','.join(err_msgs)))
+        return False
+
     def delete(self, request, *args, **kwargs):
+        if not self.validate(request):
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         return self.destroy(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):

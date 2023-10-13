@@ -15,18 +15,11 @@ class User(AbstractBaseUser):
     status = models.SmallIntegerField(verbose_name='状态', choices=((0, '未登陆'), (1, '登陆')), default=0)
     level = models.SmallIntegerField(verbose_name='权限级别', choices=((1, '普通用户'), (2, '授权用户'), (3, '管理员')),
                                      default=1)
-    signature = models.CharField(verbose_name='个性签名', max_length=255, blank=True, null=True)
+    signature = models.CharField(verbose_name='签名', max_length=255, blank=True, null=True)
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True, null=True, blank=True)
     last_login = models.DateTimeField(verbose_name='上次登录时间', auto_now=True, null=True, blank=True)
-    name = models.CharField(verbose_name='姓名', max_length=20, null=True, blank=True)
-    telephone = models.CharField(verbose_name='手机号码', max_length=11, null=True, blank=True)
-    email = models.EmailField(verbose_name='个人邮箱', null=True, blank=True)
-    company = models.CharField(verbose_name='单位', max_length=50, null=True, blank=True)
-    profession = models.CharField(verbose_name='职业', max_length=30, null=True, blank=True)
-    enterprise = models.CharField(verbose_name='企业', max_length=30, null=True, blank=True)
     activity_level = models.SmallIntegerField(verbose_name='活动权限', choices=((1, '普通'), (2, '活动发起人'), (3, '管理员')),
                                               default=1)
-    register_number = models.IntegerField(verbose_name='报名次数', default=0)
     agree_privacy_policy = models.BooleanField(verbose_name='同意隐私政策', default=False)
     agree_privacy_policy_time = models.DateTimeField(verbose_name='同意隐私政策时间', null=True, blank=True)
     agree_privacy_policy_version = models.CharField(verbose_name='同意隐私政策版本', max_length=20, null=True, blank=True)
@@ -162,7 +155,6 @@ class Activity(models.Model):
                                       default=1)
     status = models.SmallIntegerField(verbose_name='状态',
                                       choices=((1, '草稿'), (2, '审核中'), (3, '报名中'), (4, '进行中'), (5, '已结束')), default=1)
-    enterprise = models.CharField(verbose_name='企业', max_length=50, null=True, blank=True)
     wx_code = models.TextField(verbose_name='微信二维码', null=True, blank=True)
     is_delete = models.SmallIntegerField(verbose_name='是否删除', choices=((0, '未删除'), (1, '已删除')), default=0)
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True)
