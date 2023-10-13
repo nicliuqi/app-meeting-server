@@ -30,7 +30,8 @@ from openeuler.utils import gene_wx_code, drivers
 from rest_framework_simplejwt.tokens import RefreshToken
 from openeuler.auth import CustomAuthentication
 from app_meeting_server.utils import wx_apis
-from app_meeting_server.apps.openeuler.utils import send_cancel_email
+from openeuler.utils import send_cancel_email
+from app_meeting_server.utils.operation_log import loggerwrapper, OperationLogModule, OperationLogDesc, OperationLogType
 
 logger = logging.getLogger('log')
 offline = 1
@@ -49,6 +50,9 @@ class LoginView(GenericAPIView, CreateModelMixin, ListModelMixin):
     serializer_class = LoginSerializer
     queryset = User.objects.all()
 
+    @loggerwrapper(OperationLogModule.OP_MODULE_USER,
+                   OperationLogDesc.OP_DESC_USER_LOGIN_CODE,
+                   OperationLogType.OP_TYPE_LOGIN)
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
 
@@ -1030,7 +1034,6 @@ class ActivityView(GenericAPIView, CreateModelMixin):
         synopsis = data.get('synopsis')
         poster = data.get('poster')
         user_id = self.request.user.id
-        register_url = data.get('register_url')
         # 线下活动
         if activity_type == offline:
             address = data.get('address')

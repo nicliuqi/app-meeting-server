@@ -162,16 +162,13 @@ class LoginSerializer(serializers.ModelSerializer):
                 user = User.objects.create(
                     nickname=nickname,
                     avatar=avatar,
-                    gender=gender,
                     gitee_name='',
-                    status=1,
                     password=make_password(openid),
                     openid=openid)
             else:
                 User.objects.filter(openid=openid).update(
                     nickname=nickname,
-                    avatar=avatar,
-                    gender=gender)
+                    avatar=avatar)
             return user
         except Exception as e:
             logger.error('Invalid params')

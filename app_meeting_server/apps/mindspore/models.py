@@ -7,12 +7,8 @@ class User(AbstractBaseUser):
     nickname = models.CharField(verbose_name='昵称', max_length=40, null=True, blank=True)
     gitee_name = models.CharField(verbose_name='gitee名称', max_length=40, null=True, blank=True)
     avatar = models.CharField(verbose_name='用户头像', max_length=255, null=True, blank=True)
-    gender = models.SmallIntegerField(verbose_name='性别', choices=((0, '未知'), (1, '男'), (2, '女')),
-                                      default=0)
     openid = models.CharField(verbose_name='openid', max_length=32, unique=True, null=True, blank=True)
     password = models.CharField('密码', max_length=128, null=True, blank=True)
-    unionid = models.CharField(verbose_name='unionid', max_length=128, unique=True, null=True, blank=True)
-    status = models.SmallIntegerField(verbose_name='状态', choices=((0, '未登陆'), (1, '登陆')), default=0)
     level = models.SmallIntegerField(verbose_name='权限级别', choices=((1, '普通用户'), (2, '授权用户'), (3, '管理员')),
                                      default=1)
     activity_level = models.SmallIntegerField(verbose_name='活动权限', choices=((1, '普通用户'), (2, '授权用户'), (3, '管理员')),
