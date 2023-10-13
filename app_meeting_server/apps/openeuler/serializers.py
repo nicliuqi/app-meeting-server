@@ -155,7 +155,6 @@ class LoginSerializer(serializers.ModelSerializer):
             openid = r['openid']
             nickname = res['userInfo']['nickName'] if 'nickName' in res['userInfo'] else ''
             avatar = res['userInfo']['avatarUrl'] if 'avatarUrl' in res['userInfo'] else ''
-            gender = res['userInfo']['gender'] if 'gender' in res['userInfo'] else 0
             user = User.objects.filter(openid=openid).first()
             # 如果user不存在，数据库创建user
             if not user:
@@ -168,7 +167,8 @@ class LoginSerializer(serializers.ModelSerializer):
             else:
                 User.objects.filter(openid=openid).update(
                     nickname=nickname,
-                    avatar=avatar)
+                    avatar=avatar,
+                    is_delete=0)
             return user
         except Exception as e:
             logger.error('Invalid params')
@@ -309,3 +309,9 @@ class ActivityCollectSerializer(ModelSerializer):
     class Meta:
         model = ActivityCollect
         fields = ['activity']
+
+
+class ApplicantInfoSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'gitee_name']

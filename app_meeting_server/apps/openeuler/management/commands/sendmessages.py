@@ -34,19 +34,14 @@ def send_subscribe_msg():
         time = date + ' ' + start_time
         mid = meeting.mid
         creater_id = meeting.user_id
-        creater_openid = User.objects.get(id=creater_id).openid
-        send_to_list = [creater_openid]
-        # 查询该会议的收藏
+        creater_user = User.objects.filter(id=creater_id, is_delete=0).first()
+        send_to_list = [creater_user.openid] if creater_user else list()
         collections = Collect.objects.filter(meeting_id=meeting.id)
-        # 若存在collections,遍历collections将openid添加入send_to_list
-        if collections:
-            for collection in collections:
-                user_id = collection.user_id
-                openid = User.objects.get(id=user_id).openid
-                send_to_list.append(openid)
-            # 发送列表去重
-            send_to_list = list(set(send_to_list))
-        else:
+        collection_users = [collection.user_id for collection in collections]
+        user_openid_lists = User.objects.filter(id__in=collection_users, is_delete=0).values_list("openid", flat=True)
+        send_to_list.extend(user_openid_lists)
+        send_to_list = list(set(send_to_list))
+        if not len(send_to_list):
             logger.info('the meeting {} had not been added to Favorites'.format(mid))
         for openid in send_to_list:
             # 获取模板

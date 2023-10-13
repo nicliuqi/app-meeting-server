@@ -31,7 +31,7 @@ from mindspore.utils import gene_wx_code
 from mindspore.utils import drivers
 from mindspore.auth import CustomAuthentication
 from mindspore.utils import send_cancel_email
-
+from app_meeting_server.utils.common import get_cur_date
 logger = logging.getLogger('log')
 
 
@@ -1780,10 +1780,12 @@ class LogoffView(GenericAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request, *args, **kwargs):
-        User.objects.filter(id=self.request.user.id).delete()
+        user_id = self.request.user.id
+        cur_date = get_cur_date()
+        User.objects.filter(id=user_id).update(is_delete=1, logoff_time=cur_date)
         resp = JsonResponse({
             'code': 201,
-            'msg': 'User {} logged off'.format(self.request.user.id)
+            'msg': 'User {} logged off'.format(user_id)
         })
-        logger.info('User {} logged off'.format(self.request.user.id))
+        logger.info('User {} logged off'.format(user_id))
         return resp

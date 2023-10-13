@@ -32,6 +32,7 @@ from openeuler.auth import CustomAuthentication
 from app_meeting_server.utils import wx_apis
 from openeuler.utils import send_cancel_email
 from app_meeting_server.utils.operation_log import loggerwrapper, OperationLogModule, OperationLogDesc, OperationLogType
+from app_meeting_server.utils.common import get_cur_date
 
 logger = logging.getLogger('log')
 offline = 1
@@ -273,7 +274,7 @@ class MeetingsRecentlyView(GenericAPIView, ListModelMixin):
     queryset = Meeting.objects.filter(is_delete=0)
 
     def get(self, request, *args, **kwargs):
-        self.queryset = self.queryset.filter(date__gte=datetime.datetime.now().strftime('%Y-%m-%d')).\
+        self.queryset = self.queryset.filter(date__gte=datetime.datetime.now().strftime('%Y-%m-%d')). \
             order_by('date', 'start')
         return self.list(request, *args, **kwargs)
 
@@ -1121,7 +1122,7 @@ class RecentActivitiesView(GenericAPIView, ListModelMixin):
     queryset = Activity.objects.filter(is_delete=0)
 
     def get(self, request, *args, **kwargs):
-        self.queryset = self.queryset.filter(status__gt=2, date__gt=datetime.datetime.now().strftime('%Y-%m-%d')).\
+        self.queryset = self.queryset.filter(status__gt=2, date__gt=datetime.datetime.now().strftime('%Y-%m-%d')). \
             order_by('-date', 'id')
         return self.list(request, *args, **kwargs)
 
@@ -1948,10 +1949,12 @@ class LogoffView(GenericAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request, *args, **kwargs):
-        User.objects.filter(id=self.request.user.id).delete()
+        user_id = self.request.user.id
+        cur_date = get_cur_date()
+        User.objects.filter(id=user_id).update(is_delete=1, logoff_time=cur_date)
         resp = JsonResponse({
             'code': 201,
-            'msg': 'User {} logged off'.format(self.request.user.id)
+            'msg': 'User {} logged off'.format(user_id)
         })
-        logger.info('User {} logged off'.format(self.request.user.id))
+        logger.info('User {} logged off'.format(user_id))
         return resp
