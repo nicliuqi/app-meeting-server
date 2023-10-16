@@ -58,7 +58,8 @@ def refresh_cookie(user_id, response, access_token):
     expire = now_time + settings.COOKIE_EXPIRE
     expire_timestamp = int(time.mktime(expire.timetuple()))
     User.objects.filter(id=user_id).update(expire_time=expire_timestamp)
-    response.set_cookie(settings.ACCESS_TOKEN_NAME, access_token, expires=expire, secure=True, httponly=True, samesite='strict')
+    response.set_cookie(settings.ACCESS_TOKEN_NAME, access_token, expires=expire, secure=True, httponly=True,
+                        samesite='strict')
     return response
 
 
@@ -94,6 +95,14 @@ class GiteeBackView(GenericAPIView, ListModelMixin):
     """
 
     def get(self, request):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_LOGIN,
+                           OperationLogDesc.OP_DESC_USER_LOGIN_CODE) as log_context:
+            ret = self.login(request)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def login(self, request):
         code = request.GET.get('code', None)
         client_id = settings.GITEE_OAUTH_CLIENT_ID
         client_secret = settings.GITEE_OAUTH_CLIENT_SECRET
@@ -138,7 +147,17 @@ class LogoutView(GenericAPIView):
     """
     Log out
     """
+
     def get(self, request):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_LOGOUT,
+                           OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
+            log_context.log_vars = [request.user.id]
+            ret = self.logout(request)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def logout(self, request):
         try:
             now_time = int(time.time())
             user_id = IdentifyUser(request)
@@ -262,6 +281,15 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         return True, res
 
     def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
+                           OperationLogType.OP_TYPE_CREATE,
+                           OperationLogDesc.OP_DESC_MEETING_CREATE_CODE) as log_context:
+            log_context.log_vars = [request.data.get('topic')]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
         if request.COOKIES.get(settings.CSRF_COOKIE_NAME) != request.META.get('HTTP_X_CSRFTOKEN'):
             return JsonResponse({'code': 403, 'msg': 'Forbidden'})
         try:
@@ -467,6 +495,15 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         return True, res
 
     def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_MEETING_MODIFY_CODE) as log_context:
+            log_context.log_vars = [kwargs.get("mid")]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def update(self, request, *args, **kwargs):
         if request.COOKIES.get(settings.CSRF_COOKIE_NAME) != request.META.get('HTTP_X_CSRFTOKEN'):
             return JsonResponse({'code': 403, 'msg': 'Forbidden'})
         # 鉴权
@@ -509,7 +546,8 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         # 查询待创建的会议与现有的预定会议是否冲突
         meeting = Meeting.objects.get(mid=mid)
         host_id = meeting.host_id
-        if Meeting.objects.filter(date=date, is_delete=0, host_id=host_id, end__gt=start_search, start__lt=end_search).exclude(mid=mid):
+        if Meeting.objects.filter(date=date, is_delete=0, host_id=host_id, end__gt=start_search,
+                                  start__lt=end_search).exclude(mid=mid):
             logger.info('会议冲突！主持人在{}-{}已经创建了会议'.format(start_search, end_search))
             return JsonResponse({'code': 400, 'msg': '会议冲突！主持人在{}-{}已经创建了会议'.format(start_search, end_search),
                                  'en_msg': 'Schedule time conflict'})
@@ -585,6 +623,15 @@ class DeleteMeetingView(GenericAPIView, UpdateModelMixin):
     queryset = Meeting.objects.filter(is_delete=0)
 
     def delete(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
+                           OperationLogType.OP_TYPE_DELETE,
+                           OperationLogDesc.OP_DESC_MEETING_DELETE_CODE) as log_context:
+            log_context.log_vars = [kwargs.get('mid')]
+            ret = self.destroy(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def destroy(self, request, *args, **kwargs):
         if request.COOKIES.get(settings.CSRF_COOKIE_NAME) != request.META.get('HTTP_X_CSRFTOKEN'):
             return JsonResponse({'code': 403, 'msg': 'Forbidden'})
         # 鉴权

@@ -1,4 +1,6 @@
 import logging
+import traceback
+
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
@@ -171,8 +173,7 @@ class LoginSerializer(serializers.ModelSerializer):
                     is_delete=0)
             return user
         except Exception as e:
-            logger.error('Invalid params')
-            logger.error(e)
+            logger.error("e:{}, traceback:{}".format(e, traceback.format_exc()))
             raise serializers.ValidationError('非法参数', code='code_error')
 
     def to_representation(self, instance):

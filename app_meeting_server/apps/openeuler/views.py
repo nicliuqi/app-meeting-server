@@ -26,12 +26,11 @@ from rest_framework.response import Response
 from multiprocessing import Process
 from openeuler.send_email import sendmail
 from rest_framework import permissions
-from openeuler.utils import gene_wx_code, drivers
+from openeuler.utils import gene_wx_code, drivers, send_cancel_email
 from rest_framework_simplejwt.tokens import RefreshToken
 from openeuler.auth import CustomAuthentication
 from app_meeting_server.utils import wx_apis
-from openeuler.utils import send_cancel_email
-from app_meeting_server.utils.operation_log import loggerwrapper, OperationLogModule, OperationLogDesc, OperationLogType
+from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType
 from app_meeting_server.utils.common import get_cur_date
 
 logger = logging.getLogger('log')
@@ -51,11 +50,13 @@ class LoginView(GenericAPIView, CreateModelMixin, ListModelMixin):
     serializer_class = LoginSerializer
     queryset = User.objects.all()
 
-    @loggerwrapper(OperationLogModule.OP_MODULE_USER,
-                   OperationLogDesc.OP_DESC_USER_LOGIN_CODE,
-                   OperationLogType.OP_TYPE_LOGIN)
     def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_LOGIN,
+                           OperationLogDesc.OP_DESC_USER_LOGIN_CODE) as log_context:
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
 
     def perform_create(self, serializer):
         serializer.save()
@@ -158,7 +159,13 @@ class UserView(GenericAPIView, UpdateModelMixin):
     permission_classes = (AdminPermission,)
 
     def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_MODIIFY_CODE) as log_context:
+            log_context.log_vars = [request.user.id, request.user.id]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -185,7 +192,13 @@ class GroupUserAddView(GenericAPIView, CreateModelMixin):
     permission_classes = (AdminPermission,)
 
     def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_ADD_GROUP_CODE) as log_context:
+            log_context.log_vars = [request.data.get("ids"), request.data.get("group_id")]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -234,14 +247,20 @@ class GroupUserDelView(GenericAPIView, CreateModelMixin):
         return False, None
 
     def post(self, request, *args, **kwargs):
-        is_validated, validated_data = self.validate(request)
-        if not is_validated:
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        group_id = validated_data.get('group_id')
-        ids_list = validated_data.get('ids_list')
-        GroupUser.objects.filter(group_id=group_id, user_id__in=ids_list).delete()
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 204, 'msg': '删除成功', 'access': access})
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_REMOVE_GROUP_CODE) as log_context:
+            log_context.log_vars = [request.data.get("ids"), request.data.get("group_id")]
+            is_validated, validated_data = self.validate(request)
+            if not is_validated:
+                return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+            group_id = validated_data.get('group_id')
+            ids_list = validated_data.get('ids_list')
+            GroupUser.objects.filter(group_id=group_id, user_id__in=ids_list).delete()
+            access = refresh_access(self.request.user)
+            ret = JsonResponse({'code': 204, 'msg': '删除成功', 'access': access})
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
 
 
 class MeetingsWeeklyView(GenericAPIView, ListModelMixin):
@@ -313,6 +332,15 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
         return False, None
 
     def delete(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
+                           OperationLogType.OP_TYPE_DELETE,
+                           OperationLogDesc.OP_DESC_MEETING_DELETE_CODE) as log_context:
+            log_context.log_vars = [kwargs.get('mid')]
+            ret = self.destroy(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def destroy(self, request, *args, **kwargs):
         is_validated, validated_data = self.validate(request)
         if not is_validated:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
@@ -542,6 +570,15 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         return True, validated_data
 
     def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
+                           OperationLogType.OP_TYPE_CREATE,
+                           OperationLogDesc.OP_DESC_MEETING_CREATE_CODE) as log_context:
+            log_context.log_vars = [request.data.get('topic')]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
         t1 = time.time()
         # 获取data
         is_validated, data = self.validate(request)
@@ -721,6 +758,15 @@ class CollectView(GenericAPIView, ListModelMixin, CreateModelMixin):
         return False, None
 
     def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
+                           OperationLogType.OP_TYPE_COLLECT,
+                           OperationLogDesc.OP_DESC_MEETING_COLLECT_CODE) as log_context:
+            log_context.log_vars = [request.data.get('meeting')]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
         is_validated, validated_data = self.validate(request)
         if not is_validated:
             return JsonResponse({'code': 400, 'Request': 'Bad Request'})
@@ -757,9 +803,15 @@ class CollectDelView(GenericAPIView, DestroyModelMixin):
         return False
 
     def delete(self, request, *args, **kwargs):
-        if not self.validate(request):
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        return self.destroy(request, *args, **kwargs)
+        with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
+                           OperationLogType.OP_TYPE_CANCEL_COLLECT,
+                           OperationLogDesc.OP_DESC_MEETING_CANCEL_COLLECT_CODE) as log_context:
+            log_context.log_vars = [kwargs.get("pk")]
+            if not self.validate(request):
+                return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+            ret = self.destroy(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -863,8 +915,16 @@ class SponsorAddView(GenericAPIView, CreateModelMixin):
                      format(','.join(err_msgs)))
         return False, None
 
-
     def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE) as log_context:
+            log_context.log_vars = [request.data.get('ids')]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
         is_validated, validated_data = self.validate(request)
         if not is_validated:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
@@ -900,6 +960,15 @@ class SponsorDelView(GenericAPIView, CreateModelMixin):
         return False, None
 
     def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE) as log_context:
+            log_context.log_vars = [request.data.get('ids')]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
         is_validated, validated_data = self.validate(request)
         if not is_validated:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
@@ -917,7 +986,13 @@ class SponsorInfoView(GenericAPIView, UpdateModelMixin):
     permission_classes = (ActivityAdminPermission,)
 
     def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_MODIIFY_CODE) as log_context:
+            log_context.log_vars = [kwargs.get("pk"), request.data.get("gitee_name")]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -1024,8 +1099,16 @@ class ActivityView(GenericAPIView, CreateModelMixin):
         }
         return True, validated_data
 
-
     def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
+                           OperationLogType.OP_TYPE_CREATE,
+                           OperationLogDesc.OP_DESC_ACTIVITY_CREATE_CODE) as log_context:
+            log_context.log_vars = [request.data.get("title")]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
         is_validated, data = self.validate(request)
         if not is_validated:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
@@ -1159,7 +1242,13 @@ class ActivityUpdateView(GenericAPIView, UpdateModelMixin):
     permission_classes = (SponsorPermission,)
 
     def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_ACTIVITY_MODIFY_CODE) as log_context:
+            log_context.log_vars = [kwargs.get("pk")]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -1207,6 +1296,15 @@ class ActivityPublishView(GenericAPIView, UpdateModelMixin):
         return False, None
 
     def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_ACTIVITY_PUBLISH_PASS_CODE) as log_context:
+            log_context.log_vars = [kwargs.get('pk')]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def update(self, request, *args, **kwargs):
         is_validated, validated_data = self.validate(request)
         if not is_validated:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
@@ -1241,6 +1339,15 @@ class ActivityRejectView(GenericAPIView, UpdateModelMixin):
         return False, None
 
     def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_ACTIVITY_PUBLISH_REJECT_CODE) as log_context:
+            log_context.log_vars = [kwargs.get("pk")]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def update(self, request, *args, **kwargs):
         is_validated, validated_data = self.validate(request)
         if not is_validated:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
@@ -1271,6 +1378,15 @@ class ActivityDelView(GenericAPIView, UpdateModelMixin):
         return False, None
 
     def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
+                           OperationLogType.OP_TYPE_DELETE,
+                           OperationLogDesc.OP_DESC_ACTIVITY_DELETE_CODE) as log_context:
+            log_context.log_vars = [kwargs.get('pk')]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def update(self, request, *args, **kwargs):
         is_validated, validated_data = self.validate(request)
         if not is_validated:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
@@ -1345,6 +1461,15 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
         return True, validated_data
 
     def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
+                           OperationLogType.OP_TYPE_CREATE,
+                           OperationLogDesc.OP_DESC_ACTIVITY_CREATE_DRAFT_CODE) as log_context:
+            log_context.log_vars = [request.data.get("title")]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
         is_validated, data = self.validate(request)
         if not is_validated:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
@@ -1421,7 +1546,13 @@ class SponsorActivityDraftView(GenericAPIView, RetrieveModelMixin, DestroyModelM
         return self.retrieve(request, *args, **kwargs)
 
     def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
+        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
+                           OperationLogType.OP_TYPE_DELETE,
+                           OperationLogDesc.OP_DESC_ACTIVITY_DELETE_DRAFT_CODE) as log_context:
+            log_context.log_vars = [kwargs.get("pk")]
+            ret = self.destroy(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -1506,6 +1637,16 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
         return True, validated_data
 
     def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_ACTIVITY_MODIFY_DRAFT_CODE) as log_context:
+            log_context.log_vars = [kwargs.get('pk')]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+
+    def update(self, request, *args, **kwargs):
         is_validated, data = self.validate(request)
         if not is_validated:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
@@ -1622,6 +1763,15 @@ class DraftPublishView(GenericAPIView, UpdateModelMixin):
         return True, validated_data
 
     def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_ACTIVITY_PUBLISH_DRAFT_CODE) as log_context:
+            log_context.log_vars = [kwargs.get('pk')]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def update(self, request, *args, **kwargs):
         is_validated, data = self.validate(request)
         if not is_validated:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
@@ -1705,6 +1855,15 @@ class ActivityCollectView(GenericAPIView, CreateModelMixin):
         return True
 
     def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
+                           OperationLogType.OP_TYPE_COLLECT,
+                           OperationLogDesc.OP_DESC_ACTIVITY_COLLECT_CODE) as log_context:
+            log_context.log_vars = [request.data.get('activity')]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
         if not self.validate(request):
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         user_id = self.request.user.id
@@ -1734,9 +1893,15 @@ class ActivityCollectDelView(GenericAPIView, DestroyModelMixin):
         return False
 
     def delete(self, request, *args, **kwargs):
-        if not self.validate(request):
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        return self.destroy(request, *args, **kwargs)
+        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
+                           OperationLogType.OP_TYPE_CANCEL_COLLECT,
+                           OperationLogDesc.OP_DESC_ACTIVITY_CANCEL_COLLECT_CODE) as log_context:
+            log_context.log_vars = [kwargs.get('pk')]
+            if not self.validate(request):
+                return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+            ret = self.destroy(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -1856,14 +2021,14 @@ class ActivitiesDataView(GenericAPIView, ListModelMixin):
             date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
             date__lte=(datetime.datetime.now() + datetime.timedelta(days=180)).strftime('%Y-%m-%d'))
         queryset = self.filter_queryset(self.get_queryset()).values()
-        tableData = [] 
-        date_list = [] 
+        tableData = []
+        date_list = []
         for query in queryset:
             date_list.append(query.get('date'))
         date_list = sorted(list(set(date_list)))
         for date in date_list:
             tableData.append(
-                {    
+                {
                     'start_date': date,
                     'timeData': [{
                         'id': activity.id,
@@ -1883,8 +2048,8 @@ class ActivitiesDataView(GenericAPIView, ListModelMixin):
                         'wx_code': activity.wx_code,
                         'schedules': json.loads(activity.schedules)
                     } for activity in Activity.objects.filter(is_delete=0, date=date)]
-                }    
-            )    
+                }
+            )
         return Response({'tableData': tableData})
 
 
@@ -1893,6 +2058,15 @@ class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
     permission_classes = (permissions.IsAuthenticated,)
 
     def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_AGREEMENT_CODE) as log_context:
+            log_context.log_vars = [request.user.id]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def update(self, request, *args, **kwargs):
         now_time = datetime.datetime.now()
         if User.objects.get(id=self.request.user.id).agree_privacy_policy:
             resp = JsonResponse({
@@ -1918,6 +2092,15 @@ class RevokeAgreementView(GenericAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_REVOKEAGREEMENT_CODE) as log_context:
+            log_context.log_vars = [request.user.id]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
         now_time = datetime.datetime.now()
         User.objects.filter(id=self.request.user.id).update(revoke_agreement_time=now_time)
         refresh_access(self.request.user)
@@ -1934,6 +2117,15 @@ class LogoutView(GenericAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_LOGOUT,
+                           OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
+            log_context.log_vars = [request.user.id]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
         refresh_access(self.request.user)
         resp = JsonResponse({
             'code': 201,
@@ -1949,6 +2141,15 @@ class LogoffView(GenericAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_LOGOFF,
+                           OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
+            log_context.log_vars = [request.user.id]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
         user_id = self.request.user.id
         cur_date = get_cur_date()
         User.objects.filter(id=user_id).update(is_delete=1, logoff_time=cur_date)
