@@ -474,6 +474,95 @@ class NonSponsorsView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
 
+class SponsorsAddView(GenericAPIView, CreateModelMixin):
+    """批量添加活动发起人"""
+    queryset = User.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
+        ids = self.request.data.get('ids')
+        try:
+            ids_list = [int(x) for x in ids.split('-')]
+            match_queryset = User.objects.filter(id__in=ids_list, activity_level=1)
+            if len(ids_list) != len(match_queryset):
+                err_msgs.append('Improper parameter: ids')
+            else:
+                validated_data['ids_list'] = ids_list
+        except ValueError:
+            err_msgs.append('Invalid parameter: ids')
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[SponsorsAddView] Fail to validate when adding activity sponsors, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE,
+                           ) as log_context:
+            log_context.log_vars = [request.data.get('ids')]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        ids_list = validated_data.get('ids_list')
+        User.objects.filter(id__in=ids_list, activity_level=1).update(activity_level=2)
+        access = refresh_access(self.request.user)
+        return JsonResponse({'code': 201, 'msg': '添加成功', 'access': access})
+
+
+class SponsorsDelView(GenericAPIView, CreateModelMixin):
+    """批量删除活动发起人"""
+    queryset = GroupUser.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
+        ids = self.request.data.get('ids')
+        try:
+            ids_list = [int(x) for x in ids.split('-')]
+            match_queryset = User.objects.filter(id__in=ids_list, activity_level=2)
+            if len(ids_list) != len(match_queryset):
+                err_msgs.append('Improper parameter: ids')
+            else:
+                validated_data['ids_list'] = ids_list
+        except ValueError:
+            err_msgs.append('Invalid parameter: ids')
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[SponsorDelView] Fail to validate when deleting activity sponsors, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE) as log_context:
+            log_context.log_vars = [request.data.get('ids')]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        ids_list = validated_data.get('ids_list')
+        User.objects.filter(id__in=ids_list, activity_level=2).update(activity_level=1)
+        access = refresh_access(self.request.user)
+        return JsonResponse({'code': 204, 'msg': '删除成功', 'access': access})
+
+
 # ------------------------------meeting view------------------------------
 class CreateMeetingView(GenericAPIView, CreateModelMixin):
     """预定会议"""
@@ -1545,95 +1634,6 @@ class DraftView(GenericAPIView, RetrieveModelMixin, DestroyModelMixin):
         queryset = Activity.objects.filter(is_delete=0, status=1, user_id=self.request.user.id).order_by('-start_date',
                                                                                                          'id')
         return queryset
-
-
-class SponsorsAddView(GenericAPIView, CreateModelMixin):
-    """批量添加活动发起人"""
-    queryset = User.objects.all()
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def validate(self, request):
-        err_msgs = []
-        validated_data = {}
-        ids = self.request.data.get('ids')
-        try:
-            ids_list = [int(x) for x in ids.split('-')]
-            match_queryset = User.objects.filter(id__in=ids_list, activity_level=1)
-            if len(ids_list) != len(match_queryset):
-                err_msgs.append('Improper parameter: ids')
-            else:
-                validated_data['ids_list'] = ids_list
-        except ValueError:
-            err_msgs.append('Invalid parameter: ids')
-        if not err_msgs:
-            return True, validated_data
-        logger.error('[SponsorsAddView] Fail to validate when adding activity sponsors, the error messages are {}'.
-                     format(','.join(err_msgs)))
-        return False, None
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE,
-                           ) as log_context:
-            log_context.log_vars = [request.data.get('ids')]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        is_validated, validated_data = self.validate(request)
-        if not is_validated:
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        ids_list = validated_data.get('ids_list')
-        User.objects.filter(id__in=ids_list, activity_level=1).update(activity_level=2)
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': '添加成功', 'access': access})
-
-
-class SponsorsDelView(GenericAPIView, CreateModelMixin):
-    """批量删除活动发起人"""
-    queryset = GroupUser.objects.all()
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def validate(self, request):
-        err_msgs = []
-        validated_data = {}
-        ids = self.request.data.get('ids')
-        try:
-            ids_list = [int(x) for x in ids.split('-')]
-            match_queryset = User.objects.filter(id__in=ids_list, activity_level=2)
-            if len(ids_list) != len(match_queryset):
-                err_msgs.append('Improper parameter: ids')
-            else:
-                validated_data['ids_list'] = ids_list
-        except ValueError:
-            err_msgs.append('Invalid parameter: ids')
-        if not err_msgs:
-            return True, validated_data
-        logger.error('[SponsorDelView] Fail to validate when deleting activity sponsors, the error messages are {}'.
-                     format(','.join(err_msgs)))
-        return False, None
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE) as log_context:
-            log_context.log_vars = [request.data.get('ids')]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        is_validated, validated_data = self.validate(request)
-        if not is_validated:
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        ids_list = validated_data.get('ids_list')
-        User.objects.filter(id__in=ids_list, activity_level=2).update(activity_level=1)
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 204, 'msg': '删除成功', 'access': access})
 
 
 class ActivitiesListView(GenericAPIView, ListModelMixin):

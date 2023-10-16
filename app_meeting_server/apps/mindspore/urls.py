@@ -32,6 +32,8 @@ urlpatterns = [
     path('users_exclude_city/', NonCityMembersView.as_view()),    # 非城市组成员列表
     path('sponsors/', SponsorsView.as_view()),                    # 活动发布者列表
     path('nonsponsors/', NonSponsorsView.as_view()),              # 非活动发布者列表
+    path('sponsor/action/new/', SponsorsAddView.as_view()),       # 批量添加活动发布者
+    path('sponsor/action/del/', SponsorsDelView.as_view()),       # 批量删除活动发布者
 
     # meeting
     path('meetings/', CreateMeetingView.as_view()),               # 预定会议
@@ -60,8 +62,6 @@ urlpatterns = [
     path('activity/action/del/<int:pk>/', ActivityDeleteView.as_view()),                # 删除活动
     path('draftupdate/<int:pk>/', DraftUpdateView.as_view()),                           # 修改活动草案
     path('draft/<int:pk>/', DraftView.as_view()),                                       # 查询、删除活动草案
-    path('sponsor/action/new/', SponsorsAddView.as_view()),                             # 批量添加活动发布者
-    path('sponsor/action/del/', SponsorsDelView.as_view()),                             # 批量删除活动发布者
     path('activities/', ActivitiesListView.as_view()),                                  # 活动列表
     path('activity/<int:pk>/', ActivityDetailView.as_view()),                           # 活动详情
     path('mypublishedactivities/', PublishedActivitiesView.as_view()),                  # 我的已发布活动列表

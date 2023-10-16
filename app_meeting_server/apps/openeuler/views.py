@@ -45,6 +45,7 @@ def refresh_access(user):
     return access
 
 
+# ------------------------------user view------------------------------
 class LoginView(GenericAPIView, CreateModelMixin, ListModelMixin):
     """用户注册与授权登陆"""
     serializer_class = LoginSerializer
@@ -60,6 +61,114 @@ class LoginView(GenericAPIView, CreateModelMixin, ListModelMixin):
 
     def perform_create(self, serializer):
         serializer.save()
+
+
+class LogoutView(GenericAPIView):
+    """登出"""
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_LOGOUT,
+                           OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
+            log_context.log_vars = [request.user.id]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        refresh_access(self.request.user)
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'User {} logged out'.format(self.request.user.id)
+        })
+        logger.info('User {} logged out'.format(self.request.user.id))
+        return resp
+
+
+class LogoffView(GenericAPIView):
+    """注销"""
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_LOGOFF,
+                           OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
+            log_context.log_vars = [request.user.id]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        user_id = self.request.user.id
+        cur_date = get_cur_date()
+        User.objects.filter(id=user_id).update(is_delete=1, logoff_time=cur_date)
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'User {} logged off'.format(user_id)
+        })
+        logger.info('User {} logged off'.format(user_id))
+        return resp
+
+
+class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_AGREEMENT_CODE) as log_context:
+            log_context.log_vars = [request.user.id]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def update(self, request, *args, **kwargs):
+        now_time = datetime.datetime.now()
+        if User.objects.get(id=self.request.user.id).agree_privacy_policy:
+            resp = JsonResponse({
+                'code': 400,
+                'msg': 'The user has signed privacy policy agreement already.'
+            })
+            return resp
+        User.objects.filter(id=self.request.user.id).update(agree_privacy_policy=True,
+                                                            agree_privacy_policy_time=now_time,
+                                                            agree_privacy_policy_version=settings.PRIVACY_POLICY_VERSION)
+        access = refresh_access(self.request.user)
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'Updated',
+            'access': access
+        })
+        return resp
+
+
+class RevokeAgreementView(GenericAPIView):
+    """撤销同意隐私声明"""
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_REVOKEAGREEMENT_CODE) as log_context:
+            log_context.log_vars = [request.user.id]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        now_time = datetime.datetime.now()
+        User.objects.filter(id=self.request.user.id).update(revoke_agreement_time=now_time)
+        refresh_access(self.request.user)
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'Revoke agreement of privacy policy'
+        })
+        return resp
 
 
 class GroupsView(GenericAPIView, ListModelMixin):
@@ -263,6 +372,169 @@ class GroupUserDelView(GenericAPIView, CreateModelMixin):
             return ret
 
 
+class UserInfoView(GenericAPIView, RetrieveModelMixin):
+    """查询本机用户的level和gitee_name"""
+    serializer_class = UserInfoSerializer
+    queryset = User.objects.all()
+    authentication_classes = (authentication.JWTAuthentication,)
+
+    def get(self, request, *args, **kwargs):
+        user_id = kwargs.get('pk')
+        if user_id != request.user.id:
+            logger.warning('user_id did not match.')
+            logger.warning('user_id:{}, request.user.id:{}'.format(user_id, request.user.id))
+            return JsonResponse({"code": 400, "message": "错误操作，信息不匹配！"})
+        return self.retrieve(request, *args, **kwargs)
+
+
+class SponsorsView(GenericAPIView, ListModelMixin):
+    """活动发起人列表"""
+    serializer_class = SponsorSerializer
+    queryset = User.objects.filter(activity_level=2)
+    filter_backends = [SearchFilter]
+    search_fields = ['nickname']
+    authentication_classes = (authentication.JWTAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+
+class NonSponsorView(GenericAPIView, ListModelMixin):
+    """非活动发起人列表"""
+    serializer_class = SponsorSerializer
+    queryset = User.objects.filter(activity_level=1)
+    filter_backends = [SearchFilter]
+    search_fields = ['nickname']
+    authentication_classes = (authentication.JWTAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+
+class SponsorAddView(GenericAPIView, CreateModelMixin):
+    """批量添加活动发起人"""
+    queryset = User.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
+        ids = self.request.data.get('ids')
+        try:
+            ids_list = [int(x) for x in ids.split('-')]
+            match_queryset = User.objects.filter(id__in=ids_list, activity_level=1)
+            if len(ids_list) != len(match_queryset):
+                err_msgs.append('Improper parameter: ids')
+            else:
+                validated_data['ids_list'] = ids_list
+        except ValueError:
+            err_msgs.append('Invalid parameter: ids')
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[SponsorAddView] Fail to validate when adding activity sponsors, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE) as log_context:
+            log_context.log_vars = [request.data.get('ids')]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        ids_list = validated_data.get('ids_list')
+        User.objects.filter(id__in=ids_list, activity_level=1).update(activity_level=2)
+        access = refresh_access(self.request.user)
+        return JsonResponse({'code': 201, 'msg': '添加成功', 'access': access})
+
+
+class SponsorDelView(GenericAPIView, CreateModelMixin):
+    """批量删除组成员"""
+    queryset = GroupUser.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
+        ids = self.request.data.get('ids')
+        try:
+            ids_list = [int(x) for x in ids.split('-')]
+            match_queryset = User.objects.filter(id__in=ids_list, activity_level=2)
+            if len(ids_list) != len(match_queryset):
+                err_msgs.append('Improper parameter: ids')
+            else:
+                validated_data['ids_list'] = ids_list
+        except ValueError:
+            err_msgs.append('Invalid parameter: ids')
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[SponsorDelView] Fail to validate when deleting activity sponsors, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE) as log_context:
+            log_context.log_vars = [request.data.get('ids')]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        ids_list = validated_data.get('ids_list')
+        User.objects.filter(id__in=ids_list, activity_level=2).update(activity_level=1)
+        access = refresh_access(self.request.user)
+        return JsonResponse({'code': 204, 'msg': '删除成功', 'access': access})
+
+
+class SponsorInfoView(GenericAPIView, UpdateModelMixin):
+    """修改活动发起人信息"""
+    serializer_class = SponsorInfoSerializer
+    queryset = User.objects.filter(activity_level=2)
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_MODIIFY_CODE) as log_context:
+            log_context.log_vars = [kwargs.get("pk"), request.data.get("gitee_name")]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+        access = refresh_access(self.request.user)
+        data = serializer.data
+        data['access'] = access
+        response = Response()
+        response.data = data
+        return response
+
+
+# ------------------------------meeting view------------------------------
 class MeetingsWeeklyView(GenericAPIView, ListModelMixin):
     """查询前后一周的所有会议"""
     serializer_class = MeetingListSerializer
@@ -321,7 +593,7 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
         if not Meeting.objects.filter(mid=mid, is_delete=0):
             err_msgs.append('Invalid meeting id: {}'.format(mid))
         elif not (Meeting.objects.filter(mid=mid, user_id=self.request.user.id) or
-                User.objects.filter(id=self.request.user.id, level=3)):
+                  User.objects.filter(id=self.request.user.id, level=3)):
             err_msgs.append('User {} has no access to delete meeting {}'.format(self.request.user.id, mid))
         else:
             validated_data['mid'] = mid
@@ -387,21 +659,6 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
                 collection.delete()
         access = refresh_access(self.request.user)
         return JsonResponse({"code": 204, "message": "Delete successfully.", "access": access})
-
-
-class UserInfoView(GenericAPIView, RetrieveModelMixin):
-    """查询本机用户的level和gitee_name"""
-    serializer_class = UserInfoSerializer
-    queryset = User.objects.all()
-    authentication_classes = (authentication.JWTAuthentication,)
-
-    def get(self, request, *args, **kwargs):
-        user_id = kwargs.get('pk')
-        if user_id != request.user.id:
-            logger.warning('user_id did not match.')
-            logger.warning('user_id:{}, request.user.id:{}'.format(user_id, request.user.id))
-            return JsonResponse({"code": 400, "message": "错误操作，信息不匹配！"})
-        return self.retrieve(request, *args, **kwargs)
 
 
 class MeetingsDataView(GenericAPIView, ListModelMixin):
@@ -864,153 +1121,7 @@ class ParticipantsView(GenericAPIView, RetrieveModelMixin):
             return resp
 
 
-class SponsorsView(GenericAPIView, ListModelMixin):
-    """活动发起人列表"""
-    serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=2)
-    filter_backends = [SearchFilter]
-    search_fields = ['nickname']
-    authentication_classes = (authentication.JWTAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-
-class NonSponsorView(GenericAPIView, ListModelMixin):
-    """非活动发起人列表"""
-    serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=1)
-    filter_backends = [SearchFilter]
-    search_fields = ['nickname']
-    authentication_classes = (authentication.JWTAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-
-class SponsorAddView(GenericAPIView, CreateModelMixin):
-    """批量添加活动发起人"""
-    queryset = User.objects.all()
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def validate(self, request):
-        err_msgs = []
-        validated_data = {}
-        ids = self.request.data.get('ids')
-        try:
-            ids_list = [int(x) for x in ids.split('-')]
-            match_queryset = User.objects.filter(id__in=ids_list, activity_level=1)
-            if len(ids_list) != len(match_queryset):
-                err_msgs.append('Improper parameter: ids')
-            else:
-                validated_data['ids_list'] = ids_list
-        except ValueError:
-            err_msgs.append('Invalid parameter: ids')
-        if not err_msgs:
-            return True, validated_data
-        logger.error('[SponsorAddView] Fail to validate when adding activity sponsors, the error messages are {}'.
-                     format(','.join(err_msgs)))
-        return False, None
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE) as log_context:
-            log_context.log_vars = [request.data.get('ids')]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        is_validated, validated_data = self.validate(request)
-        if not is_validated:
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        ids_list = validated_data.get('ids_list')
-        User.objects.filter(id__in=ids_list, activity_level=1).update(activity_level=2)
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': '添加成功', 'access': access})
-
-
-class SponsorDelView(GenericAPIView, CreateModelMixin):
-    """批量删除组成员"""
-    queryset = GroupUser.objects.all()
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def validate(self, request):
-        err_msgs = []
-        validated_data = {}
-        ids = self.request.data.get('ids')
-        try:
-            ids_list = [int(x) for x in ids.split('-')]
-            match_queryset = User.objects.filter(id__in=ids_list, activity_level=2)
-            if len(ids_list) != len(match_queryset):
-                err_msgs.append('Improper parameter: ids')
-            else:
-                validated_data['ids_list'] = ids_list
-        except ValueError:
-            err_msgs.append('Invalid parameter: ids')
-        if not err_msgs:
-            return True, validated_data
-        logger.error('[SponsorDelView] Fail to validate when deleting activity sponsors, the error messages are {}'.
-                     format(','.join(err_msgs)))
-        return False, None
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE) as log_context:
-            log_context.log_vars = [request.data.get('ids')]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        is_validated, validated_data = self.validate(request)
-        if not is_validated:
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        ids_list = validated_data.get('ids_list')
-        User.objects.filter(id__in=ids_list, activity_level=2).update(activity_level=1)
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 204, 'msg': '删除成功', 'access': access})
-
-
-class SponsorInfoView(GenericAPIView, UpdateModelMixin):
-    """修改活动发起人信息"""
-    serializer_class = SponsorInfoSerializer
-    queryset = User.objects.filter(activity_level=2)
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def put(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_MODIIFY_CODE) as log_context:
-            log_context.log_vars = [kwargs.get("pk"), request.data.get("gitee_name")]
-            ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-
-        if getattr(instance, '_prefetched_objects_cache', None):
-            instance._prefetched_objects_cache = {}
-        access = refresh_access(self.request.user)
-        data = serializer.data
-        data['access'] = access
-        response = Response()
-        response.data = data
-        return response
-
-
+# ------------------------------activity view------------------------------
 class DraftsView(GenericAPIView, ListModelMixin):
     """审核列表"""
     serializer_class = ActivitiesSerializer
@@ -1117,6 +1228,7 @@ class ActivityView(GenericAPIView, CreateModelMixin):
         activity_type = data.get('activity_type')
         synopsis = data.get('synopsis')
         poster = data.get('poster')
+        register_url = data.get('register_url')
         user_id = self.request.user.id
         # 线下活动
         if activity_type == offline:
@@ -1645,7 +1757,6 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
             log_context.result = OperationLogResult.OP_RESULT_SUCCEED
             return ret
 
-
     def update(self, request, *args, **kwargs):
         is_validated, data = self.validate(request)
         if not is_validated:
@@ -2051,111 +2162,3 @@ class ActivitiesDataView(GenericAPIView, ListModelMixin):
                 }
             )
         return Response({'tableData': tableData})
-
-
-class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (permissions.IsAuthenticated,)
-
-    def put(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_AGREEMENT_CODE) as log_context:
-            log_context.log_vars = [request.user.id]
-            ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def update(self, request, *args, **kwargs):
-        now_time = datetime.datetime.now()
-        if User.objects.get(id=self.request.user.id).agree_privacy_policy:
-            resp = JsonResponse({
-                'code': 400,
-                'msg': 'The user has signed privacy policy agreement already.'
-            })
-            return resp
-        User.objects.filter(id=self.request.user.id).update(agree_privacy_policy=True,
-                                                            agree_privacy_policy_time=now_time,
-                                                            agree_privacy_policy_version=settings.PRIVACY_POLICY_VERSION)
-        access = refresh_access(self.request.user)
-        resp = JsonResponse({
-            'code': 201,
-            'msg': 'Updated',
-            'access': access
-        })
-        return resp
-
-
-class RevokeAgreementView(GenericAPIView):
-    """撤销同意隐私声明"""
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (permissions.IsAuthenticated,)
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_REVOKEAGREEMENT_CODE) as log_context:
-            log_context.log_vars = [request.user.id]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        now_time = datetime.datetime.now()
-        User.objects.filter(id=self.request.user.id).update(revoke_agreement_time=now_time)
-        refresh_access(self.request.user)
-        resp = JsonResponse({
-            'code': 201,
-            'msg': 'Revoke agreement of privacy policy'
-        })
-        return resp
-
-
-class LogoutView(GenericAPIView):
-    """登出"""
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (permissions.IsAuthenticated,)
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_LOGOUT,
-                           OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
-            log_context.log_vars = [request.user.id]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        refresh_access(self.request.user)
-        resp = JsonResponse({
-            'code': 201,
-            'msg': 'User {} logged out'.format(self.request.user.id)
-        })
-        logger.info('User {} logged out'.format(self.request.user.id))
-        return resp
-
-
-class LogoffView(GenericAPIView):
-    """注销"""
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (permissions.IsAuthenticated,)
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_LOGOFF,
-                           OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
-            log_context.log_vars = [request.user.id]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        user_id = self.request.user.id
-        cur_date = get_cur_date()
-        User.objects.filter(id=user_id).update(is_delete=1, logoff_time=cur_date)
-        resp = JsonResponse({
-            'code': 201,
-            'msg': 'User {} logged off'.format(user_id)
-        })
-        logger.info('User {} logged off'.format(user_id))
-        return resp
