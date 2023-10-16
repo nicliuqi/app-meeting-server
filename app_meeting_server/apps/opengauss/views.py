@@ -23,6 +23,7 @@ from opengauss.utils import cryptos
 from opengauss.permissions import QueryPermission
 from opengauss.utils import drivers
 from opengauss.utils import send_cancel_email
+from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType, OperationLogResult
 
 logger = logging.getLogger('log')
 

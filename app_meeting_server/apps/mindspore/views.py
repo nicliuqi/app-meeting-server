@@ -27,12 +27,10 @@ from mindspore.serializers import LoginSerializer, UsersInGroupSerializer, SigsS
     ActivityCollectSerializer
 from mindspore.send_email import sendmail
 from mindspore.utils.tencent_apis import *
-from mindspore.utils import prepare_create_activity, gene_wx_code, drivers, send_cancel_email
-from mindspore.utils import gene_wx_code
-from mindspore.utils import drivers
+from mindspore.utils import gene_wx_code, drivers, send_cancel_email
 from mindspore.auth import CustomAuthentication
 from app_meeting_server.utils.common import get_cur_date
-from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType
+from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType, OperationLogResult
 
 logger = logging.getLogger('log')
 
@@ -44,6 +42,7 @@ def refresh_access(user):
     return access
 
 
+# ------------------------------user view------------------------------
 class LoginView(GenericAPIView, CreateModelMixin, ListModelMixin):
     """用户注册与授权登陆"""
     serializer_class = LoginSerializer
@@ -59,6 +58,165 @@ class LoginView(GenericAPIView, CreateModelMixin, ListModelMixin):
 
     def perform_create(self, serializer):
         serializer.save()
+
+
+class LogoutView(GenericAPIView):
+    """登出"""
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_LOGOUT,
+                           OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
+            log_context.log_vars = [request.user.id]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        refresh_access(self.request.user)
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'User {} logged out'.format(self.request.user.id)
+        })
+        logger.info('User {} logged out'.format(self.request.user.id))
+        return resp
+
+
+class LogoffView(GenericAPIView):
+    """注销"""
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_LOGOFF,
+                           OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
+            log_context.log_vars = [request.user.id]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        user_id = self.request.user.id
+        cur_date = get_cur_date()
+        User.objects.filter(id=user_id).update(is_delete=1, logoff_time=cur_date)
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'User {} logged off'.format(user_id)
+        })
+        logger.info('User {} logged off'.format(user_id))
+        return resp
+
+
+class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
+    """同意隐私声明"""
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_AGREEMENT_CODE) as log_context:
+            log_context.log_vars = [request.user.id]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def update(self, request, *args, **kwargs):
+        now_time = datetime.datetime.now()
+        access = refresh_access(self.request.user)
+        if User.objects.get(id=self.request.user.id).agree_privacy_policy:
+            resp = JsonResponse({
+                'code': 400,
+                'msg': 'The user has signed privacy policy agreement already.',
+                'access': access
+            })
+            resp.status_code = 400
+            return resp
+        User.objects.filter(id=self.request.user.id).update(agree_privacy_policy=True,
+                                                            agree_privacy_policy_time=now_time,
+                                                            agree_privacy_policy_version=settings.PRIVACY_POLICY_VERSION)
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'Updated',
+            'access': access
+        })
+        return resp
+
+
+class RevokeAgreementView(GenericAPIView):
+    """撤销同意隐私声明"""
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_REVOKEAGREEMENT_CODE) as log_context:
+            log_context.log_vars = [request.user.id]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        now_time = datetime.datetime.now()
+        refresh_access(self.request.user)
+        User.objects.filter(id=self.request.user.id).update(revoke_agreement_time=now_time)
+        resp = JsonResponse({
+            'code': 201,
+            'msg': 'Revoke agreement of privacy policy'
+        })
+        return resp
+
+
+class UpdateUserInfoView(GenericAPIView, UpdateModelMixin):
+    """修改用户信息"""
+    serializer_class = UserInfoSerializer
+    queryset = User.objects.all()
+    authentication_classes = (authentication.JWTAuthentication,)
+    permission_classes = (AdminPermission,)
+
+    def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_MODIIFY_CODE) as log_context:
+            log_context.log_vars = [request.user.id, request.user.id]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+        access = refresh_access(self.request.user)
+        data = serializer.data
+        data['access'] = access
+        response = Response()
+        response.data = data
+        return response
+
+
+class UserInfoView(GenericAPIView, RetrieveModelMixin):
+    """查询用户信息"""
+    serializer_class = UserInfoSerializer
+    queryset = User.objects.all()
+    authentication_classes = (authentication.JWTAuthentication,)
+
+    def get(self, request, *args, **kwargs):
+        user_id = kwargs.get('pk')
+        if user_id != request.user.id:
+            logger.warning('user_id did not match.')
+            logger.warning('user_id:{}, request.user.id:{}'.format(user_id, request.user.id))
+            return JsonResponse({"code": 400, "message": "错误操作，信息不匹配！"})
+        return self.retrieve(request, *args, **kwargs)
 
 
 class GroupMembersView(GenericAPIView, ListModelMixin):
@@ -109,54 +267,6 @@ class NonGroupMembersView(GenericAPIView, ListModelMixin):
         return user
 
 
-class CityMembersView(GenericAPIView, ListModelMixin):
-    """城市组成员列表"""
-    serializer_class = UsersInGroupSerializer
-    queryset = User.objects.all()
-    filter_backends = [SearchFilter]
-    search_fields = ['nickname']
-    authentication_classes = (authentication.JWTAuthentication,)
-    permission_classes = (AdminPermission,)
-
-    def get(self, request, *args, **kwargs):
-        city_name = self.request.GET.get('city')
-        if not City.objects.filter(name=city_name):
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        return self.list(request, *args, **kwargs)
-
-    def get_queryset(self):
-        city_name = self.request.GET.get('city')
-        city_id = City.objects.get(name=city_name).id
-        cityUsers = CityUser.objects.filter(city_id=city_id)
-        ids = [x.user_id for x in cityUsers]
-        user = User.objects.filter(id__in=ids)
-        return user
-
-
-class NonCityMembersView(GenericAPIView, ListModelMixin):
-    """非城市组成员列表"""
-    serializer_class = UsersInGroupSerializer
-    queryset = User.objects.all()
-    filter_backends = [SearchFilter]
-    search_fields = ['nickname']
-    authentication_classes = (authentication.JWTAuthentication,)
-    permission_classes = (AdminPermission,)
-
-    def get(self, request, *args, **kwargs):
-        city_name = self.request.GET.get('city')
-        if City.objects.filter(name=city_name):
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        return self.list(request, *args, **kwargs)
-
-    def get_queryset(self):
-        city_name = self.request.GET.get('city')
-        city_id = City.objects.get(name=city_name).id
-        cityUsers = CityUser.objects.filter(city_id=city_id)
-        ids = [x.user_id for x in cityUsers]
-        user = User.objects.filter().exclude(id__in=ids)
-        return user
-
-
 class SigsView(GenericAPIView, ListModelMixin):
     """SIG列表"""
     serializer_class = SigsSerializer
@@ -166,52 +276,20 @@ class SigsView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
 
-class GroupsView(GenericAPIView, ListModelMixin):
-    """组信息"""
-    serializer_class = GroupsSerializer
-    queryset = Group.objects.all()
-
-    def get(self, request, *args, **kwargs):
-        self.queryset = self.queryset.filter(group_type__in=(2, 3))
-        return self.list(request, *args, **kwargs)
-
-
-class CitiesView(GenericAPIView, ListModelMixin):
-    """城市列表"""
-    serializer_class = CitiesSerializer
-    queryset = City.objects.all()
-    authentication_classes = (authentication.JWTAuthentication,)
-    permission_classes = (AdminPermission,)
+class UserGroupView(GenericAPIView, ListModelMixin):
+    """查询用户所在SIG组信息"""
+    serializer_class = UserGroupSerializer
+    queryset = GroupUser.objects.all()
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
 
-
-class AddCityView(GenericAPIView, CreateModelMixin):
-    """添加城市"""
-    serializer_class = CitiesSerializer
-    queryset = City.objects.all()
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (AdminPermission,)
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_CITY,
-                           OperationLogType.OP_TYPE_CREATE,
-                           OperationLogDesc.OP_DESC_CITY_CREATE_CODE) as log_context:
-            log_context.log_vars = [request.data.get("name")]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        data = self.request.data
-        name = data.get('name')
-        if name in City.objects.all().values_list('name', flat=True):
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        etherpad = '{}/p/meetings-MSG/{}'.format(settings.ETHERPAD_PREFIX, name)
-        City.objects.create(name=name, etherpad=etherpad)
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': '添加成功', 'access': access})
+    def get_queryset(self):
+        try:
+            usergroup = GroupUser.objects.filter(user_id=self.kwargs['pk']).all()
+            return usergroup
+        except KeyError:
+            pass
 
 
 class GroupUserAddView(GenericAPIView, CreateModelMixin):
@@ -285,7 +363,6 @@ class GroupUserDelView(GenericAPIView, CreateModelMixin):
             log_context.result = OperationLogResult.OP_RESULT_SUCCEED
             return ret
 
-
     def create(self, request, *args, **kwargs):
         is_validated, validated_data = self.validate(request)
         if not is_validated:
@@ -297,171 +374,107 @@ class GroupUserDelView(GenericAPIView, CreateModelMixin):
         return JsonResponse({'code': 204, 'msg': '删除成功', 'access': access})
 
 
-class CityUserAddView(GenericAPIView, CreateModelMixin):
-    """批量新增城市组成员"""
-    serializer_class = CityUserAddSerializer
-    queryset = GroupUser.objects.all()
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (AdminPermission,)
+class GroupsView(GenericAPIView, ListModelMixin):
+    """组信息"""
+    serializer_class = GroupsSerializer
+    queryset = Group.objects.all()
 
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_CITY,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_CITY_ADD_USER_CODE) as log_context:
-            log_context.log_vars = [request.data.get("city_id"), request.data.get("ids")]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        access = refresh_access(self.request.user)
-        data = serializer.data
-        data['access'] = access
-        response = Response()
-        response.data = data
-        response.status = status
-        response.headers = headers
-        return response
+    def get(self, request, *args, **kwargs):
+        self.queryset = self.queryset.filter(group_type__in=(2, 3))
+        return self.list(request, *args, **kwargs)
 
 
-class CityUserDelView(GenericAPIView, CreateModelMixin):
-    """批量删除城市组组成员"""
-    serializer_class = CityUserDelSerializer
-    queryset = GroupUser.objects.all()
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (AdminPermission,)
+class ParticipantsView(GenericAPIView):
+    """会议参会者信息"""
+    permission_classes = (QueryPermission,)
 
-    def validate(self, request):
-        err_msgs = []
-        validated_data = {}
-        city_id = self.request.data.get('city_id')
-        ids = self.request.data.get('ids')
-        if not City.objects.filter(id=city_id):
-            err_msgs.append('City {} is not exist'.format(city_id))
-        else:
-            validated_data['city_id'] = city_id
-        try:
-            ids_list = [int(x) for x in ids.split('-')]
-            match_queryset = CityUser.objects.filter(group_id=city_id, user_id__in=ids_list)
-            if len(ids_list) != len(match_queryset):
-                err_msgs.append('Improper parameter: ids')
-            else:
-                validated_data['ids_list'] = ids_list
-        except ValueError:
-            err_msgs.append('Invalid parameter: ids')
-        if not err_msgs:
-            return True, validated_data
-        logger.error('[GroupUserDelView] Fail to validate when deleting groups members, the error messages are {}'.
-                     format(','.join(err_msgs)))
-        return False, None
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_CITY,
-                           OperationLogType.OP_TYPE_DELETE,
-                           OperationLogDesc.OP_DESC_CITY_REMOVE_USER_CODE) as log_context:
-            log_context.log_vars = [request.data.get("city_id"), request.data.get("ids")]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        is_validated, validated_data = self.validate(request)
-        if not is_validated:
+    def get(self, request, *args, **kwargs):
+        mid = self.kwargs.get('mid')
+        if not Meeting.objects.filter(mid=mid, is_delete=0):
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        city_id = validated_data.get('city_id')
-        ids_list = validated_data.get('ids_list')
-        CityUser.objects.filter(city_id=city_id, user_id__in=ids_list).delete()
-        for user_id in ids_list:
-            if not CityUser.objects.filter(user_id=user_id):
-                GroupUser.objects.filter(group_id=1, user_id=int(user_id)).delete()
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 204, 'msg': '删除成功', 'access': access})
+        status, res = drivers.getParticipants(mid)
+        if status == 200:
+            return JsonResponse(res)
+        resp = JsonResponse(res)
+        resp.status_code = 400
+        return resp
 
 
-class UserInfoView(GenericAPIView, RetrieveModelMixin):
-    """查询用户信息"""
-    serializer_class = UserInfoSerializer
+class CityMembersView(GenericAPIView, ListModelMixin):
+    """城市组成员列表"""
+    serializer_class = UsersInGroupSerializer
     queryset = User.objects.all()
-    authentication_classes = (authentication.JWTAuthentication,)
-
-    def get(self, request, *args, **kwargs):
-        user_id = kwargs.get('pk')
-        if user_id != request.user.id:
-            logger.warning('user_id did not match.')
-            logger.warning('user_id:{}, request.user.id:{}'.format(user_id, request.user.id))
-            return JsonResponse({"code": 400, "message": "错误操作，信息不匹配！"})
-        return self.retrieve(request, *args, **kwargs)
-
-
-class UserGroupView(GenericAPIView, ListModelMixin):
-    """查询用户所在SIG组信息"""
-    serializer_class = UserGroupSerializer
-    queryset = GroupUser.objects.all()
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-    def get_queryset(self):
-        try:
-            usergroup = GroupUser.objects.filter(user_id=self.kwargs['pk']).all()
-            return usergroup
-        except KeyError:
-            pass
-
-
-class UserCityView(GenericAPIView, ListModelMixin):
-    """查询用户所在城市组"""
-    serializer_class = UserCitySerializer
-    queryset = CityUser.objects.all()
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-    def get_queryset(self):
-        try:
-            usercity = CityUser.objects.filter(user_id=self.kwargs['pk']).all()
-            return usercity
-        except KeyError:
-            pass
-
-
-class UpdateUserInfoView(GenericAPIView, UpdateModelMixin):
-    """修改用户信息"""
-    serializer_class = UserInfoSerializer
-    queryset = User.objects.all()
+    filter_backends = [SearchFilter]
+    search_fields = ['nickname']
     authentication_classes = (authentication.JWTAuthentication,)
     permission_classes = (AdminPermission,)
 
-    def put(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_MODIIFY_CODE) as log_context:
-            log_context.log_vars = [request.user.id, request.user.id]
-            ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
+    def get(self, request, *args, **kwargs):
+        city_name = self.request.GET.get('city')
+        if not City.objects.filter(name=city_name):
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        return self.list(request, *args, **kwargs)
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-
-        if getattr(instance, '_prefetched_objects_cache', None):
-            instance._prefetched_objects_cache = {}
-        access = refresh_access(self.request.user)
-        data = serializer.data
-        data['access'] = access
-        response = Response()
-        response.data = data
-        return response
+    def get_queryset(self):
+        city_name = self.request.GET.get('city')
+        city_id = City.objects.get(name=city_name).id
+        cityUsers = CityUser.objects.filter(city_id=city_id)
+        ids = [x.user_id for x in cityUsers]
+        user = User.objects.filter(id__in=ids)
+        return user
 
 
+class NonCityMembersView(GenericAPIView, ListModelMixin):
+    """非城市组成员列表"""
+    serializer_class = UsersInGroupSerializer
+    queryset = User.objects.all()
+    filter_backends = [SearchFilter]
+    search_fields = ['nickname']
+    authentication_classes = (authentication.JWTAuthentication,)
+    permission_classes = (AdminPermission,)
+
+    def get(self, request, *args, **kwargs):
+        city_name = self.request.GET.get('city')
+        if City.objects.filter(name=city_name):
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        return self.list(request, *args, **kwargs)
+
+    def get_queryset(self):
+        city_name = self.request.GET.get('city')
+        city_id = City.objects.get(name=city_name).id
+        cityUsers = CityUser.objects.filter(city_id=city_id)
+        ids = [x.user_id for x in cityUsers]
+        user = User.objects.filter().exclude(id__in=ids)
+        return user
+
+
+class SponsorsView(GenericAPIView, ListModelMixin):
+    """活动发起人列表"""
+    serializer_class = SponsorSerializer
+    queryset = User.objects.filter(activity_level=2)
+    filter_backends = [SearchFilter]
+    search_fields = ['nickname']
+    authentication_classes = (authentication.JWTAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+
+class NonSponsorsView(GenericAPIView, ListModelMixin):
+    """非活动发起人列表"""
+    serializer_class = SponsorSerializer
+    queryset = User.objects.filter(activity_level=1)
+    filter_backends = [SearchFilter]
+    search_fields = ['nickname']
+    authentication_classes = (authentication.JWTAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+
+# ------------------------------meeting view------------------------------
 class CreateMeetingView(GenericAPIView, CreateModelMixin):
     """预定会议"""
     serializer_class = MeetingSerializer
@@ -668,14 +681,13 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
                            OperationLogType.OP_TYPE_DELETE,
                            OperationLogDesc.OP_DESC_MEETING_DELETE_CODE) as log_context:
             log_context.log_vars = [kwargs.get('mmid')]
-            ret = self.destroy(request, *args, **kwargs)
+            ret = self.update(request, *args, **kwargs)
             log_context.result = OperationLogResult.OP_RESULT_SUCCEED
             return ret
 
     def update(self, request, *args, **kwargs):
         if not self.validate(request):
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        user_id = self.request.user.id
         mid = self.kwargs.get('mmid')
         status = drivers.cancelMeeting(mid)
         meeting = Meeting.objects.get(mid=mid)
@@ -744,7 +756,7 @@ class MeetingsListView(GenericAPIView, ListModelMixin):
                 self.queryset = self.queryset.filter(meeting_type=2)
             if meeting_type == 'tech':
                 self.queryset = self.queryset.filter(meeting_type=3)
-        except:
+        except Exception:
             pass
         if meeting_range == 'daily':
             self.queryset = self.queryset.filter(date=today).order_by('start')
@@ -800,8 +812,7 @@ class CollectMeetingView(GenericAPIView, CreateModelMixin):
         Collect.objects.create(meeting_id=meeting_id, user_id=user_id)
         collection_id = Collect.objects.get(meeting_id=meeting_id, user_id=user_id).id
         access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': '收藏成功', 'collection_id': collection_id, 'access':
-            access})
+        return JsonResponse({'code': 201, 'msg': '收藏成功', 'collection_id': collection_id, 'access': access})
 
 
 class CollectionDelView(GenericAPIView, DestroyModelMixin):
@@ -883,106 +894,95 @@ class MyCollectionsView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-class ParticipantsView(GenericAPIView):
-    """会议参会者信息"""
-    permission_classes = (QueryPermission,)
-
-    def get(self, request, *args, **kwargs):
-        mid = self.kwargs.get('mid')
-        if not Meeting.objects.filter(mid=mid, is_delete=0):
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        status, res = drivers.getParticipants(mid)
-        if status == 200:
-            return JsonResponse(res)
-        resp = JsonResponse(res)
-        resp.status_code = 400
-        return resp
-
-
-class SponsorsView(GenericAPIView, ListModelMixin):
-    """活动发起人列表"""
-    serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=2)
-    filter_backends = [SearchFilter]
-    search_fields = ['nickname']
+# ------------------------------city view------------------------------
+class CitiesView(GenericAPIView, ListModelMixin):
+    """城市列表"""
+    serializer_class = CitiesSerializer
+    queryset = City.objects.all()
     authentication_classes = (authentication.JWTAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
+    permission_classes = (AdminPermission,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
 
 
-class NonSponsorsView(GenericAPIView, ListModelMixin):
-    """非活动发起人列表"""
-    serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=1)
-    filter_backends = [SearchFilter]
-    search_fields = ['nickname']
-    authentication_classes = (authentication.JWTAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-
-class SponsorsAddView(GenericAPIView, CreateModelMixin):
-    """批量添加活动发起人"""
-    queryset = User.objects.all()
+class AddCityView(GenericAPIView, CreateModelMixin):
+    """添加城市"""
+    serializer_class = CitiesSerializer
+    queryset = City.objects.all()
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def validate(self, request):
-        err_msgs = []
-        validated_data = {}
-        ids = self.request.data.get('ids')
-        try:
-            ids_list = [int(x) for x in ids.split('-')]
-            match_queryset = User.objects.filter(id__in=ids_list, activity_level=1)
-            if len(ids_list) != len(match_queryset):
-                err_msgs.append('Improper parameter: ids')
-            else:
-                validated_data['ids_list'] = ids_list
-        except ValueError:
-            err_msgs.append('Invalid parameter: ids')
-        if not err_msgs:
-            return True, validated_data
-        logger.error('[SponsorsAddView] Fail to validate when adding activity sponsors, the error messages are {}'.
-                     format(','.join(err_msgs)))
-        return False, None
+    permission_classes = (AdminPermission,)
 
     def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE,
-                           ) as log_context:
-            log_context.log_vars = [request.data.get('ids')]
+        with LoggerContext(request, OperationLogModule.OP_MODULE_CITY,
+                           OperationLogType.OP_TYPE_CREATE,
+                           OperationLogDesc.OP_DESC_CITY_CREATE_CODE) as log_context:
+            log_context.log_vars = [request.data.get("name")]
             ret = self.create(request, *args, **kwargs)
             log_context.result = OperationLogResult.OP_RESULT_SUCCEED
             return ret
 
     def create(self, request, *args, **kwargs):
-        is_validated, validated_data = self.validate(request)
-        if not is_validated:
+        data = self.request.data
+        name = data.get('name')
+        if name in City.objects.all().values_list('name', flat=True):
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        ids_list = validated_data.get('ids_list')
-        User.objects.filter(id__in=ids_list, activity_level=1).update(activity_level=2)
+        etherpad = '{}/p/meetings-MSG/{}'.format(settings.ETHERPAD_PREFIX, name)
+        City.objects.create(name=name, etherpad=etherpad)
         access = refresh_access(self.request.user)
         return JsonResponse({'code': 201, 'msg': '添加成功', 'access': access})
 
 
-class SponsorsDelView(GenericAPIView, CreateModelMixin):
-    """批量删除活动发起人"""
+class CityUserAddView(GenericAPIView, CreateModelMixin):
+    """批量新增城市组成员"""
+    serializer_class = CityUserAddSerializer
     queryset = GroupUser.objects.all()
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
+    permission_classes = (AdminPermission,)
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_CITY,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_CITY_ADD_USER_CODE) as log_context:
+            log_context.log_vars = [request.data.get("city_id"), request.data.get("ids")]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        access = refresh_access(self.request.user)
+        data = serializer.data
+        data['access'] = access
+        response = Response()
+        response.data = data
+        response.status = status
+        response.headers = headers
+        return response
+
+
+class CityUserDelView(GenericAPIView, CreateModelMixin):
+    """批量删除城市组组成员"""
+    serializer_class = CityUserDelSerializer
+    queryset = GroupUser.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (AdminPermission,)
 
     def validate(self, request):
         err_msgs = []
         validated_data = {}
+        city_id = self.request.data.get('city_id')
         ids = self.request.data.get('ids')
+        if not City.objects.filter(id=city_id):
+            err_msgs.append('City {} is not exist'.format(city_id))
+        else:
+            validated_data['city_id'] = city_id
         try:
             ids_list = [int(x) for x in ids.split('-')]
-            match_queryset = User.objects.filter(id__in=ids_list, activity_level=2)
+            match_queryset = CityUser.objects.filter(group_id=city_id, user_id__in=ids_list)
             if len(ids_list) != len(match_queryset):
                 err_msgs.append('Improper parameter: ids')
             else:
@@ -991,15 +991,15 @@ class SponsorsDelView(GenericAPIView, CreateModelMixin):
             err_msgs.append('Invalid parameter: ids')
         if not err_msgs:
             return True, validated_data
-        logger.error('[SponsorDelView] Fail to validate when deleting activity sponsors, the error messages are {}'.
+        logger.error('[GroupUserDelView] Fail to validate when deleting groups members, the error messages are {}'.
                      format(','.join(err_msgs)))
         return False, None
 
     def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE) as log_context:
-            log_context.log_vars = [request.data.get('ids')]
+        with LoggerContext(request, OperationLogModule.OP_MODULE_CITY,
+                           OperationLogType.OP_TYPE_DELETE,
+                           OperationLogDesc.OP_DESC_CITY_REMOVE_USER_CODE) as log_context:
+            log_context.log_vars = [request.data.get("city_id"), request.data.get("ids")]
             ret = self.create(request, *args, **kwargs)
             log_context.result = OperationLogResult.OP_RESULT_SUCCEED
             return ret
@@ -1008,12 +1008,33 @@ class SponsorsDelView(GenericAPIView, CreateModelMixin):
         is_validated, validated_data = self.validate(request)
         if not is_validated:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        city_id = validated_data.get('city_id')
         ids_list = validated_data.get('ids_list')
-        User.objects.filter(id__in=ids_list, activity_level=2).update(activity_level=1)
+        CityUser.objects.filter(city_id=city_id, user_id__in=ids_list).delete()
+        for user_id in ids_list:
+            if not CityUser.objects.filter(user_id=user_id):
+                GroupUser.objects.filter(group_id=1, user_id=int(user_id)).delete()
         access = refresh_access(self.request.user)
         return JsonResponse({'code': 204, 'msg': '删除成功', 'access': access})
 
 
+class UserCityView(GenericAPIView, ListModelMixin):
+    """查询用户所在城市组"""
+    serializer_class = UserCitySerializer
+    queryset = CityUser.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def get_queryset(self):
+        try:
+            usercity = CityUser.objects.filter(user_id=self.kwargs['pk']).all()
+            return usercity
+        except KeyError:
+            pass
+
+
+# ------------------------------activity view------------------------------
 class ActivityCreateView(GenericAPIView, CreateModelMixin):
     """创建活动并申请发布"""
     serializer_class = ActivitySerializer
@@ -1201,6 +1222,148 @@ class ActivityUpdateView(GenericAPIView, UpdateModelMixin):
         return queryset
 
 
+class WaitingActivities(GenericAPIView, ListModelMixin):
+    """待审活动列表"""
+    serializer_class = ActivitiesSerializer
+    queryset = Activity.objects.filter(is_delete=0, status=2)
+    authentication_classes = (authentication.JWTAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+
+class WaitingActivity(GenericAPIView, RetrieveModelMixin):
+    """待审活动详情"""
+    serializer_class = ActivitiesSerializer
+    queryset = Activity.objects.filter(is_delete=0, status=2)
+    authentication_classes = (authentication.JWTAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def get(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
+
+
+class ApproveActivityView(GenericAPIView, UpdateModelMixin):
+    """通过审核"""
+    queryset = Activity.objects.filter(is_delete=0, status=2)
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
+        activity_id = self.kwargs.get('pk')
+        if not Activity.objects.filter(id=activity_id, status=2):
+            err_msgs.append('Invalid activity id')
+        else:
+            validated_data['activity_id'] = activity_id
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[ApproveActivityView] Fail to validate when publishing activity, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_ACTIVITY_PUBLISH_PASS_CODE) as log_context:
+            log_context.log_vars = [kwargs.get('pk')]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def update(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        activity_id = validated_data.get('activity_id')
+        logger.info('活动id: {}'.format(activity_id))
+        img_url = gene_wx_code.run(activity_id)
+        logger.info('生成活动页面二维码: {}'.format(img_url))
+        Activity.objects.filter(id=activity_id, status=2).update(status=3, wx_code=img_url)
+        access = refresh_access(self.request.user)
+        return JsonResponse({'code': 201, 'msg': '活动通过审核', 'access': access})
+
+
+class DenyActivityView(GenericAPIView, UpdateModelMixin):
+    """驳回申请"""
+    queryset = Activity.objects.filter(is_delete=0, status=2)
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
+        activity_id = self.kwargs.get('pk')
+        if not Activity.objects.filter(id=activity_id, status=2):
+            err_msgs.append('Invalid activity id')
+        else:
+            validated_data['activity_id'] = activity_id
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[DenyActivityView] Fail to validate when rejecting activity, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_ACTIVITY_PUBLISH_REJECT_CODE) as log_context:
+            log_context.log_vars = [kwargs.get("pk")]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def update(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        activity_id = validated_data.get('activity_id')
+        Activity.objects.filter(id=activity_id, status=2).update(status=1)
+        access = refresh_access(self.request.user)
+        return JsonResponse({'code': 201, 'msg': '活动申请已驳回', 'access': access})
+
+
+class ActivityDeleteView(GenericAPIView, UpdateModelMixin):
+    """删除活动"""
+    queryset = Activity.objects.filter(is_delete=0, status__gt=2)
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
+        activity_id = self.kwargs.get('pk')
+        if not Activity.objects.filter(id=activity_id, status__gt=2, is_delete=0):
+            err_msgs.append('Invalid activity id: {}'.format(activity_id))
+        else:
+            validated_data['activity_id'] = activity_id
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[ActivityDeleteView] Fail to validate when deleting activity, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def put(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
+                           OperationLogType.OP_TYPE_DELETE,
+                           OperationLogDesc.OP_DESC_ACTIVITY_DELETE_CODE) as log_context:
+            log_context.log_vars = [kwargs.get("pk")]
+            ret = self.update(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def update(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        activity_id = validated_data.get('activity_id')
+        Activity.objects.filter(id=activity_id).update(is_delete=1)
+        access = refresh_access(self.request.user)
+        return JsonResponse({'code': 204, 'msg': '成功删除活动', 'access': access})
+
+
 class DraftUpdateView(GenericAPIView, UpdateModelMixin):
     """修改活动草案"""
     serializer_class = ActivityDraftUpdateSerializer
@@ -1350,148 +1513,6 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
         return JsonResponse({'code': 201, 'msg': '修改并保存活动草案', 'access': access})
 
 
-class WaitingActivities(GenericAPIView, ListModelMixin):
-    """待审活动列表"""
-    serializer_class = ActivitiesSerializer
-    queryset = Activity.objects.filter(is_delete=0, status=2)
-    authentication_classes = (authentication.JWTAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-
-class WaitingActivity(GenericAPIView, RetrieveModelMixin):
-    """待审活动详情"""
-    serializer_class = ActivitiesSerializer
-    queryset = Activity.objects.filter(is_delete=0, status=2)
-    authentication_classes = (authentication.JWTAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-
-class ApproveActivityView(GenericAPIView, UpdateModelMixin):
-    """通过审核"""
-    queryset = Activity.objects.filter(is_delete=0, status=2)
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def validate(self, request):
-        err_msgs = []
-        validated_data = {}
-        activity_id = self.kwargs.get('pk')
-        if not Activity.objects.filter(id=activity_id, status=2):
-            err_msgs.append('Invalid activity id')
-        else:
-            validated_data['activity_id'] = activity_id
-        if not err_msgs:
-            return True, validated_data
-        logger.error('[ApproveActivityView] Fail to validate when publishing activity, the error messages are {}'.
-                     format(','.join(err_msgs)))
-        return False, None
-
-    def put(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_ACTIVITY_PUBLISH_PASS_CODE) as log_context:
-            log_context.log_vars = [kwargs.get('pk')]
-            ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def update(self, request, *args, **kwargs):
-        is_validated, validated_data = self.validate(request)
-        if not is_validated:
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        activity_id = validated_data.get('activity_id')
-        logger.info('活动id: {}'.format(activity_id))
-        img_url = gene_wx_code.run(activity_id)
-        logger.info('生成活动页面二维码: {}'.format(img_url))
-        Activity.objects.filter(id=activity_id, status=2).update(status=3, wx_code=img_url)
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': '活动通过审核', 'access': access})
-
-
-class DenyActivityView(GenericAPIView, UpdateModelMixin):
-    """驳回申请"""
-    queryset = Activity.objects.filter(is_delete=0, status=2)
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def validate(self, request):
-        err_msgs = []
-        validated_data = {}
-        activity_id = self.kwargs.get('pk')
-        if not Activity.objects.filter(id=activity_id, status=2):
-            err_msgs.append('Invalid activity id')
-        else:
-            validated_data['activity_id'] = activity_id
-        if not err_msgs:
-            return True, validated_data
-        logger.error('[DenyActivityView] Fail to validate when rejecting activity, the error messages are {}'.
-                     format(','.join(err_msgs)))
-        return False, None
-
-    def put(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_ACTIVITY_PUBLISH_REJECT_CODE) as log_context:
-            log_context.log_vars = [kwargs.get("pk")]
-            ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def update(self, request, *args, **kwargs):
-        is_validated, validated_data = self.validate(request)
-        if not is_validated:
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        activity_id = validated_data.get('activity_id')
-        Activity.objects.filter(id=activity_id, status=2).update(status=1)
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': '活动申请已驳回', 'access': access})
-
-
-class ActivityDeleteView(GenericAPIView, UpdateModelMixin):
-    """删除活动"""
-    queryset = Activity.objects.filter(is_delete=0, status__gt=2)
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
-
-    def validate(self, request):
-        err_msgs = []
-        validated_data = {}
-        activity_id = self.kwargs.get('pk')
-        if not Activity.objects.filter(id=activity_id, status__gt=2, is_delete=0):
-            err_msgs.append('Invalid activity id: {}'.format(activity_id))
-        else:
-            validated_data['activity_id'] = activity_id
-        if not err_msgs:
-            return True, validated_data
-        logger.error('[ActivityDeleteView] Fail to validate when deleting activity, the error messages are {}'.
-                     format(','.join(err_msgs)))
-        return False, None
-
-    def put(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
-                           OperationLogType.OP_TYPE_DELETE,
-                           OperationLogDesc.OP_DESC_ACTIVITY_DELETE_CODE) as log_context:
-            log_context.log_vars = [kwargs.get("pk")]
-            ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def update(self, request, *args, **kwargs):
-        is_validated, validated_data = self.validate(request)
-        if not is_validated:
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-        activity_id = validated_data.get('activity_id')
-        Activity.objects.filter(id=activity_id).update(is_delete=1)
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 204, 'msg': '成功删除活动', 'access': access})
-
-
 class DraftView(GenericAPIView, RetrieveModelMixin, DestroyModelMixin):
     """查询、删除活动草案"""
     serializer_class = ActivitiesSerializer
@@ -1524,6 +1545,95 @@ class DraftView(GenericAPIView, RetrieveModelMixin, DestroyModelMixin):
         queryset = Activity.objects.filter(is_delete=0, status=1, user_id=self.request.user.id).order_by('-start_date',
                                                                                                          'id')
         return queryset
+
+
+class SponsorsAddView(GenericAPIView, CreateModelMixin):
+    """批量添加活动发起人"""
+    queryset = User.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
+        ids = self.request.data.get('ids')
+        try:
+            ids_list = [int(x) for x in ids.split('-')]
+            match_queryset = User.objects.filter(id__in=ids_list, activity_level=1)
+            if len(ids_list) != len(match_queryset):
+                err_msgs.append('Improper parameter: ids')
+            else:
+                validated_data['ids_list'] = ids_list
+        except ValueError:
+            err_msgs.append('Invalid parameter: ids')
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[SponsorsAddView] Fail to validate when adding activity sponsors, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE,
+                           ) as log_context:
+            log_context.log_vars = [request.data.get('ids')]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        ids_list = validated_data.get('ids_list')
+        User.objects.filter(id__in=ids_list, activity_level=1).update(activity_level=2)
+        access = refresh_access(self.request.user)
+        return JsonResponse({'code': 201, 'msg': '添加成功', 'access': access})
+
+
+class SponsorsDelView(GenericAPIView, CreateModelMixin):
+    """批量删除活动发起人"""
+    queryset = GroupUser.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (ActivityAdminPermission,)
+
+    def validate(self, request):
+        err_msgs = []
+        validated_data = {}
+        ids = self.request.data.get('ids')
+        try:
+            ids_list = [int(x) for x in ids.split('-')]
+            match_queryset = User.objects.filter(id__in=ids_list, activity_level=2)
+            if len(ids_list) != len(match_queryset):
+                err_msgs.append('Improper parameter: ids')
+            else:
+                validated_data['ids_list'] = ids_list
+        except ValueError:
+            err_msgs.append('Invalid parameter: ids')
+        if not err_msgs:
+            return True, validated_data
+        logger.error('[SponsorDelView] Fail to validate when deleting activity sponsors, the error messages are {}'.
+                     format(','.join(err_msgs)))
+        return False, None
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE) as log_context:
+            log_context.log_vars = [request.data.get('ids')]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        is_validated, validated_data = self.validate(request)
+        if not is_validated:
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+        ids_list = validated_data.get('ids_list')
+        User.objects.filter(id__in=ids_list, activity_level=2).update(activity_level=1)
+        access = refresh_access(self.request.user)
+        return JsonResponse({'code': 204, 'msg': '删除成功', 'access': access})
 
 
 class ActivitiesListView(GenericAPIView, ListModelMixin):
@@ -1561,7 +1671,7 @@ class RecentActivitiesView(GenericAPIView, ListModelMixin):
     queryset = Activity.objects.filter(is_delete=0)
 
     def get(self, request, *args, **kwargs):
-        self.queryset = self.queryset.filter(status__gt=2, start_date__gte=datetime.datetime.now(). \
+        self.queryset = self.queryset.filter(status__gt=2, start_date__gte=datetime.datetime.now().
                                              strftime('%Y-%m-%d')).order_by('-start_date', 'id')
         return self.list(request, *args, **kwargs)
 
@@ -1889,114 +1999,3 @@ class ActivitiesDataView(GenericAPIView, ListModelMixin):
                 }
             )
         return Response({'tableData': tableData})
-
-
-class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
-    """同意隐私声明"""
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (permissions.IsAuthenticated,)
-
-    def put(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_AGREEMENT_CODE) as log_context:
-            log_context.log_vars = [request.user.id]
-            ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def update(self, request, *args, **kwargs):
-        now_time = datetime.datetime.now()
-        access = refresh_access(self.request.user)
-        if User.objects.get(id=self.request.user.id).agree_privacy_policy:
-            resp = JsonResponse({
-                'code': 400,
-                'msg': 'The user has signed privacy policy agreement already.',
-                'access': access
-            })
-            resp.status_code = 400
-            return resp
-        User.objects.filter(id=self.request.user.id).update(agree_privacy_policy=True,
-                                                            agree_privacy_policy_time=now_time,
-                                                            agree_privacy_policy_version=settings.PRIVACY_POLICY_VERSION)
-        resp = JsonResponse({
-            'code': 201,
-            'msg': 'Updated',
-            'access': access
-        })
-        return resp
-
-
-class RevokeAgreementView(GenericAPIView):
-    """撤销同意隐私声明"""
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (permissions.IsAuthenticated,)
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_REVOKEAGREEMENT_CODE) as log_context:
-            log_context.log_vars = [request.user.id]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        now_time = datetime.datetime.now()
-        refresh_access(self.request.user)
-        User.objects.filter(id=self.request.user.id).update(revoke_agreement_time=now_time)
-        resp = JsonResponse({
-            'code': 201,
-            'msg': 'Revoke agreement of privacy policy'
-        })
-        return resp
-
-
-class LogoutView(GenericAPIView):
-    """登出"""
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (permissions.IsAuthenticated,)
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_LOGOUT,
-                           OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
-            log_context.log_vars = [request.user.id]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        refresh_access(self.request.user)
-        resp = JsonResponse({
-            'code': 201,
-            'msg': 'User {} logged out'.format(self.request.user.id)
-        })
-        logger.info('User {} logged out'.format(self.request.user.id))
-        return resp
-
-
-class LogoffView(GenericAPIView):
-    """注销"""
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (permissions.IsAuthenticated,)
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_LOGOFF,
-                           OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
-            log_context.log_vars = [request.user.id]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        user_id = self.request.user.id
-        cur_date = get_cur_date()
-        User.objects.filter(id=user_id).update(is_delete=1, logoff_time=cur_date)
-        resp = JsonResponse({
-            'code': 201,
-            'msg': 'User {} logged off'.format(user_id)
-        })
-        logger.info('User {} logged off'.format(user_id))
-        return resp

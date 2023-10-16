@@ -30,7 +30,7 @@ from openeuler.utils import gene_wx_code, drivers, send_cancel_email
 from rest_framework_simplejwt.tokens import RefreshToken
 from openeuler.auth import CustomAuthentication
 from app_meeting_server.utils import wx_apis
-from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType
+from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType, OperationLogResult
 from app_meeting_server.utils.common import get_cur_date
 
 logger = logging.getLogger('log')
