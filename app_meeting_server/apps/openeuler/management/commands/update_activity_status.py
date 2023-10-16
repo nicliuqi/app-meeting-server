@@ -14,7 +14,7 @@ def update_activity_status():
         if activity.date == today and activity.status == 3:
             Activity.objects.filter(id=activity.id).update(status=4)
             logger.info(
-                '\nid: {0}\ndate: {1}\ntitle: {2}\nsponsor: {4}'.format(activity.id,
+                '\nid: {0}\ndate: {1}\ntitle: {2}\nsponsor: {3}'.format(activity.id,
                                                                         activity.date,
                                                                         activity.title,
                                                                         activity.user.gitee_name))
@@ -22,7 +22,7 @@ def update_activity_status():
         if activity.date < today and activity.status == 4:
             Activity.objects.filter(id=activity.id).update(status=5)
             logger.info(
-                '\nid: {0}\ndate: {1}\ntitle: {2}\nsponsor: {4}'.format(activity.id,
+                '\nid: {0}\ndate: {1}\ntitle: {2}\nsponsor: {3}'.format(activity.id,
                                                                         activity.date,
                                                                         activity.title,
                                                                         activity.user.gitee_name))

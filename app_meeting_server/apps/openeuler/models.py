@@ -11,7 +11,7 @@ class User(AbstractBaseUser):
     password = models.CharField('密码', max_length=128, null=True, blank=True)
     level = models.SmallIntegerField(verbose_name='权限级别', choices=((1, '普通用户'), (2, '授权用户'), (3, '管理员')),
                                      default=1)
-    signature = models.CharField(verbose_name='个性签名', max_length=255, blank=True, null=True)
+    signature = models.CharField(verbose_name='签名', max_length=255, blank=True, null=True)
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True, null=True, blank=True)
     last_login = models.DateTimeField(verbose_name='上次登录时间', auto_now=True, null=True, blank=True)
     activity_level = models.SmallIntegerField(verbose_name='活动权限', choices=((1, '普通'), (2, '活动发起人'), (3, '管理员')),

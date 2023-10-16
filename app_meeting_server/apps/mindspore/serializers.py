@@ -74,7 +74,7 @@ class LoginSerializer(serializers.ModelSerializer):
 class UsersInGroupSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'nickname', 'gitee_name', 'avatar', 'telephone', 'email']
+        fields = ['id', 'nickname', 'gitee_name', 'avatar']
 
 
 class SigsSerializer(ModelSerializer):
@@ -226,7 +226,8 @@ class UserCitySerializer(ModelSerializer):
 class MeetingSerializer(ModelSerializer):
     class Meta:
         model = Meeting
-        fields = ['id', 'topic', 'sponsor', 'meeting_type', 'city', 'group_name', 'date', 'start', 'end', 'etherpad', 'agenda', 'emaillist', 'user_id', 'group_id']
+        fields = ['id', 'topic', 'sponsor', 'meeting_type', 'city', 'group_name', 'date', 'start', 'end', 'etherpad',
+                  'agenda', 'emaillist', 'user_id', 'group_id']
         extra_kwargs = {
             'mid': {'read_only': True},
             'join_url': {'read_only': True},
@@ -275,7 +276,7 @@ class CollectSerializer(ModelSerializer):
 class SponsorSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'nickname', 'gitee_name', 'avatar', 'telephone', 'email']
+        fields = ['id', 'nickname', 'gitee_name', 'avatar']
 
 
 class ActivitySerializer(ModelSerializer):
@@ -331,10 +332,3 @@ class ActivityCollectSerializer(ModelSerializer):
     class Meta:
         model = ActivityCollect
         fields = ['activity']
-
-
-class ApplicantInfoSerializer(ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'name', 'wx_account', 'gender', 'age', 'telephone', 'email', 'company', 'career_direction',
-                  'profession', 'working_years', 'gitee_name']

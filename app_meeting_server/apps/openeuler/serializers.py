@@ -208,7 +208,7 @@ class UserGroupSerializer(ModelSerializer):
 class UserInfoSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['level', 'gitee_name', 'activity_level', 'nickname', 'avatar', 'openid']
+        fields = ['level', 'gitee_name', 'activity_level', 'nickname', 'avatar']
 
 
 class GroupUserSerializer(ModelSerializer):
@@ -250,13 +250,13 @@ class AllMeetingsSerializer(ModelSerializer):
 class SponsorSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'nickname', 'avatar', 'gitee_name', 'telephone', 'email']
+        fields = ['id', 'nickname', 'avatar', 'gitee_name']
 
 
 class SponsorInfoSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'gitee_name', 'telephone', 'email']
+        fields = ['id', 'gitee_name']
 
 
 class ActivitySerializer(ModelSerializer):
@@ -309,9 +309,3 @@ class ActivityCollectSerializer(ModelSerializer):
     class Meta:
         model = ActivityCollect
         fields = ['activity']
-
-
-class ApplicantInfoSerializer(ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'name', 'telephone', 'email', 'company', 'profession', 'gitee_name']
