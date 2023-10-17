@@ -21,11 +21,6 @@ class LoginSerializer(serializers.ModelSerializer):
             'access': {'read_only': True}
         }
 
-    def check_unique(self, uid):
-        if User.objects.filter(nickname='USER_{}'.format(uid)):
-            raise ValueError('Duplicate nickname')
-        return 'USER_{}'.format(uid)
-
     def create(self, validated_data):
         try:
             res = self.context["request"].data

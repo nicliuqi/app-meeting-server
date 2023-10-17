@@ -7,6 +7,7 @@ import pytz
 import uuid
 from contextlib import suppress
 from datetime import datetime
+from django.contrib.auth import get_user_model
 
 
 def get_cur_date():
@@ -15,10 +16,17 @@ def get_cur_date():
     return cur_date
 
 
-def get_uuid(self):
+def check_unique(uid):
+    user_model = get_user_model()
+    if user_model.objects.filter(nickname='USER_{}'.format(uid)):
+        raise ValueError('Duplicate nickname')
+    return 'USER_{}'.format(uid)
+
+
+def get_uuid():
     while True:
         uid = uuid.uuid4()
         res = str(uid).split('-')[0]
         with suppress(ValueError):
-            self.check_unique(uid)
+            check_unique(uid)
         return 'USER_{}'.format(res)
