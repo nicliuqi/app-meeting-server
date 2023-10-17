@@ -20,14 +20,12 @@ CONFIG_PATH = os.getenv('CONFIG_PATH')
 XARMOR_CONF = os.getenv('XARMOR_CONF')
 if not os.path.exists(CONFIG_PATH):
     sys.exit()
-with open(CONFIG_PATH, 'r') as f:
-    content = yaml.safe_load(f)
-DEFAULT_CONF = content
+DEFAULT_CONF = yaml.safe_load(open(CONFIG_PATH, 'r'))
 is_delete_config = sys.argv[0] == 'uwsgi' or (len(sys.argv) >= 3 and sys.argv[2] not in ["collectstatic", "migrate"])
 if is_delete_config:
     os.remove(CONFIG_PATH)
-    if os.path.basename(XARMOR_CONF) in os.listdir():
-        os.remove(os.path.basename(XARMOR_CONF))
+if is_delete_config and os.path.basename(XARMOR_CONF) in os.listdir():
+    os.remove(os.path.basename(XARMOR_CONF))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
@@ -49,14 +47,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    DEFAULT_CONF["app"],
+    DEFAULT_CONF["APP"],
     'rest_framework',
     'corsheaders',
     'rest_framework.authtoken',
     'django_filters'
 ]
 
-AUTH_USER_MODEL = DEFAULT_CONF["user_model"]
+AUTH_USER_MODEL = DEFAULT_CONF["USER_MODEL"]
 
 
 CORS_ALLOW_METHODS = (
@@ -105,6 +103,7 @@ ETHERPAD_PREFIX = DEFAULT_CONF.get('ETHERPAD_PREFIX')
 FOR_OPENEULER = DEFAULT_CONF.get('FOR_OPENEULER')
 FOR_OPENGAUSS = DEFAULT_CONF.get('FOR_OPENGAUSS')
 FOR_MINDSPORE = DEFAULT_CONF.get('FOR_MINDSPORE')
+COMMUNITY = DEFAULT_CONF.get("COMMUNITY")
 MESSAGE_FROM = DEFAULT_CONF.get('MESSAGE_FROM')
 OBS_BUCKETNAME = DEFAULT_CONF.get('OBS_BUCKETNAME')
 OBS_ENDPOINT = DEFAULT_CONF.get('OBS_ENDPOINT')

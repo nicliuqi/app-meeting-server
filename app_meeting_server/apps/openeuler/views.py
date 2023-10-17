@@ -235,6 +235,7 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
+        # todo 为什么这里需要捕获keyError?
         try:
             groupusers = GroupUser.objects.filter(group_id=self.kwargs['pk']).all()
             ids = [x.user_id for x in groupusers]
@@ -379,6 +380,7 @@ class UserInfoView(GenericAPIView, RetrieveModelMixin):
     authentication_classes = (authentication.JWTAuthentication,)
 
     def get(self, request, *args, **kwargs):
+        # todo 这里可以不需要pk， 直接从user.id获取， 需要更新接口参数
         user_id = kwargs.get('pk')
         if user_id != request.user.id:
             logger.warning('user_id did not match.')
@@ -439,6 +441,7 @@ class SponsorAddView(GenericAPIView, CreateModelMixin):
         return False, None
 
     def post(self, request, *args, **kwargs):
+        # todo 日志打印不出来？
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
                            OperationLogType.OP_TYPE_MODIFY,
                            OperationLogDesc.OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE) as log_context:
@@ -523,7 +526,6 @@ class SponsorInfoView(GenericAPIView, UpdateModelMixin):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-
         if getattr(instance, '_prefetched_objects_cache', None):
             instance._prefetched_objects_cache = {}
         access = refresh_access(self.request.user)
@@ -787,6 +789,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         try:
             start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
             end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
+            # todo 重复判断
             if start_time <= now_time:
                 err_msgs.append('The start time should not be later than the current time')
             elif (start_time - now_time).days > 60:
@@ -801,6 +804,8 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
             err_msgs.append('Invalid etherpad address')
         if community != settings.COMMUNITY.lower():
             err_msgs.append('The field community must be the same as configure')
+        # todo 这里直接取，还是判断参数错误？
+        # todo 没有判断的参数有：sponsor, summary, record, etherpad
         if len(emaillist) > 100:
             emaillist = emaillist[:100]
         if err_msgs:
@@ -867,6 +872,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         available_host_id = []
         meetings = Meeting.objects.filter(is_delete=0, date=date, end__gt=start_search, start__lt=end_search,
                                           mplatform=platform).values()
+        # todo 可以优化？
         try:
             for meeting in meetings:
                 host_id = meeting['host_id']
@@ -1173,6 +1179,8 @@ class ActivityView(GenericAPIView, CreateModelMixin):
                 err_msgs.append('The start date should be earlier than tomorrow')
             start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
             end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
+            # todo 重复
+            # todo 没有校验的参数有：synopsis， address, detail_address, longitude, latitude, schedules
             if start_time <= now_time:
                 err_msgs.append('The start time should not be later than the current time')
             elif (start_time - now_time).days > 60:

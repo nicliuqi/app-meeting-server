@@ -37,6 +37,7 @@ class GroupUserAddSerializer(ModelSerializer):
         users = User.objects.filter(id__in=validated_data['ids'])
         group_id = Group.objects.filter(id=validated_data['group_id']).first()
         try:
+            # todo 1.id为关键字，需要避免  2.如果users为空，groupuser则会报没有赋值则使用  3.这里需要使用事务
             for id in users:
                 groupuser = GroupUser.objects.create(group_id=group_id.id, user_id=int(id.id))
                 User.objects.filter(id=int(id.id), level=1).update(level=2)
@@ -164,7 +165,6 @@ class LoginSerializer(serializers.ModelSerializer):
                     nickname=nickname,
                     avatar=avatar,
                     gitee_name='',
-                    password=make_password(openid),
                     openid=openid)
             else:
                 User.objects.filter(openid=openid).update(
