@@ -39,20 +39,14 @@ def get_signature(method, uri, body):
 
 def get_records():
     """获取有效录像"""
-    uri = '/v1/corp/records'
     end_time = int(time.time())
     start_time = end_time - 3600 * 24 * 2
-    signature, headers = get_signature('GET', uri, "")
     page = 1
     records = []
     while True:
-        params = {
-            'start_time': start_time,
-            'end_time': end_time,
-            'page_size': 20,
-            'page': page
-        }
-        r = requests.get(get_url(uri), params=params, headers=headers)
+        uri = '/v1/corp/records?start_time={}&end_time={}&page_size=20&page={}'.format(start_time, end_time, page)
+        signature, headers = get_signature('GET', uri, "")
+        r = requests.get(get_url(uri), headers=headers)
         if r.status_code != 200:
             logger.error(r.json())
             return []

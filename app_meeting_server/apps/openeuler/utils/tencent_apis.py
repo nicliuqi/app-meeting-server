@@ -16,7 +16,7 @@ def cancelMeeting(mid):
         "instanceid": 1,
         "reason_code": 1
     })
-    uri = '/v1/meetings/' + str(mmid) + '/cancel'
+    uri = '/v1/meetings/{}/cancel'.format(mmid)
     url = get_url(uri)
     signature, headers = get_signature('POST', uri, payload)
     r = requests.post(url, headers=headers, data=payload)
