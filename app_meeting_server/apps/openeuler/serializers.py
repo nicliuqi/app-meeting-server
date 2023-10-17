@@ -1,10 +1,10 @@
 import logging
 import traceback
-
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
+from app_meeting_server.utils.common import get_uuid
 from app_meeting_server.utils.wx_apis import get_openid
 from openeuler.models import Collect, Group, User, Meeting, GroupUser, Record, Activity, ActivityCollect
 
@@ -144,6 +144,11 @@ class LoginSerializer(serializers.ModelSerializer):
             'access': {'read_only': True}
         }
 
+    def check_unique(self, uid):
+        if User.objects.filter(nickname='USER_{}'.format(uid)):
+            raise ValueError('Duplicate nickname')
+        return 'USER_{}'.format(uid)
+
     def create(self, validated_data):
         try:
             res = self.context["request"].data
@@ -159,6 +164,8 @@ class LoginSerializer(serializers.ModelSerializer):
             nickname = res['userInfo']['nickName'] if 'nickName' in res['userInfo'] else ''
             avatar = res['userInfo']['avatarUrl'] if 'avatarUrl' in res['userInfo'] else ''
             user = User.objects.filter(openid=openid).first()
+            if nickname == '微信用户':
+                nickname = get_uuid()
             # 如果user不存在，数据库创建user
             if not user:
                 user = User.objects.create(
