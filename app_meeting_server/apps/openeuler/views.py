@@ -446,14 +446,14 @@ class SponsorAddView(GenericAPIView, CreateModelMixin):
                            OperationLogType.OP_TYPE_MODIFY,
                            OperationLogDesc.OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE) as log_context:
             log_context.log_vars = [request.data.get('ids')]
-            ret = self.create(request, *args, **kwargs)
+            is_validated, validated_data = self.validate(request)
+            if not is_validated:
+                return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+            ret = self.create(request, *args, **validated_data)
             log_context.result = OperationLogResult.OP_RESULT_SUCCEED
             return ret
 
-    def create(self, request, *args, **kwargs):
-        is_validated, validated_data = self.validate(request)
-        if not is_validated:
-            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
+    def create(self, request, *args, **validated_data):
         ids_list = validated_data.get('ids_list')
         User.objects.filter(id__in=ids_list, activity_level=1).update(activity_level=2)
         access = refresh_access(self.request.user)
@@ -789,10 +789,9 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         try:
             start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
             end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
-            # todo 重复判断
             if start_time <= now_time:
                 err_msgs.append('The start time should not be later than the current time')
-            elif (start_time - now_time).days > 60:
+            if (start_time - now_time).days > 60:
                 err_msgs.append('The start time is at most 60 days later than the current time')
             if start_time <= end_time:
                 err_msgs.append('The start time should not be later than the end time')
@@ -804,8 +803,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
             err_msgs.append('Invalid etherpad address')
         if community != settings.COMMUNITY.lower():
             err_msgs.append('The field community must be the same as configure')
-        # todo 这里直接取，还是判断参数错误？
-        # todo 没有判断的参数有：sponsor, summary, record, etherpad
+        # todo 1.emaillist这里直接取，还是判断参数错误？  2.没有判断的参数有：sponsor, summary, record
         if len(emaillist) > 100:
             emaillist = emaillist[:100]
         if err_msgs:
@@ -872,7 +870,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         available_host_id = []
         meetings = Meeting.objects.filter(is_delete=0, date=date, end__gt=start_search, start__lt=end_search,
                                           mplatform=platform).values()
-        # todo 可以优化？
+        # todo 可以优化？ 使用集合
         try:
             for meeting in meetings:
                 host_id = meeting['host_id']
@@ -1179,11 +1177,10 @@ class ActivityView(GenericAPIView, CreateModelMixin):
                 err_msgs.append('The start date should be earlier than tomorrow')
             start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
             end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
-            # todo 重复
-            # todo 没有校验的参数有：synopsis， address, detail_address, longitude, latitude, schedules
+            # todo 1.没有校验的参数有：synopsis， address, detail_address, longitude, latitude, schedules
             if start_time <= now_time:
                 err_msgs.append('The start time should not be later than the current time')
-            elif (start_time - now_time).days > 60:
+            if (start_time - now_time).days > 60:
                 err_msgs.append('The start time is at most 60 days later than the current time')
             if start_time <= end_time:
                 err_msgs.append('The start time should not be later than the end time')

@@ -1,4 +1,4 @@
-from app_meeting_server.utils.models import BaseUser, BaseMeeting
+from app_meeting_server.utils.models import BaseUser, BaseMeeting, BaseActivity
 from django.db import models
 
 
@@ -102,7 +102,7 @@ class Record(models.Model):
         verbose_name_plural = verbose_name
 
 
-class Activity(models.Model):
+class Activity(BaseActivity):
     """活动表"""
     user = models.ForeignKey(User, on_delete=models.DO_NOTHING)
     start_date = models.CharField(verbose_name='活动开始日期', max_length=30)

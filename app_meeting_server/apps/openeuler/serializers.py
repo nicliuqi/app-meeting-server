@@ -1,5 +1,6 @@
 import logging
 import traceback
+
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
@@ -7,6 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from app_meeting_server.utils.common import get_uuid
 from app_meeting_server.utils.wx_apis import get_openid
 from openeuler.models import Collect, Group, User, Meeting, GroupUser, Record, Activity, ActivityCollect
+from django.db import transaction
 
 logger = logging.getLogger('log')
 
@@ -26,6 +28,7 @@ class GroupUserAddSerializer(ModelSerializer):
 
     def validate_ids(self, value):
         try:
+            # todo list_ids的长度需要判断
             list_ids = value.split('-')
         except Exception as e:
             logger.error('Invalid input.The ids should be like "1-2-3".')
@@ -37,11 +40,13 @@ class GroupUserAddSerializer(ModelSerializer):
         users = User.objects.filter(id__in=validated_data['ids'])
         group_id = Group.objects.filter(id=validated_data['group_id']).first()
         try:
-            # todo 1.id为关键字，需要避免  2.如果users为空，groupuser则会报没有赋值则使用  3.这里需要使用事务
-            for id in users:
-                groupuser = GroupUser.objects.create(group_id=group_id.id, user_id=int(id.id))
-                User.objects.filter(id=int(id.id), level=1).update(level=2)
-            return groupuser
+            result_list = list()
+            for user in users:
+                with transaction.atomic():
+                    groupuser = GroupUser.objects.create(group_id=group_id.id, user_id=int(user.id))
+                    User.objects.filter(id=int(user.id), level=1).update(level=2)
+                    result_list.append(groupuser)
+            return result_list
         except Exception as e:
             logger.error('Failed to add maintainers to the group.')
             logger.error(e)
