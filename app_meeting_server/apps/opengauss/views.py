@@ -242,7 +242,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
             end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
             if start_time <= now_time:
                 err_msgs.append('The start time should not be later than the current time')
-            if start_time <= end_time:
+            if start_time >= end_time:
                 err_msgs.append('The start time should not be later than the end time')
         except ValueError:
             err_msgs.append('Invalid start time or end time')
@@ -458,7 +458,7 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
             end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
             if start_time <= now_time:
                 err_msgs.append('The start time should not be later than the current time')
-            if start_time <= end_time:
+            if start_time >= end_time:
                 err_msgs.append('The start time should not be later than the end time')
         except ValueError:
             err_msgs.append('Invalid start time or end time')
