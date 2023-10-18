@@ -1714,7 +1714,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
         start = data.get('start')
         end = data.get('end')
         schedules = data.get('schedules')
-        if not Activity.objects.filter(id=activity_id, user_id=user_id, stauts=1):
+        if not Activity.objects.filter(id=activity_id, user_id=user_id, status=1):
             err_msgs.append('Invalid activity id')
         try:
             if date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
@@ -1839,7 +1839,7 @@ class DraftPublishView(GenericAPIView, UpdateModelMixin):
         start = data.get('start')
         end = data.get('end')
         schedules = data.get('schedules')
-        if not Activity.objects.filter(id=activity_id, user_id=user_id, stauts=1):
+        if not Activity.objects.filter(id=activity_id, user_id=user_id, status=1):
             err_msgs.append('Invalid activity id')
         try:
             if date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
