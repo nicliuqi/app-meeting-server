@@ -241,7 +241,8 @@ class OperationLogDesc(OperationBase):
 
 
 def console_log(request, log_module, log_desc, log_type, log_vars, resp=None):
-    ip = request.META.get("x-forward-for") or request.META.get("REMOTE_ADDR")
+    ip = request.META.get("x_forwarded_for") or request.META.get("REMOTE_ADDR")
+    logger.info("the request ip0:{}".format(request.META))
     logger.info("the request ip1:{}".format(request.META.get("x-forward-for")))
     logger.info("the request ip2:{}".format(request.META.get("REMOTE_ADDR")))
     user_id = "anonymous" if not request.user.id else str(request.user.id)
