@@ -5,18 +5,16 @@
 # @Software: PyCharm
 from django.core.management.base import BaseCommand
 from openeuler.models import User, GroupUser, Meeting, Collect, Activity, ActivityCollect
-from datetime import datetime, timedelta
 from django.db import transaction
 from app_meeting_server.utils.common import get_cur_date
 
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        expired_day = 6 * 30
         cur = get_cur_date()
         logout_users = User.objects.filter(is_delete=1)
         for user in logout_users:
-            if cur >= user.logoff_time + timedelta(days=expired_day):
+            if cur >= user.logoff_time:
                 user_id = user.id
                 with transaction.atomic():
                     GroupUser.objects.filter(user_id=user_id).delete()

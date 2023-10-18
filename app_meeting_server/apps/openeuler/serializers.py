@@ -37,7 +37,7 @@ class GroupUserAddSerializer(ModelSerializer):
         return list_ids
 
     def create(self, validated_data):
-        users = User.objects.filter(id__in=validated_data['ids'])
+        users = User.objects.filter(id__in=validated_data['ids'], is_delete=0)
         group_id = Group.objects.filter(id=validated_data['group_id']).first()
         try:
             result_list = list()
