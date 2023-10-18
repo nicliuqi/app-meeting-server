@@ -248,8 +248,10 @@ def console_log(request, log_module, log_desc, log_type, log_vars, resp=None):
     result = OperationLogResult.OP_RESULT_FAILED
     if isinstance(resp, Response) and str(resp.status_code).startswith("20"):
         result = OperationLogResult.OP_RESULT_SUCCEED
-    elif isinstance(resp, JsonResponse) and str(resp["code"]).startswith("20"):
-        result = OperationLogResult.OP_RESULT_SUCCEED
+    elif isinstance(resp, JsonResponse):
+        json_data = json.loads(resp.content)
+        if str(json_data.get("code")).startswith("20"):
+            result = OperationLogResult.OP_RESULT_SUCCEED
     elif resp:
         result = OperationLogResult.OP_RESULT_SUCCEED
     log_module_str = OperationLogModule.get_name_by_code(log_module)
