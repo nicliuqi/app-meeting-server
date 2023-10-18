@@ -793,7 +793,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
                 err_msgs.append('The start time should not be later than the current time')
             if (start_time - now_time).days > 60:
                 err_msgs.append('The start time is at most 60 days later than the current time')
-            if start_time <= end_time:
+            if start_time >= end_time:
                 err_msgs.append('The start time should not be later than the end time')
         except ValueError:
             err_msgs.append('Invalid start time or end time')
@@ -1182,7 +1182,7 @@ class ActivityView(GenericAPIView, CreateModelMixin):
                 err_msgs.append('The start time should not be later than the current time')
             if (start_time - now_time).days > 60:
                 err_msgs.append('The start time is at most 60 days later than the current time')
-            if start_time <= end_time:
+            if start_time >= end_time:
                 err_msgs.append('The start time should not be later than the end time')
         except ValueError:
             err_msgs.append('Invalid datetime params')
@@ -1544,7 +1544,7 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
             end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
             if start_time <= now_time:
                 err_msgs.append('The start time should not be later than the current time')
-            if start_time <= end_time:
+            if start_time >= end_time:
                 err_msgs.append('The start time should not be later than the end time')
         except ValueError:
             err_msgs.append('Invalid datetime params')
@@ -1720,7 +1720,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
             end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
             if start_time <= now_time:
                 err_msgs.append('The start time should not be later than the current time')
-            if start_time <= end_time:
+            if start_time >= end_time:
                 err_msgs.append('The start time should not be later than the end time')
         except ValueError:
             err_msgs.append('Invalid datetime params')
@@ -1845,7 +1845,7 @@ class DraftPublishView(GenericAPIView, UpdateModelMixin):
             end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
             if start_time <= now_time:
                 err_msgs.append('The start time should not be later than the current time')
-            if start_time <= end_time:
+            if start_time >= end_time:
                 err_msgs.append('The start time should not be later than the end time')
         except ValueError:
             err_msgs.append('Invalid datetime params')
