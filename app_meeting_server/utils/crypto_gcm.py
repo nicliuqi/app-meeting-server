@@ -1,12 +1,11 @@
 from Crypto.Cipher import AES
 import base64
-import os
 
 encoding_utf8 = 'utf-8'
 
-def aes_gcm_encrypt(plaintext, secret):
+def aes_gcm_encrypt(plaintext, secret, iv_str):
     secret_key = base64.b64decode(secret)
-    iv = os.urandom(12)
+    iv = base64.b64decode(iv_str.encode(encoding_utf8))
     aes_cipher = AES.new(secret_key, AES.MODE_GCM, iv)
     ciphertext, auth_tag = aes_cipher.encrypt_and_digest(plaintext.encode(encoding_utf8))
     result = iv + ciphertext + auth_tag

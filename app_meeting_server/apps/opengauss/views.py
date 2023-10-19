@@ -1,3 +1,4 @@
+import binascii
 import datetime
 import logging
 import math
@@ -15,6 +16,7 @@ from rest_framework.mixins import ListModelMixin, CreateModelMixin, UpdateModelM
     DestroyModelMixin
 from multiprocessing import Process
 from rest_framework.response import Response
+from app_meeting_server.utils import crypto_gcm
 from opengauss.send_email import sendmail
 from opengauss.models import Meeting, Video, User, Group, Record
 from opengauss.serializers import MeetingsSerializer, MeetingUpdateSerializer, MeetingDeleteSerializer, \
@@ -41,9 +43,11 @@ def IdentifyUser(request):
         return JsonResponse({'code': 400, 'msg': 'Bad Request'})
     if len(access_token) != 48:
         return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-    text, iv = access_token[:32], access_token[32:]
-    user_id = int(cryptos.decrypt(text, iv.encode('utf-8')))
-    return user_id
+    try:
+        user_id = int(crypto_gcm.aes_gcm_decrypt(access_token, settings.AES_GCM_SECRET))
+        return user_id
+    except (binascii.Error, ValueError):
+        return JsonResponse({'code': 401, 'msg': 'Unauthorized'})
 
 
 def refresh_token(user_id):
@@ -131,13 +135,13 @@ class GiteeBackView(GenericAPIView, ListModelMixin):
                     User.objects.filter(gid=gid).update(gitee_id=gitee_id, name=name, avatar=avatar)
                 response = redirect(settings.REDIRECT_HOME_PAGE)
                 user_id = User.objects.get(gid=gid).id
-                iv = secrets.token_hex(8)
-                access_token = cryptos.encrypt(str(user_id), iv.encode('utf-8'))
+                access_token = crypto_gcm.aes_gcm_encrypt(str(user_id), settings.AES_GCM_SECRET, settings.AES_GCM_IV)
                 now_time = datetime.datetime.now()
                 expire = now_time + settings.COOKIE_EXPIRE
                 expire_timestamp = int(time.mktime(expire.timetuple()))
                 User.objects.filter(gid=gid).update(expire_time=expire_timestamp)
-                response.set_cookie(settings.ACCESS_TOKEN_NAME, access_token + iv, expires=expire, secure=True, httponly=True, samesite='strict')
+                response.set_cookie(settings.ACCESS_TOKEN_NAME, access_token, expires=expire, secure=True,
+                                    httponly=True, samesite='strict')
                 request.META['CSRF_COOKIE'] = get_token(self.request)
                 return response
         else:

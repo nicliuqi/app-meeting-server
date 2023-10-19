@@ -1,8 +1,11 @@
+import binascii
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import HTTP_HEADER_ENCODING, authentication
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken, TokenError
 from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.state import User
+from django.conf import settings
+from app_meeting_server.utils import crypto_gcm
 
 AUTH_HEADER_TYPES = api_settings.AUTH_HEADER_TYPES
 
@@ -83,6 +86,13 @@ class CustomAuthentication(authentication.BaseAuthentication):
         wrapper object.
         """
         messages = []
+        try:
+            raw_token = crypto_gcm.aes_gcm_decrypt(raw_token, settings.AES_GCM_SECRET)
+        except (binascii.Error, ValueError):
+            raise InvalidToken({
+                'detail': _('Given token not valid for any token type'),
+                'messages': messages,
+            })
         for AuthToken in api_settings.AUTH_TOKEN_CLASSES:
             try:
                 return AuthToken(raw_token)
@@ -113,7 +123,8 @@ class CustomAuthentication(authentication.BaseAuthentication):
         if not user.is_active:
             raise AuthenticationFailed(_('User is inactive'), code='user_inactive')
 
-        if User.objects.get(id=user_id).signature != str(validated_token):
+        token = crypto_gcm.aes_gcm_encrypt(str(validated_token), settings.AES_GCM_SECRET, settings.AES_GCM_IV)
+        if User.objects.get(id=user_id).signature != str(token):
             raise InvalidToken(_('Token has expired'))
 
         return user
