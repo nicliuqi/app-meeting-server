@@ -1,4 +1,5 @@
 import logging
+from django.db import transaction
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
@@ -114,13 +115,16 @@ class GroupUserAddSerializer(ModelSerializer):
         return list_ids
 
     def create(self, validated_data):
-        users = User.objects.filter(id__in=validated_data['ids'])
+        users = User.objects.filter(id__in=validated_data['ids'], is_delete=0)
         group_id = Group.objects.filter(id=validated_data['group_id']).first()
         try:
-            for id in users:
-                groupuser = GroupUser.objects.create(group_id=group_id.id, user_id=int(id.id))
-                User.objects.filter(id=int(id.id), level=1).update(level=2)
-            return groupuser
+            result_list = list()
+            for user in users:
+                with transaction.atomic():
+                    groupuser = GroupUser.objects.create(group_id=group_id.id, user_id=int(user.id))
+                    User.objects.filter(id=int(user.id), level=1).update(level=2)
+                    result_list.append(groupuser)
+            return result_list
         except Exception as e:
             logger.error('Failed to add maintainers to the group.')
             logger.error(e)

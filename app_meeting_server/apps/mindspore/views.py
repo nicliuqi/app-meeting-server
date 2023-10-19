@@ -53,7 +53,7 @@ class LoginView(GenericAPIView, CreateModelMixin, ListModelMixin):
                            OperationLogType.OP_TYPE_LOGIN,
                            OperationLogDesc.OP_DESC_USER_LOGIN_CODE) as log_context:
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def perform_create(self, serializer):
@@ -71,7 +71,7 @@ class LogoutView(GenericAPIView):
                            OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
             log_context.log_vars = [request.user.id]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
@@ -95,13 +95,14 @@ class LogoffView(GenericAPIView):
                            OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
             log_context.log_vars = [request.user.id]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
         user_id = self.request.user.id
         cur_date = get_cur_date()
-        User.objects.filter(id=user_id).update(is_delete=1, logoff_time=cur_date)
+        expired_date = cur_date + datetime.timedelta(days=settings.LOGOFF_EXPIRED)
+        User.objects.filter(id=user_id).update(is_delete=1, logoff_time=expired_date)
         resp = JsonResponse({
             'code': 201,
             'msg': 'User {} logged off'.format(user_id)
@@ -121,7 +122,7 @@ class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
                            OperationLogDesc.OP_DESC_USER_AGREEMENT_CODE) as log_context:
             log_context.log_vars = [request.user.id]
             ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def update(self, request, *args, **kwargs):
@@ -157,7 +158,7 @@ class RevokeAgreementView(GenericAPIView):
                            OperationLogDesc.OP_DESC_USER_REVOKEAGREEMENT_CODE) as log_context:
             log_context.log_vars = [request.user.id]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
@@ -184,7 +185,7 @@ class UpdateUserInfoView(GenericAPIView, UpdateModelMixin):
                            OperationLogDesc.OP_DESC_USER_MODIIFY_CODE) as log_context:
             log_context.log_vars = [request.user.id, request.user.id]
             ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def update(self, request, *args, **kwargs):
@@ -240,7 +241,7 @@ class GroupMembersView(GenericAPIView, ListModelMixin):
         group_id = Group.objects.get(name=group_name).id
         groupusers = GroupUser.objects.filter(group_id=group_id)
         ids = [x.user_id for x in groupusers]
-        user = User.objects.filter(id__in=ids)
+        user = User.objects.filter(id__in=ids, is_delete=0)
         return user
 
 
@@ -264,7 +265,7 @@ class NonGroupMembersView(GenericAPIView, ListModelMixin):
         group_id = Group.objects.get(name=group_name).id
         groupusers = GroupUser.objects.filter(group_id=group_id)
         ids = [x.user_id for x in groupusers]
-        user = User.objects.filter().exclude(id__in=ids)
+        user = User.objects.filter(is_delete=0).exclude(id__in=ids)
         return user
 
 
@@ -306,7 +307,7 @@ class GroupUserAddView(GenericAPIView, CreateModelMixin):
                            OperationLogDesc.OP_DESC_USER_ADD_GROUP_CODE) as log_context:
             log_context.log_vars = [request.data.get("ids"), request.data.get("group_id")]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
@@ -361,7 +362,7 @@ class GroupUserDelView(GenericAPIView, CreateModelMixin):
                            OperationLogDesc.OP_DESC_USER_REMOVE_GROUP_CODE) as log_context:
             log_context.log_vars = [request.data.get("ids"), request.data.get("group_id")]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
@@ -404,7 +405,7 @@ class ParticipantsView(GenericAPIView):
 class CityMembersView(GenericAPIView, ListModelMixin):
     """城市组成员列表"""
     serializer_class = UsersInGroupSerializer
-    queryset = User.objects.all()
+    queryset = User.objects.filter(is_delete=0)
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
@@ -428,7 +429,7 @@ class CityMembersView(GenericAPIView, ListModelMixin):
 class NonCityMembersView(GenericAPIView, ListModelMixin):
     """非城市组成员列表"""
     serializer_class = UsersInGroupSerializer
-    queryset = User.objects.all()
+    queryset = User.objects.filter(is_delete=0)
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
@@ -445,14 +446,14 @@ class NonCityMembersView(GenericAPIView, ListModelMixin):
         city_id = City.objects.get(name=city_name).id
         cityUsers = CityUser.objects.filter(city_id=city_id)
         ids = [x.user_id for x in cityUsers]
-        user = User.objects.filter().exclude(id__in=ids)
+        user = User.objects.filter(is_delete=0).exclude(id__in=ids)
         return user
 
 
 class SponsorsView(GenericAPIView, ListModelMixin):
     """活动发起人列表"""
     serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=2)
+    queryset = User.objects.filter(activity_level=2, is_delete=0)
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
@@ -465,7 +466,7 @@ class SponsorsView(GenericAPIView, ListModelMixin):
 class NonSponsorsView(GenericAPIView, ListModelMixin):
     """非活动发起人列表"""
     serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=1)
+    queryset = User.objects.filter(activity_level=1, is_delete=0)
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
@@ -477,7 +478,7 @@ class NonSponsorsView(GenericAPIView, ListModelMixin):
 
 class SponsorsAddView(GenericAPIView, CreateModelMixin):
     """批量添加活动发起人"""
-    queryset = User.objects.all()
+    queryset = User.objects.filter(is_delete=0)
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
 
@@ -487,7 +488,7 @@ class SponsorsAddView(GenericAPIView, CreateModelMixin):
         ids = self.request.data.get('ids')
         try:
             ids_list = [int(x) for x in ids.split('-')]
-            match_queryset = User.objects.filter(id__in=ids_list, activity_level=1)
+            match_queryset = User.objects.filter(id__in=ids_list, activity_level=1, is_delete=0)
             if len(ids_list) != len(match_queryset):
                 err_msgs.append('Improper parameter: ids')
             else:
@@ -507,7 +508,7 @@ class SponsorsAddView(GenericAPIView, CreateModelMixin):
                            ) as log_context:
             log_context.log_vars = [request.data.get('ids')]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
@@ -532,7 +533,7 @@ class SponsorsDelView(GenericAPIView, CreateModelMixin):
         ids = self.request.data.get('ids')
         try:
             ids_list = [int(x) for x in ids.split('-')]
-            match_queryset = User.objects.filter(id__in=ids_list, activity_level=2)
+            match_queryset = User.objects.filter(id__in=ids_list, activity_level=2, is_delete=0)
             if len(ids_list) != len(match_queryset):
                 err_msgs.append('Improper parameter: ids')
             else:
@@ -551,7 +552,7 @@ class SponsorsDelView(GenericAPIView, CreateModelMixin):
                            OperationLogDesc.OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE) as log_context:
             log_context.log_vars = [request.data.get('ids')]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
@@ -652,7 +653,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
                            OperationLogDesc.OP_DESC_MEETING_CREATE_CODE) as log_context:
             log_context.log_vars = [request.data.get('topic')]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
@@ -761,7 +762,7 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
                            OperationLogDesc.OP_DESC_MEETING_DELETE_CODE) as log_context:
             log_context.log_vars = [kwargs.get('mmid')]
             ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def update(self, request, *args, **kwargs):
@@ -880,7 +881,7 @@ class CollectMeetingView(GenericAPIView, CreateModelMixin):
                            OperationLogDesc.OP_DESC_MEETING_COLLECT_CODE) as log_context:
             log_context.log_vars = [request.data.get('meeting')]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
@@ -919,13 +920,13 @@ class CollectionDelView(GenericAPIView, DestroyModelMixin):
                            OperationLogType.OP_TYPE_CANCEL_COLLECT,
                            OperationLogDesc.OP_DESC_MEETING_CANCEL_COLLECT_CODE) as log_context:
             log_context.log_vars = [kwargs.get('pk')]
-            if not self.validate(request):
-                return JsonResponse({'code': 400, 'msg': 'Bad Request'})
             ret = self.destroy(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def destroy(self, request, *args, **kwargs):
+        if not self.validate(request):
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         instance = self.get_object()
         self.perform_destroy(instance)
         access = refresh_access(self.request.user)
@@ -999,7 +1000,7 @@ class AddCityView(GenericAPIView, CreateModelMixin):
                            OperationLogDesc.OP_DESC_CITY_CREATE_CODE) as log_context:
             log_context.log_vars = [request.data.get("name")]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
@@ -1026,7 +1027,7 @@ class CityUserAddView(GenericAPIView, CreateModelMixin):
                            OperationLogDesc.OP_DESC_CITY_ADD_USER_CODE) as log_context:
             log_context.log_vars = [request.data.get("city_id"), request.data.get("ids")]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
@@ -1081,7 +1082,7 @@ class CityUserDelView(GenericAPIView, CreateModelMixin):
                            OperationLogDesc.OP_DESC_CITY_REMOVE_USER_CODE) as log_context:
             log_context.log_vars = [request.data.get("city_id"), request.data.get("ids")]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
@@ -1191,7 +1192,7 @@ class ActivityCreateView(GenericAPIView, CreateModelMixin):
                            OperationLogDesc.OP_DESC_ACTIVITY_CREATE_CODE) as log_context:
             log_context.log_vars = [request.data.get("title")]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
@@ -1274,7 +1275,7 @@ class ActivityUpdateView(GenericAPIView, UpdateModelMixin):
                            OperationLogDesc.OP_DESC_ACTIVITY_MODIFY_CODE) as log_context:
             log_context.log_vars = [kwargs.get("pk")]
             ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def update(self, request, *args, **kwargs):
@@ -1350,7 +1351,7 @@ class ApproveActivityView(GenericAPIView, UpdateModelMixin):
                            OperationLogDesc.OP_DESC_ACTIVITY_PUBLISH_PASS_CODE) as log_context:
             log_context.log_vars = [kwargs.get('pk')]
             ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def update(self, request, *args, **kwargs):
@@ -1392,7 +1393,7 @@ class DenyActivityView(GenericAPIView, UpdateModelMixin):
                            OperationLogDesc.OP_DESC_ACTIVITY_PUBLISH_REJECT_CODE) as log_context:
             log_context.log_vars = [kwargs.get("pk")]
             ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def update(self, request, *args, **kwargs):
@@ -1431,7 +1432,7 @@ class ActivityDeleteView(GenericAPIView, UpdateModelMixin):
                            OperationLogDesc.OP_DESC_ACTIVITY_DELETE_CODE) as log_context:
             log_context.log_vars = [kwargs.get("pk")]
             ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def update(self, request, *args, **kwargs):
@@ -1524,7 +1525,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
                            OperationLogDesc.OP_DESC_ACTIVITY_MODIFY_DRAFT_CODE) as log_context:
             log_context.log_vars = [kwargs.get('pk')]
             ret = self.update(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def update(self, request, *args, **kwargs):
@@ -1609,7 +1610,7 @@ class DraftView(GenericAPIView, RetrieveModelMixin, DestroyModelMixin):
                            OperationLogDesc.OP_DESC_ACTIVITY_DELETE_DRAFT_CODE) as log_context:
             log_context.log_vars = [kwargs.get("pk")]
             ret = self.destroy(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def destroy(self, request, *args, **kwargs):
@@ -1750,7 +1751,7 @@ class ActivityCollectView(GenericAPIView, CreateModelMixin):
                            OperationLogDesc.OP_DESC_ACTIVITY_COLLECT_CODE) as log_context:
             log_context.log_vars = [request.data.get('activity')]
             ret = self.create(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
@@ -1804,13 +1805,13 @@ class ActivityCollectionDelView(GenericAPIView, DestroyModelMixin):
                            OperationLogType.OP_TYPE_CANCEL_COLLECT,
                            OperationLogDesc.OP_DESC_ACTIVITY_CANCEL_COLLECT_CODE) as log_context:
             log_context.log_vars = [kwargs.get('pk')]
-            if not self.validate(request):
-                return JsonResponse({'code': 400, 'msg': 'Bad Request'})
             ret = self.destroy(request, *args, **kwargs)
-            log_context.result = OperationLogResult.OP_RESULT_SUCCEED
+            log_context.result = ret
             return ret
 
     def destroy(self, request, *args, **kwargs):
+        if not self.validate(request):
+            return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         instance = self.get_object()
         self.perform_destroy(instance)
         access = refresh_access(self.request.user)

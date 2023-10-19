@@ -11,8 +11,9 @@ from django.contrib.auth import get_user_model
 
 
 def get_cur_date():
-    tzinfo = pytz.timezone('Asia/Shanghai')
-    cur_date = datetime.now(tz=tzinfo)
+    # tzinfo = pytz.timezone('Asia/Shanghai')
+    # cur_date = datetime.now(tz=tzinfo)
+    cur_date = datetime.now()
     return cur_date
 
 

@@ -3,6 +3,7 @@
 # @Author  : Tom_zc
 # @FileName: operation_log.py
 # @Software: PyCharm
+import json
 
 from django.conf import settings
 from logging import getLogger
@@ -239,15 +240,20 @@ class OperationLogDesc(OperationBase):
     }
 
 
-def console_log(request, log_module, log_desc, log_type, log_vars, resp=None, ret_result=None):
-    ip = request.META.get("x-forward-for") or request.META.get("REMOTE_ADDR")
+def console_log(request, log_module, log_desc, log_type, log_vars, resp=None):
+    ip = request.META.get("x_forwarded_for") or request.META.get("REMOTE_ADDR")
+    logger.info("the request ip0:{}".format(request.META))
+    logger.info("the request ip1:{}".format(request.META.get("x-forward-for")))
+    logger.info("the request ip2:{}".format(request.META.get("REMOTE_ADDR")))
     user_id = "anonymous" if not request.user.id else str(request.user.id)
     result = OperationLogResult.OP_RESULT_FAILED
     if isinstance(resp, Response) and str(resp.status_code).startswith("20"):
         result = OperationLogResult.OP_RESULT_SUCCEED
-    elif isinstance(resp, JsonResponse) and str(resp["code"]).startswith("20"):
-        result = OperationLogResult.OP_RESULT_SUCCEED
-    elif ret_result:
+    elif isinstance(resp, JsonResponse):
+        json_data = json.loads(resp.content)
+        if str(json_data.get("code")).startswith("20"):
+            result = OperationLogResult.OP_RESULT_SUCCEED
+    elif resp:
         result = OperationLogResult.OP_RESULT_SUCCEED
     log_module_str = OperationLogModule.get_name_by_code(log_module)
     log_type_str = OperationLogType.get_name_by_code(log_type)
@@ -266,12 +272,12 @@ class LoggerContext:
         self.log_type = log_type
         self.log_desc = log_desc
         self.log_vars = list()
-        self.result = OperationLogResult.OP_RESULT_FAILED
+        self.result = None
 
     def __enter__(self): return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        console_log(self.request, self.log_module, self.log_desc, self.log_type, self.log_vars, ret_result=self.result)
+        console_log(self.request, self.log_module, self.log_desc, self.log_type, self.log_vars, self.result)
 
 
 def loggerwrapper(log_module, log_desc, log_type=None, log_vars=None):

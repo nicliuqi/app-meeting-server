@@ -302,6 +302,9 @@ LOGGING = {
     }
 }
 
+# logoff expired and clean personal data
+LOGOFF_EXPIRED = 3 * 60
+
 if FOR_OPENEULER:
     ACCESS_KEY_ID_2 = DEFAULT_CONF.get('ACCESS_KEY_ID_2')
     APP_CONF = {
