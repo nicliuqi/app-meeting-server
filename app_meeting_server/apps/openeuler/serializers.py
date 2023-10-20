@@ -189,7 +189,7 @@ class LoginSerializer(serializers.ModelSerializer):
         data['user_id'] = instance.id
         access = str(refresh.access_token)
         encrypt_access = crypto_gcm.aes_gcm_encrypt(access, settings.AES_GCM_SECRET, settings.AES_GCM_IV)
-        data['access'] = encrypt_access
+        data['access'] = access
         data['level'] = instance.level
         data['gitee_name'] = instance.gitee_name
         data['nickname'] = instance.nickname

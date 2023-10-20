@@ -35,7 +35,7 @@ class CustomAuthentication(authentication.BaseAuthentication):
             return None
 
         validated_token = self.get_validated_token(raw_token)
-        validated_token.payload = crypto_gcm.aes_gcm_decrypt(validated_token.payload, settings.AES_GCM_SECRET)
+
         return self.get_user(validated_token), validated_token
 
     def authenticate_header(self, request):
@@ -115,7 +115,6 @@ class CustomAuthentication(authentication.BaseAuthentication):
 
         if not user.is_active:
             raise AuthenticationFailed(_('User is inactive'), code='user_inactive')
-
         token = crypto_gcm.aes_gcm_encrypt(str(validated_token), settings.AES_GCM_SECRET, settings.AES_GCM_IV)
         if User.objects.get(id=user_id).signature != str(token):
             raise InvalidToken(_('Token has expired'))
