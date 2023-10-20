@@ -1,13 +1,12 @@
 import logging
-
 from django.db import transaction
-from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
-from app_meeting_server.utils import wx_apis
+from app_meeting_server.utils import wx_apis, crypto_gcm
 from app_meeting_server.utils.common import get_uuid
 from mindspore.models import Group, Meeting, Collect, User, GroupUser, City, CityUser, Activity, ActivityCollect
+from django.conf import settings
 
 logger = logging.getLogger('log')
 
@@ -35,10 +34,10 @@ class LoginSerializer(serializers.ModelSerializer):
                 logger.warning('Failed to get openid.')
                 raise serializers.ValidationError('未获取到openid', code='code_error')
             openid = r['openid']
+            encrypt_openid = crypto_gcm.aes_gcm_encrypt(openid, settings.AES_GCM_SECRET, settings.AES_GCM_IV)
             nickname = res['userInfo']['nickName'] if 'nickName' in res['userInfo'] else ''
             avatar = res['userInfo']['avatarUrl'] if 'avatarUrl' in res['userInfo'] else ''
-            gender = res['userInfo']['gender'] if 'gender' in res['userInfo'] else 0
-            user = User.objects.filter(openid=openid).first()
+            user = User.objects.filter(openid=encrypt_openid).first()
             if nickname == '微信用户':
                 nickname = get_uuid()
             # 如果user不存在，数据库创建user
@@ -46,14 +45,11 @@ class LoginSerializer(serializers.ModelSerializer):
                 user = User.objects.create(
                     nickname=nickname,
                     avatar=avatar,
-                    gitee_name=nickname,
-                    password=make_password(openid),
-                    openid=openid)
+                    openid=encrypt_openid)
             else:
-                User.objects.filter(openid=openid).update(
+                User.objects.filter(openid=encrypt_openid).update(
                     nickname=nickname,
                     avatar=avatar,
-                    gender=gender,
                     is_delete=0)
             return user
         except Exception as e:
@@ -66,12 +62,14 @@ class LoginSerializer(serializers.ModelSerializer):
         refresh = RefreshToken.for_user(instance)
         data['user_id'] = instance.id
         access = str(refresh.access_token)
-        data['access'] = access
+        encrypt_access = crypto_gcm.aes_gcm_encrypt(access, settings.AES_GCM_SECRET, settings.AES_GCM_IV)
+        data['access'] = encrypt_access
         data['level'] = instance.level
         data['gitee_name'] = instance.gitee_name
+        data['nickname'] = instance.nickname
         data['activity_level'] = instance.activity_level
         data['agree_privacy_policy'] = instance.agree_privacy_policy
-        User.objects.filter(id=instance.id).update(signature=access)
+        User.objects.filter(id=instance.id).update(signature=encrypt_access)
         return data
 
 

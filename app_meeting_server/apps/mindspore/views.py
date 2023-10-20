@@ -12,9 +12,8 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, ListModelMixin, RetrieveModelMixin, \
     DestroyModelMixin
 from rest_framework.response import Response
-from rest_framework_simplejwt import authentication
 from rest_framework_simplejwt.tokens import RefreshToken
-from app_meeting_server.utils import wx_apis
+from app_meeting_server.utils import wx_apis, crypto_gcm
 from mindspore.models import Activity, ActivityCollect
 from mindspore.permissions import MaintainerPermission, AdminPermission, QueryPermission, \
     SponsorPermission, ActivityAdminPermission
@@ -28,7 +27,7 @@ from mindspore.serializers import LoginSerializer, UsersInGroupSerializer, SigsS
 from mindspore.send_email import sendmail
 from mindspore.utils.tencent_apis import *
 from mindspore.utils import gene_wx_code, drivers, send_cancel_email
-from mindspore.auth import CustomAuthentication
+from app_meeting_server.utils.auth import CustomAuthentication
 from app_meeting_server.utils.common import get_cur_date
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType, OperationLogResult
 
@@ -38,8 +37,9 @@ logger = logging.getLogger('log')
 def refresh_access(user):
     refresh = RefreshToken.for_user(user)
     access = str(refresh.access_token)
-    User.objects.filter(id=user.id).update(signature=access)
-    return access
+    encrypt_access = crypto_gcm.aes_gcm_encrypt(access, settings.AES_GCM_SECRET, settings.AES_GCM_IV)
+    User.objects.filter(id=user.id).update(signature=encrypt_access)
+    return encrypt_access
 
 
 # ------------------------------user view------------------------------
@@ -176,7 +176,7 @@ class UpdateUserInfoView(GenericAPIView, UpdateModelMixin):
     """修改用户信息"""
     serializer_class = UserInfoSerializer
     queryset = User.objects.all()
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
     permission_classes = (AdminPermission,)
 
     def put(self, request, *args, **kwargs):
@@ -209,7 +209,8 @@ class UserInfoView(GenericAPIView, RetrieveModelMixin):
     """查询用户信息"""
     serializer_class = UserInfoSerializer
     queryset = User.objects.all()
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         user_id = kwargs.get('pk')
@@ -226,7 +227,7 @@ class GroupMembersView(GenericAPIView, ListModelMixin):
     queryset = User.objects.all()
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
     permission_classes = (AdminPermission,)
 
     def get(self, request, *args, **kwargs):
@@ -250,7 +251,7 @@ class NonGroupMembersView(GenericAPIView, ListModelMixin):
     queryset = User.objects.all()
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
     permission_classes = (AdminPermission,)
 
     def get(self, request, *args, **kwargs):
@@ -407,7 +408,7 @@ class CityMembersView(GenericAPIView, ListModelMixin):
     queryset = User.objects.filter(is_delete=0)
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
     permission_classes = (AdminPermission,)
 
     def get(self, request, *args, **kwargs):
@@ -431,7 +432,7 @@ class NonCityMembersView(GenericAPIView, ListModelMixin):
     queryset = User.objects.filter(is_delete=0)
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
     permission_classes = (AdminPermission,)
 
     def get(self, request, *args, **kwargs):
@@ -455,7 +456,7 @@ class SponsorsView(GenericAPIView, ListModelMixin):
     queryset = User.objects.filter(activity_level=2, is_delete=0)
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
 
     def get(self, request, *args, **kwargs):
@@ -468,7 +469,7 @@ class NonSponsorsView(GenericAPIView, ListModelMixin):
     queryset = User.objects.filter(activity_level=1, is_delete=0)
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
 
     def get(self, request, *args, **kwargs):
@@ -685,20 +686,9 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
             (datetime.datetime.strptime(end, '%H:%M') + datetime.timedelta(minutes=30)),
             '%H:%M')
         # 查询待创建的会议与现有的预定会议是否冲突
-        unavailable_host_id = []
-        available_host_id = []
         meetings = Meeting.objects.filter(is_delete=0, date=date, end__gt=start_search, start__lt=end_search).values()
-        try:
-            for meeting in meetings:
-                host_id = meeting['host_id']
-                unavailable_host_id.append(host_id)
-            logger.info('unavilable_host_id:{}'.format(unavailable_host_id))
-        except KeyError:
-            pass
-        logger.info('host_list: {}'.format(host_list))
-        for host_id in host_list:
-            if host_id not in unavailable_host_id:
-                available_host_id.append(host_id)
+        unavailable_host_ids = [meeting['host_id'] for meeting in meetings]
+        available_host_id = list(set(host_list) - set(unavailable_host_ids))
         logger.info('avilable_host_id: {}'.format(available_host_id))
         if len(available_host_id) == 0:
             logger.warning('暂无可用host')
@@ -801,7 +791,8 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
                 user_id = collection.user_id
                 user = User.objects.get(id=user_id)
                 nickname = user.nickname
-                openid = user.openid
+                encrypt_openid = user.openid
+                openid = crypto_gcm.aes_gcm_decrypt(encrypt_openid, settings.AES_GCM_SECRET)
                 content = wx_apis.get_remove_template(openid, topic, time, mid)
                 r = wx_apis.send_subscription(content, access_token)
                 if r.status_code != 200:
@@ -954,7 +945,7 @@ class MyMeetingsView(GenericAPIView, ListModelMixin):
     serializer_class = MeetingsListSerializer
     queryset = Meeting.objects.all().filter(is_delete=0)
     permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -972,7 +963,7 @@ class MyCollectionsView(GenericAPIView, ListModelMixin):
     serializer_class = MeetingsListSerializer
     queryset = Meeting.objects.all()
     permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -989,7 +980,7 @@ class CitiesView(GenericAPIView, ListModelMixin):
     """城市列表"""
     serializer_class = CitiesSerializer
     queryset = City.objects.all()
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
     permission_classes = (AdminPermission,)
 
     def get(self, request, *args, **kwargs):
@@ -1316,7 +1307,7 @@ class WaitingActivities(GenericAPIView, ListModelMixin):
     """待审活动列表"""
     serializer_class = ActivitiesSerializer
     queryset = Activity.objects.filter(is_delete=0, status=2)
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
 
     def get(self, request, *args, **kwargs):
@@ -1327,7 +1318,7 @@ class WaitingActivity(GenericAPIView, RetrieveModelMixin):
     """待审活动详情"""
     serializer_class = ActivitiesSerializer
     queryset = Activity.objects.filter(is_delete=0, status=2)
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
 
     def get(self, request, *args, **kwargs):
@@ -1690,7 +1681,7 @@ class DraftsListView(GenericAPIView, ListModelMixin):
     """活动草案列表(草稿箱)"""
     serializer_class = ActivitiesSerializer
     queryset = Activity.objects.all()
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
     permission_classes = (SponsorPermission,)
 
     def get(self, request, *args, **kwargs):
@@ -1706,7 +1697,7 @@ class PublishedActivitiesView(GenericAPIView, ListModelMixin):
     """我发布的活动列表(已发布)"""
     serializer_class = ActivitiesSerializer
     queryset = Activity.objects.all()
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
     permission_classes = (SponsorPermission,)
 
     def get(self, request, *args, **kwargs):
@@ -1723,7 +1714,7 @@ class WaitingPublishingActivitiesView(GenericAPIView, ListModelMixin):
     """待发布的活动列表(待发布)"""
     serializer_class = ActivitiesSerializer
     queryset = Activity.objects.all()
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
     permission_classes = (SponsorPermission,)
 
     def get(self, request, *args, **kwargs):
@@ -1778,7 +1769,7 @@ class ActivityCollectionsView(GenericAPIView, ListModelMixin):
     serializer_class = ActivitiesSerializer
     queryset = Activity.objects.all()
     permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -1875,7 +1866,7 @@ class MyCountsView(GenericAPIView, ListModelMixin):
     """我的各类计数"""
     queryset = Activity.objects.all()
     permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (authentication.JWTAuthentication,)
+    authentication_classes = (CustomAuthentication,)
 
     def get(self, request, *args, **kwargs):
         user_id = self.request.user.id
