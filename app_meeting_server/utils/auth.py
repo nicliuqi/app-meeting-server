@@ -35,8 +35,8 @@ class CustomAuthentication(authentication.BaseAuthentication):
             return None
 
         validated_token = self.get_validated_token(raw_token)
-
-        return self.get_user(validated_token), validated_token
+        decrypt_token = crypto_gcm.aes_gcm_decrypt(validated_token, settings.AES_GCM_SECRET)
+        return self.get_user(decrypt_token), decrypt_token
 
     def authenticate_header(self, request):
         return '{0} realm="{1}"'.format(
@@ -86,13 +86,6 @@ class CustomAuthentication(authentication.BaseAuthentication):
         wrapper object.
         """
         messages = []
-        try:
-            raw_token = crypto_gcm.aes_gcm_decrypt(raw_token, settings.AES_GCM_SECRET)
-        except (binascii.Error, ValueError):
-            raise InvalidToken({
-                'detail': _('Given token not valid for any token type'),
-                'messages': messages,
-            })
         for AuthToken in api_settings.AUTH_TOKEN_CLASSES:
             try:
                 return AuthToken(raw_token)

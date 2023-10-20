@@ -3,6 +3,7 @@ import base64
 
 encoding_utf8 = 'utf-8'
 
+
 def aes_gcm_encrypt(plaintext, secret, iv_str):
     secret_key = base64.b64decode(secret)
     iv = base64.b64decode(iv_str.encode(encoding_utf8))
