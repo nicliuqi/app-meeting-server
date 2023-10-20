@@ -13,13 +13,16 @@ from django.http import JsonResponse
 
 logger = getLogger("django")
 
-logger_template = "(Client ip:{}, User id:{}, Module:{},Type:{})Desc:{},Result:{}."
+logger_template = "(Client ip:{}, User id:{}, Module:{},Type:{}) Detail:{}--->Result:{}."
 
 
 def is_en(): return settings.LANGUAGE_CODE == 'en-us'
 
 
 class OperationBase:
+    EN_OPERATION = dict()
+    CN_OPERATION = dict()
+
     @classmethod
     def get_name_by_code(cls, code):
         if is_en():
@@ -170,7 +173,6 @@ class OperationLogDesc(OperationBase):
         OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE: "用户（%s）从活动发起人中移除。",
         OP_DESC_USER_AGREEMENT_CODE: "用户（%s）同意隐私声明。",
         OP_DESC_USER_REVOKEAGREEMENT_CODE: "用户（%s）撤销隐私声明。",
-
 
         # meeting
         OP_DESC_MEETING_CREATE_CODE: "创建会议（%s）。",
