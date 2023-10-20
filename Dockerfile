@@ -28,7 +28,9 @@ RUN yum remove -y gcc
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN mkdir -p /work/app-meeting-server/logs
-RUN chmod -R 640 /work/app-meeting-server/
+RUN chmod -R 750 /work/app-meeting-server/
+#RUN chmod -R 550 /work/app-meeting-server/app_meeting_server
+#RUN chmod -R 550 /work/app-meeting-server/docker-entrypoint.sh
 
 # Run server
 ENV LANG=en_US.UTF-8
