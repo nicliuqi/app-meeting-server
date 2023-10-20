@@ -35,8 +35,8 @@ class CustomAuthentication(authentication.BaseAuthentication):
             return None
 
         validated_token = self.get_validated_token(raw_token)
-        decrypt_token = crypto_gcm.aes_gcm_decrypt(validated_token, settings.AES_GCM_SECRET)
-        return self.get_user(decrypt_token), decrypt_token
+        validated_token.payload = crypto_gcm.aes_gcm_decrypt(validated_token.payload, settings.AES_GCM_SECRET)
+        return self.get_user(validated_token), validated_token
 
     def authenticate_header(self, request):
         return '{0} realm="{1}"'.format(
