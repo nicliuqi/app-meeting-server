@@ -103,6 +103,7 @@ class LogoffView(GenericAPIView):
         cur_date = get_cur_date()
         expired_date = cur_date + datetime.timedelta(days=settings.LOGOFF_EXPIRED)
         User.objects.filter(id=user_id).update(is_delete=1, logoff_time=expired_date)
+        refresh_access(self.request.user)
         resp = JsonResponse({
             'code': 201,
             'msg': 'User {} logged off'.format(user_id)
@@ -188,6 +189,7 @@ class UpdateUserInfoView(GenericAPIView, UpdateModelMixin):
             log_context.result = ret
             return ret
 
+    # todo admin用户可以修改其他人包括自己的权限吗？
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
@@ -422,7 +424,7 @@ class CityMembersView(GenericAPIView, ListModelMixin):
         city_id = City.objects.get(name=city_name).id
         cityUsers = CityUser.objects.filter(city_id=city_id)
         ids = [x.user_id for x in cityUsers]
-        user = User.objects.filter(id__in=ids)
+        user = User.objects.filter(id__in=ids, is_delete=0)
         return user
 
 
@@ -516,7 +518,7 @@ class SponsorsAddView(GenericAPIView, CreateModelMixin):
         if not is_validated:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         ids_list = validated_data.get('ids_list')
-        User.objects.filter(id__in=ids_list, activity_level=1).update(activity_level=2)
+        User.objects.filter(id__in=ids_list, activity_level=1, is_delete=0).update(activity_level=2)
         access = refresh_access(self.request.user)
         return JsonResponse({'code': 201, 'msg': '添加成功', 'access': access})
 
@@ -533,7 +535,7 @@ class SponsorsDelView(GenericAPIView, CreateModelMixin):
         ids = self.request.data.get('ids')
         try:
             ids_list = [int(x) for x in ids.split('-')]
-            match_queryset = User.objects.filter(id__in=ids_list, activity_level=2, is_delete=0)
+            match_queryset = User.objects.filter(id__in=ids_list, activity_level=2)
             if len(ids_list) != len(match_queryset):
                 err_msgs.append('Improper parameter: ids')
             else:
@@ -676,6 +678,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         agenda = data.get('agenda')
         record = data.get('record')
         user_id = self.request.user.id
+        # todo 是否需要将refresh_access移到最后
         access = refresh_access(self.request.user)
         group_id = Group.objects.get(name=group_name).id
         # 根据时间判断当前可用host，并选择host

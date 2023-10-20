@@ -7,8 +7,6 @@ if [[ ! $(pwd) == '/work/app-meeting-server' ]]; then
 	cd /work/app-meeting-server
 fi
 
-# collect static
-python3 manage.py collectstatic --noinput
 
 python3 manage.py migrate
 

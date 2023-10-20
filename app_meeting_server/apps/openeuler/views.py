@@ -106,6 +106,7 @@ class LogoffView(GenericAPIView):
         cur_date = get_cur_date()
         expired_date = cur_date + datetime.timedelta(days=settings.LOGOFF_EXPIRED)
         User.objects.filter(id=user_id).update(is_delete=1, logoff_time=expired_date)
+        refresh_access(self.request.user)
         resp = JsonResponse({
             'code': 201,
             'msg': 'User {} logged off'.format(user_id)
@@ -500,7 +501,7 @@ class SponsorDelView(GenericAPIView, CreateModelMixin):
         if not is_validated:
             return JsonResponse({'code': 400, 'msg': 'Bad Request'})
         ids_list = validated_data.get('ids_list')
-        User.objects.filter(id__in=ids_list, activity_level=2, is_delete=0).update(activity_level=1)
+        User.objects.filter(id__in=ids_list, activity_level=2).update(activity_level=1)
         access = refresh_access(self.request.user)
         return JsonResponse({'code': 204, 'msg': '删除成功', 'access': access})
 

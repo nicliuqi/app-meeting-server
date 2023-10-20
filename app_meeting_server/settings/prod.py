@@ -6,6 +6,7 @@ https://docs.djangoproject.com/en/2.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/2.2/ref/settings/
 """
+import ssl
 import time
 import os
 import sys
@@ -195,6 +196,12 @@ DATABASES = {
         'PASSWORD': DEFAULT_CONF.get('DB_PASSWORD'),
         'HOST': DEFAULT_CONF.get('DB_HOST'),
         'PORT': DEFAULT_CONF.get('DB_PORT'),
+        # 'OPTIONS': {
+        #         'ssl': {
+        #             'ssl_version': ssl.PROTOCOL_TLSv1_2,
+        #             'ca': '下载证书路径'
+        #         }
+        # }
     }
 }
 
