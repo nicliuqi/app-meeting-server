@@ -39,7 +39,7 @@ def refresh_access(user):
     access = str(refresh.access_token)
     encrypt_access = crypto_gcm.aes_gcm_encrypt(access, settings.AES_GCM_SECRET, settings.AES_GCM_IV)
     User.objects.filter(id=user.id).update(signature=encrypt_access)
-    return encrypt_access
+    return access
 
 
 # ------------------------------user view------------------------------

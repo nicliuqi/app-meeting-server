@@ -1,4 +1,3 @@
-import binascii
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import HTTP_HEADER_ENCODING, authentication
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken, TokenError
