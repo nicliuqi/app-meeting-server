@@ -3,12 +3,10 @@ import traceback
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
-from app_meeting_server.utils import crypto_gcm
-from app_meeting_server.utils.common import get_uuid
+from app_meeting_server.utils.common import get_uuid, make_signature, encrypt_openid
 from app_meeting_server.utils.wx_apis import get_openid
 from openeuler.models import Collect, Group, User, Meeting, GroupUser, Record, Activity, ActivityCollect
 from django.db import transaction
-from django.conf import settings
 
 logger = logging.getLogger('log')
 
@@ -161,10 +159,10 @@ class LoginSerializer(serializers.ModelSerializer):
                 logger.warning('Failed to get openid.')
                 raise serializers.ValidationError('未获取到openid', code='code_error')
             openid = r['openid']
-            encrypt_openid = crypto_gcm.aes_gcm_encrypt(openid, settings.AES_GCM_SECRET, settings.AES_GCM_IV)
+            encrypt_openid_str = encrypt_openid(openid)
             nickname = res['userInfo']['nickName'] if 'nickName' in res['userInfo'] else ''
             avatar = res['userInfo']['avatarUrl'] if 'avatarUrl' in res['userInfo'] else ''
-            user = User.objects.filter(openid=encrypt_openid).first()
+            user = User.objects.filter(openid=encrypt_openid_str).first()
             if nickname == '微信用户':
                 nickname = get_uuid()
             # 如果user不存在，数据库创建user
@@ -172,9 +170,9 @@ class LoginSerializer(serializers.ModelSerializer):
                 user = User.objects.create(
                     nickname=nickname,
                     avatar=avatar,
-                    openid=encrypt_openid)
+                    openid=encrypt_openid_str)
             else:
-                User.objects.filter(openid=encrypt_openid).update(
+                User.objects.filter(openid=encrypt_openid_str).update(
                     nickname=nickname,
                     avatar=avatar,
                     is_delete=0)
@@ -186,9 +184,9 @@ class LoginSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         refresh = RefreshToken.for_user(instance)
-        data['user_id'] = instance.id
         access = str(refresh.access_token)
-        encrypt_access = crypto_gcm.aes_gcm_encrypt(access, settings.AES_GCM_SECRET, settings.AES_GCM_IV)
+        encrypt_access = make_signature(access)
+        data['user_id'] = instance.id
         data['access'] = access
         data['level'] = instance.level
         data['gitee_name'] = instance.gitee_name

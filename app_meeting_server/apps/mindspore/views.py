@@ -12,8 +12,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, ListModelMixin, RetrieveModelMixin, \
     DestroyModelMixin
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
-from app_meeting_server.utils import wx_apis, crypto_gcm
+from app_meeting_server.utils import wx_apis
 from mindspore.models import Activity, ActivityCollect
 from mindspore.permissions import MaintainerPermission, AdminPermission, QueryPermission, \
     SponsorPermission, ActivityAdminPermission
@@ -28,18 +27,10 @@ from mindspore.send_email import sendmail
 from mindspore.utils.tencent_apis import *
 from mindspore.utils import gene_wx_code, drivers, send_cancel_email
 from app_meeting_server.utils.auth import CustomAuthentication
-from app_meeting_server.utils.common import get_cur_date
-from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType, OperationLogResult
+from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid
+from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType
 
 logger = logging.getLogger('log')
-
-
-def refresh_access(user):
-    refresh = RefreshToken.for_user(user)
-    access = str(refresh.access_token)
-    encrypt_access = crypto_gcm.aes_gcm_encrypt(access, settings.AES_GCM_SECRET, settings.AES_GCM_IV)
-    User.objects.filter(id=user.id).update(signature=encrypt_access)
-    return access
 
 
 # ------------------------------user view------------------------------
@@ -422,8 +413,8 @@ class CityMembersView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         city_name = self.request.GET.get('city')
         city_id = City.objects.get(name=city_name).id
-        cityUsers = CityUser.objects.filter(city_id=city_id)
-        ids = [x.user_id for x in cityUsers]
+        city_users = CityUser.objects.filter(city_id=city_id)
+        ids = [x.user_id for x in city_users]
         user = User.objects.filter(id__in=ids, is_delete=0)
         return user
 
@@ -446,8 +437,8 @@ class NonCityMembersView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         city_name = self.request.GET.get('city')
         city_id = City.objects.get(name=city_name).id
-        cityUsers = CityUser.objects.filter(city_id=city_id)
-        ids = [x.user_id for x in cityUsers]
+        city_users = CityUser.objects.filter(city_id=city_id)
+        ids = [x.user_id for x in city_users]
         user = User.objects.filter(is_delete=0).exclude(id__in=ids)
         return user
 
@@ -751,7 +742,8 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
         mid = self.kwargs.get('mmid')
         if not Meeting.objects.filter(mid=mid, is_delete=0):
             err_msgs.append('Meeting {} is not exist'.format(mid))
-        elif not Meeting.objects.filter(mid=mid, user_id=user_id, is_delete=0) or User.objects.get(id=user_id).level != 3:
+        elif not Meeting.objects.filter(mid=mid, user_id=user_id, is_delete=0) or User.objects.get(
+                id=user_id).level != 3:
             err_msgs.append('User {} has no access to delete meeting {}'.format(user_id, mid))
         if not err_msgs:
             return True
@@ -795,7 +787,7 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
                 user = User.objects.get(id=user_id)
                 nickname = user.nickname
                 encrypt_openid = user.openid
-                openid = crypto_gcm.aes_gcm_decrypt(encrypt_openid, settings.AES_GCM_SECRET)
+                openid = decrypt_openid(encrypt_openid)
                 content = wx_apis.get_remove_template(openid, topic, time, mid)
                 r = wx_apis.send_subscription(content, access_token)
                 if r.status_code != 200:
@@ -1724,7 +1716,8 @@ class WaitingPublishingActivitiesView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        queryset = Activity.objects.filter(is_delete=0, status=2, user_id=self.request.user.id).order_by('-start_date', 'id')
+        queryset = Activity.objects.filter(is_delete=0, status=2, user_id=self.request.user.id).order_by('-start_date',
+                                                                                                         'id')
         return queryset
 
 
@@ -1918,13 +1911,13 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
             date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
             date__lte=(datetime.datetime.now() + datetime.timedelta(days=180)).strftime('%Y-%m-%d'))
         queryset = self.filter_queryset(self.get_queryset()).values()
-        tableData = []
+        table_data = []
         date_list = []
         for query in queryset:
             date_list.append(query.get('date'))
         date_list = sorted(list(set(date_list)))
         for date in date_list:
-            tableData.append(
+            table_data.append(
                 {
                     'date': date,
                     'timeData': [{
@@ -1949,7 +1942,7 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
                         'platform': meeting.mplatform
                     } for meeting in Meeting.objects.filter(is_delete=0, date=date)]
                 })
-        return Response({'tableData': tableData})
+        return Response({'tableData': table_data})
 
 
 class ActivitiesDataView(GenericAPIView, ListModelMixin):
@@ -1961,13 +1954,13 @@ class ActivitiesDataView(GenericAPIView, ListModelMixin):
             start_date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
             start_date__lte=(datetime.datetime.now() + datetime.timedelta(days=180)).strftime('%Y-%m-%d'))
         queryset = self.filter_queryset(self.get_queryset()).values()
-        tableData = []
+        table_data = []
         date_list = []
         for query in queryset:
             date_list.append(query.get('start_date'))
         date_list = sorted(list(set(date_list)))
         for start_date in date_list:
-            tableData.append(
+            table_data.append(
                 {
                     'start_date': start_date,
                     'timeData': [{
@@ -1993,4 +1986,4 @@ class ActivitiesDataView(GenericAPIView, ListModelMixin):
                     } for activity in Activity.objects.filter(is_delete=0, start_date=start_date)]
                 }
             )
-        return Response({'tableData': tableData})
+        return Response({'tableData': table_data})

@@ -5,7 +5,7 @@ from django.db import models
 class User(BaseUser):
     """用户表"""
 
-    USERNAME_FIELD = 'openid'
+    USERNAME_FIELD = 'id'
 
     class Meta:
         db_table = "meetings_user"

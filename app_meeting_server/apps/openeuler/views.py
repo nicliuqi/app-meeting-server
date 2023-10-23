@@ -26,23 +26,14 @@ from multiprocessing import Process
 from openeuler.send_email import sendmail
 from rest_framework import permissions
 from openeuler.utils import gene_wx_code, drivers, send_cancel_email
-from rest_framework_simplejwt.tokens import RefreshToken
 from app_meeting_server.utils.auth import CustomAuthentication
-from app_meeting_server.utils import wx_apis, crypto_gcm
-from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType, OperationLogResult
-from app_meeting_server.utils.common import get_cur_date
+from app_meeting_server.utils import wx_apis
+from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType
+from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid
 
 logger = logging.getLogger('log')
 offline = 1
 online = 2
-
-
-def refresh_access(user):
-    refresh = RefreshToken.for_user(user)
-    access = str(refresh.access_token)
-    encrypt_access = crypto_gcm.aes_gcm_encrypt(access, settings.AES_GCM_SECRET, settings.AES_GCM_IV)
-    User.objects.filter(id=user.id).update(signature=encrypt_access)
-    return access
 
 
 # ------------------------------user view------------------------------
@@ -647,7 +638,7 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
                 user = User.objects.get(id=user_id)
                 nickname = user.nickname
                 encrypt_openid = user.openid
-                openid = crypto_gcm.aes_gcm_decrypt(encrypt_openid, settings.AES_GCM_SECRET)
+                openid = decrypt_openid(encrypt_openid)
                 content = wx_apis.get_remove_template(openid, topic, time, mid)
                 r = wx_apis.send_subscription(content, access_token)
                 if r.status_code != 200:
@@ -675,7 +666,7 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
         queryset = self.filter_queryset(self.get_queryset()).filter(
             date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
             date__lte=(datetime.datetime.now() + datetime.timedelta(days=30)).strftime('%Y-%m-%d')).values()
-        tableData = []
+        table_data = []
         date_list = []
         for query in queryset:
             date_list.append(query.get('date'))
@@ -686,11 +677,11 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
             if record['platform'] == 'bilibili' and record['url']:
                 record_dict[record['mid']] = record['url']
         for date in date_list:
-            timeData = []
+            time_data = []
             for meeting in queryset:
                 if meeting['date'] != date:
                     continue
-                timeData.append({
+                time_data.append({
                     'id': meeting['id'],
                     'group_name': meeting['group_name'],
                     'startTime': meeting['start'],
@@ -705,11 +696,11 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
                     'platform': meeting['mplatform'],
                     'video_url': record_dict.get(meeting['mid'], '')
                 })
-            tableData.append({
+            table_data.append({
                 'date': date,
-                'timeData': timeData
+                'timeData': time_data
             })
-        return Response({'tableData': tableData})
+        return Response({'tableData': table_data})
 
 
 class SigMeetingsDataView(GenericAPIView, ListModelMixin):
@@ -722,7 +713,7 @@ class SigMeetingsDataView(GenericAPIView, ListModelMixin):
         queryset = self.filter_queryset(self.get_queryset()).filter(group_name=group_name).filter((Q(
             date__gte=str(datetime.datetime.now() - datetime.timedelta(days=180))[:10]) & Q(
             date__lte=str(datetime.datetime.now() + datetime.timedelta(days=30))[:10]))).values()
-        tableData = []
+        table_data = []
         date_list = []
         for query in queryset:
             date_list.append(query.get('date'))
@@ -733,11 +724,11 @@ class SigMeetingsDataView(GenericAPIView, ListModelMixin):
             if record['platform'] == 'bilibili' and record['url']:
                 record_dict[record['mid']] = record['url']
         for date in date_list:
-            timeData = []
+            time_data = []
             for meeting in queryset:
                 if meeting['date'] != date:
                     continue
-                timeData.append({
+                time_data.append({
                     'id': meeting['id'],
                     'group_name': meeting['group_name'],
                     'startTime': meeting['start'],
@@ -752,11 +743,11 @@ class SigMeetingsDataView(GenericAPIView, ListModelMixin):
                     'platform': meeting['mplatform'],
                     'video_url': record_dict.get(meeting['mid'], '')
                 })
-            tableData.append({
+            table_data.append({
                 'date': date,
-                'timeData': timeData
+                'timeData': time_data
             })
-        return Response({'tableData': tableData})
+        return Response({'tableData': table_data})
 
 
 class MeetingsView(GenericAPIView, CreateModelMixin):
@@ -2128,13 +2119,13 @@ class ActivitiesDataView(GenericAPIView, ListModelMixin):
             date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
             date__lte=(datetime.datetime.now() + datetime.timedelta(days=180)).strftime('%Y-%m-%d'))
         queryset = self.filter_queryset(self.get_queryset()).values()
-        tableData = []
+        table_data = []
         date_list = []
         for query in queryset:
             date_list.append(query.get('date'))
         date_list = sorted(list(set(date_list)))
         for date in date_list:
-            tableData.append(
+            table_data.append(
                 {
                     'start_date': date,
                     'timeData': [{
@@ -2157,4 +2148,4 @@ class ActivitiesDataView(GenericAPIView, ListModelMixin):
                     } for activity in Activity.objects.filter(is_delete=0, date=date)]
                 }
             )
-        return Response({'tableData': tableData})
+        return Response({'tableData': table_data})

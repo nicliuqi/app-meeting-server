@@ -3,16 +3,18 @@
 # @Author  : Tom_zc
 # @FileName: common.py
 # @Software: PyCharm
-import pytz
 import uuid
 from contextlib import suppress
 from datetime import datetime
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
+from django.conf import settings
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from app_meeting_server.utils import crypto_gcm
 
 
 def get_cur_date():
-    # tzinfo = pytz.timezone('Asia/Shanghai')
-    # cur_date = datetime.now(tz=tzinfo)
     cur_date = datetime.now()
     return cur_date
 
@@ -31,3 +33,25 @@ def get_uuid():
         with suppress(ValueError):
             check_unique(uid)
         return 'USER_{}'.format(res)
+
+
+def make_signature(access_token):
+    signature = make_password(access_token, settings.SECRET_KEY)
+    return signature
+
+
+def refresh_access(user):
+    refresh = RefreshToken.for_user(user)
+    access = str(refresh.access_token)
+    encrypt_access = make_signature(access)
+    user_model = get_user_model()
+    user_model.objects.filter(id=user.id).update(signature=encrypt_access)
+    return access
+
+
+def encrypt_openid(encrypt_openid):
+    return crypto_gcm.aes_gcm_encrypt(encrypt_openid, settings.AES_GCM_SECRET, settings.AES_GCM_IV)
+
+
+def decrypt_openid(decrypt_openid):
+    return crypto_gcm.aes_gcm_decrypt(decrypt_openid, settings.AES_GCM_SECRET)

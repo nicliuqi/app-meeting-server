@@ -1,6 +1,8 @@
 import datetime
 import logging
 from django.core.management import BaseCommand
+
+from app_meeting_server.utils.common import decrypt_openid
 from openeuler.models import Collect, Meeting, User
 from app_meeting_server.utils import wx_apis, crypto_gcm
 from django.conf import settings
@@ -45,7 +47,7 @@ def send_subscribe_msg():
         if not len(send_to_list):
             logger.info('the meeting {} had not been added to Favorites'.format(mid))
         for encrypt_openid in send_to_list:
-            openid = crypto_gcm.aes_gcm_decrypt(encrypt_openid, settings.AES_GCM_SECRET)
+            openid = decrypt_openid(encrypt_openid)
             # 获取模板
             content = wx_apis.get_start_template(openid, meeting_id, topic, time)
             # 发送订阅消息

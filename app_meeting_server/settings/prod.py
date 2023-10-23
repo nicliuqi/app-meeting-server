@@ -51,7 +51,6 @@ INSTALLED_APPS = [
     DEFAULT_CONF["APP"],
     'rest_framework',
     'corsheaders',
-    'rest_framework.authtoken',
     'django_filters'
 ]
 
@@ -92,16 +91,13 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware'
 ]
 
 ROOT_URLCONF = 'app_meeting_server.urls'
 
 # common config
 ACCESS_KEY_ID = DEFAULT_CONF.get('ACCESS_KEY_ID')
-AES_GCM_SECRET = DEFAULT_CONF.get('AES_GCM_SECRET')
-AES_GCM_IV = DEFAULT_CONF.get('AES_GCM_IV')
 ETHERPAD_PREFIX = DEFAULT_CONF.get('ETHERPAD_PREFIX')
 FOR_OPENEULER = DEFAULT_CONF.get('FOR_OPENEULER')
 FOR_OPENGAUSS = DEFAULT_CONF.get('FOR_OPENGAUSS')
@@ -131,9 +127,13 @@ WELINK_HOSTS = {
 }
 
 if FOR_OPENEULER or FOR_MINDSPORE:
+    AES_GCM_SECRET = DEFAULT_CONF.get('AES_GCM_SECRET')
+    AES_GCM_IV = DEFAULT_CONF.get('AES_GCM_IV')
+    SIGNATURE_SECRET = DEFAULT_CONF.get('SIGNATURE_SECRET')
+
     REST_FRAMEWORK = {
         'DEFAULT_AUTHENTICATION_CLASSES': (
-            'rest_framework_simplejwt.authentication.JWTAuthentication',
+            'app_meeting_server.utils.auth.CustomAuthentication',
         )
     }
 
