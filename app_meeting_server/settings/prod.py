@@ -18,15 +18,18 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE_DIR, "apps"))
 
 CONFIG_PATH = os.getenv('CONFIG_PATH')
-XARMOR_CONF = os.getenv('XARMOR_CONF')
-if not os.path.exists(CONFIG_PATH):
-    sys.exit()
+MYSQL_TLS_PEM_PATH = os.getenv('MYSQL_TLS_PEM_PATH')
+
+sys.exit() if not os.path.exists(CONFIG_PATH) else print("Get config path successfully")
+sys.exit() if not os.path.exists(MYSQL_TLS_PEM_PATH) else print("Get mysql tls pem path successfully")
+
 DEFAULT_CONF = yaml.safe_load(open(CONFIG_PATH, 'r'))
-is_delete_config = sys.argv[0] == 'uwsgi' or (len(sys.argv) >= 3 and sys.argv[2] not in ["collectstatic", "migrate"])
+MYSQL_TLS_PEM_CONTENT = open(MYSQL_TLS_PEM_PATH, 'r')
+
+is_delete_config = sys.argv[0] == 'uwsgi' or (len(sys.argv) >= 3 and sys.argv[2] not in ["makemigrations", "migrate"])
 if is_delete_config:
     os.remove(CONFIG_PATH)
-if is_delete_config and (XARMOR_CONF and os.path.basename(XARMOR_CONF) in os.listdir()):
-    os.remove(os.path.basename(XARMOR_CONF))
+    os.remove(MYSQL_TLS_PEM_PATH)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
@@ -190,12 +193,12 @@ DATABASES = {
         'PASSWORD': DEFAULT_CONF.get('DB_PASSWORD'),
         'HOST': DEFAULT_CONF.get('DB_HOST'),
         'PORT': DEFAULT_CONF.get('DB_PORT'),
-        # 'OPTIONS': {
-        #         'ssl': {
-        #             'ssl_version': ssl.PROTOCOL_TLSv1_2,
-        #             'ca': '下载证书路径'
-        #         }
-        # }
+        'OPTIONS': {
+                'ssl': {
+                    'ssl_version': ssl.PROTOCOL_TLSv1_2,
+                    'key': MYSQL_TLS_PEM_CONTENT
+                }
+        }
     }
 }
 
@@ -291,12 +294,12 @@ LOGGING = {
     },
     'loggers': {
         'django': {
-            'handlers': ['default', 'console'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': True
         },
         'log': {
-            'handlers': ['error', 'info', 'console', 'default'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': True
         },
@@ -304,7 +307,7 @@ LOGGING = {
 }
 
 # logoff expired and clean personal data
-LOGOFF_EXPIRED = 3 * 60
+LOGOFF_EXPIRED = 6 * 30
 
 if FOR_OPENEULER:
     ACCESS_KEY_ID_2 = DEFAULT_CONF.get('ACCESS_KEY_ID_2')
