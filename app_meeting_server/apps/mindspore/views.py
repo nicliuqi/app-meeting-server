@@ -859,7 +859,7 @@ class CollectMeetingView(GenericAPIView, CreateModelMixin):
         validated_data = {}
         user_id = self.request.user.id
         meeting_id = self.request.data.get('meeting')
-        if Meeting.objects.filter(mid=meeting_id, is_delete=0).count() == 0:
+        if Meeting.objects.filter(id=meeting_id, is_delete=0).count() == 0:
             err_msgs.append('Meeting {} is not exist'.format(meeting_id))
         elif Collect.objects.filter(meeting_id=meeting_id, user_id=user_id):
             err_msgs.append('User {} had collected meeting {}'.format(user_id, meeting_id))

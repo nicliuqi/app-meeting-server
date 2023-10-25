@@ -12,7 +12,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import ListModelMixin, CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, \
     UpdateModelMixin
 
-from app_meeting_server.utils.check_params import check_email_list
+from app_meeting_server.utils.check_params import check_email_list, check_duration
 from openeuler.models import User, Group, Meeting, GroupUser, Collect, Video, Record, \
     Activity, ActivityCollect
 from openeuler.permissions import MaintainerPermission, AdminPermission, \
@@ -991,7 +991,7 @@ class CollectView(GenericAPIView, ListModelMixin, CreateModelMixin):
         validated_data = {}
         user_id = self.request.user.id
         meeting_id = self.request.data.get('meeting')
-        if Meeting.objects.filter(mid=meeting_id, is_delete=0).count() == 0:
+        if Meeting.objects.filter(id=meeting_id, is_delete=0).count() == 0:
             err_msgs.append('Meeting {} is not exist'.format(meeting_id))
         elif Collect.objects.filter(meeting_id=meeting_id, user_id=user_id):
             err_msgs.append('User {} had collected meeting {}'.format(user_id, meeting_id))
@@ -1157,18 +1157,14 @@ class ActivityView(GenericAPIView, CreateModelMixin):
         start = data.get('start')
         end = data.get('end')
         schedules = data.get('schedules')
+        # todo 1.没有校验的参数有：synopsis， address, detail_address, longitude, latitude, schedules
         try:
             if date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
                 err_msgs.append('The start date should be earlier than tomorrow')
-            start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
-            end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
-            # todo 1.没有校验的参数有：synopsis， address, detail_address, longitude, latitude, schedules
-            if start_time <= now_time:
-                err_msgs.append('The start time should not be later than the current time')
-            if (start_time - now_time).days > 60:
-                err_msgs.append('The start time is at most 60 days later than the current time')
-            if start_time >= end_time:
-                err_msgs.append('The start time should not be later than the end time')
+            if activity_type == online:
+                err_msg = check_duration(start, end, date, now_time)
+                if err_msg:
+                    err_msgs.extend(err_msg)
         except ValueError:
             err_msgs.append('Invalid datetime params')
         if not title:
@@ -1526,12 +1522,9 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
             if date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
                 err_msgs.append('The start date should be earlier than tomorrow')
             if activity_type == online:
-                start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
-                end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
-                if start_time <= now_time:
-                    err_msgs.append('The start time should not be later than the current time')
-                if start_time >= end_time:
-                    err_msgs.append('The start time should not be later than the end time')
+                err_msg = check_duration(start, end, date, now_time)
+                if err_msg:
+                    err_msgs.extend(err_msg)
         except ValueError:
             err_msgs.append('Invalid datetime params')
         if not title:
@@ -1702,12 +1695,10 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
         try:
             if date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
                 err_msgs.append('The start date should be earlier than tomorrow')
-            start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
-            end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
-            if start_time <= now_time:
-                err_msgs.append('The start time should not be later than the current time')
-            if start_time >= end_time:
-                err_msgs.append('The start time should not be later than the end time')
+            if activity_type == online:
+                err_msg = check_duration(start, end, date, now_time)
+                if err_msg:
+                    err_msgs.extend(err_msg)
         except ValueError:
             err_msgs.append('Invalid datetime params')
         if not title:
@@ -1827,12 +1818,10 @@ class DraftPublishView(GenericAPIView, UpdateModelMixin):
         try:
             if date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
                 err_msgs.append('The start date should be earlier than tomorrow')
-            start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
-            end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
-            if start_time <= now_time:
-                err_msgs.append('The start time should not be later than the current time')
-            if start_time >= end_time:
-                err_msgs.append('The start time should not be later than the end time')
+            if activity_type == online:
+                err_msg = check_duration(start, end, date, now_time)
+                if err_msg:
+                    err_msgs.extend(err_msg)
         except ValueError:
             err_msgs.append('Invalid datetime params')
         if not title:
