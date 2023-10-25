@@ -1,8 +1,8 @@
 import datetime
 import logging
 import json
-import random
 import requests
+import secrets
 from django.conf import settings
 from obs import ObsClient
 
@@ -16,7 +16,7 @@ def createMeeting(date, start, end, topic, host, record):
         '%Y-%m-%dT%H:%M:%SZ')
     duration = int((datetime.datetime.strptime(end_time, '%Y-%m-%dT%H:%M:%SZ') -
                     datetime.datetime.strptime(start_time, '%Y-%m-%dT%H:%M:%SZ')).seconds / 60)
-    password = str(random.randint(100000, 999999))
+    meeting_pwd = secrets.token_hex(3)
     token = getOauthToken()
     headers = {
         "content-type": "application/json",
@@ -26,7 +26,7 @@ def createMeeting(date, start, end, topic, host, record):
         'start_time': start_time,
         'duration': duration,
         'topic': topic,
-        'password': password,
+        'password': meeting_pwd,
         'settings': {
             'waiting_room': False,
             'auto_recording': record,

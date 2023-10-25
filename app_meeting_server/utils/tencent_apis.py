@@ -3,9 +3,9 @@ import hashlib
 import hmac
 import json
 import logging
-import random
 import requests
 import time
+import secrets
 from django.conf import settings
 
 logger = logging.getLogger('log')
@@ -18,7 +18,7 @@ def get_signature(method, uri, body):
     secretKey = settings.TX_MEETING_SECRETKEY
     secretId = settings.TX_MEETING_SECRETID
     timestamp = str(int(time.time()))
-    nonce = str(int(random.randint(0, 1000000)))
+    nonce = secrets.token_hex(3)
     headers = {
         "X-TC-Key": secretId,
         "X-TC-Nonce": nonce,
@@ -101,7 +101,7 @@ def createMeeting(date, start, end, topic, host_id, record):
         'host_id': host_id
     }
     if r.status_code != 200:
-        logger.error('Fail to create meeting, status_code is {}'.format(r.status_code))
+        logger.error('Fail to create meeting, status_code is {}, r:{}, payload:{}'.format(r.status_code, r.content, payload))
         return r.status_code, resp_dict
     resp_dict['mid'] = r.json()['meeting_info_list'][0]['meeting_code']
     resp_dict['mmid'] = r.json()['meeting_info_list'][0]['meeting_id']

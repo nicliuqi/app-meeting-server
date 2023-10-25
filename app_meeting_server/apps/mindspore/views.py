@@ -859,7 +859,7 @@ class CollectMeetingView(GenericAPIView, CreateModelMixin):
         validated_data = {}
         user_id = self.request.user.id
         meeting_id = self.request.data.get('meeting')
-        if not Meeting.objects.filter(mid=meeting_id, is_delete=0):
+        if Meeting.objects.filter(mid=meeting_id, is_delete=0).count() == 0:
             err_msgs.append('Meeting {} is not exist'.format(meeting_id))
         elif Collect.objects.filter(meeting_id=meeting_id, user_id=user_id):
             err_msgs.append('User {} had collected meeting {}'.format(user_id, meeting_id))
@@ -886,8 +886,8 @@ class CollectMeetingView(GenericAPIView, CreateModelMixin):
             return JsonResponse({'code': 400, 'Request': 'Bad Request'})
         user_id = self.request.user.id
         meeting_id = validated_data.get('meeting')
-        Collect.objects.create(meeting_id=meeting_id, user_id=user_id)
-        collection_id = Collect.objects.get(meeting_id=meeting_id, user_id=user_id).id
+        user_collect = Collect.objects.create(meeting_id=meeting_id, user_id=user_id)
+        collection_id = user_collect.id
         access = refresh_access(self.request.user)
         return JsonResponse({'code': 201, 'msg': '收藏成功', 'collection_id': collection_id, 'access': access})
 

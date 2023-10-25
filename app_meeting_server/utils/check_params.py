@@ -12,7 +12,7 @@ def check_email_list(email_list_str):
     if len(email_list_str) > 600:
         msg = "The length of email_list is gt 600"
         err_msgs.append(msg)
-    email_list = email_list_str.split(",")
+    email_list = email_list_str.split(";")
     for email in email_list:
         if len(email) > 30:
             msg = "The length of email is gt 30"

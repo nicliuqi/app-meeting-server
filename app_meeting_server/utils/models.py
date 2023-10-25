@@ -98,7 +98,6 @@ class BaseMeeting(models.Model):
     host_id = models.EmailField(verbose_name='host_id', null=True, blank=True)
     mid = models.CharField(verbose_name='会议id', max_length=20)
     mmid = models.CharField(verbose_name='腾讯会议id', max_length=20, null=True, blank=True)
-    password = models.CharField(verbose_name='密码', max_length=128, null=True, blank=True)
     join_url = models.CharField(verbose_name='进入会议url', max_length=128, null=True, blank=True)
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True, null=True, blank=True)
     is_delete = models.SmallIntegerField(verbose_name='是否删除', choices=((0, '否'), (1, '是')), default=0)

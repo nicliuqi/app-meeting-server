@@ -991,7 +991,7 @@ class CollectView(GenericAPIView, ListModelMixin, CreateModelMixin):
         validated_data = {}
         user_id = self.request.user.id
         meeting_id = self.request.data.get('meeting')
-        if not Meeting.objects.filter(mid=meeting_id, is_delete=0):
+        if Meeting.objects.filter(mid=meeting_id, is_delete=0).count() == 0:
             err_msgs.append('Meeting {} is not exist'.format(meeting_id))
         elif Collect.objects.filter(meeting_id=meeting_id, user_id=user_id):
             err_msgs.append('User {} had collected meeting {}'.format(user_id, meeting_id))
@@ -999,7 +999,7 @@ class CollectView(GenericAPIView, ListModelMixin, CreateModelMixin):
             validated_data['meeting_id'] = meeting_id
         if not err_msgs:
             return True, validated_data
-        logger.error('[CollectView] Fail to validate when creating meetings, the error messages are {}'.format(
+        logger.error('[CollectView] Fail to validate when collect meetings, the error messages are {}'.format(
             ','.join(err_msgs)))
         return False, None
 
@@ -1018,8 +1018,8 @@ class CollectView(GenericAPIView, ListModelMixin, CreateModelMixin):
             return JsonResponse({'code': 400, 'Request': 'Bad Request'})
         user_id = self.request.user.id
         meeting_id = validated_data.get('meeting_id')
-        Collect.objects.create(meeting_id=meeting_id, user_id=user_id)
-        collection_id = Collect.objects.get(meeting_id=meeting_id, user_id=user_id).id
+        user_collect = Collect.objects.create(meeting_id=meeting_id, user_id=user_id)
+        collection_id = user_collect.id
         access = refresh_access(self.request.user)
         resp = {'code': 201, 'msg': 'collect successfully', 'collection_id': collection_id, 'access': access}
         return JsonResponse(resp)
@@ -1525,12 +1525,13 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
         try:
             if date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
                 err_msgs.append('The start date should be earlier than tomorrow')
-            start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
-            end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
-            if start_time <= now_time:
-                err_msgs.append('The start time should not be later than the current time')
-            if start_time >= end_time:
-                err_msgs.append('The start time should not be later than the end time')
+            if activity_type == online:
+                start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
+                end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
+                if start_time <= now_time:
+                    err_msgs.append('The start time should not be later than the current time')
+                if start_time >= end_time:
+                    err_msgs.append('The start time should not be later than the end time')
         except ValueError:
             err_msgs.append('Invalid datetime params')
         if not title:
