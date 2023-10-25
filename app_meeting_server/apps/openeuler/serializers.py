@@ -26,8 +26,9 @@ class GroupUserAddSerializer(ModelSerializer):
 
     def validate_ids(self, value):
         try:
-            # todo list_ids的长度需要判断
             list_ids = value.split('-')
+            if len(list_ids) > 50:
+                raise Exception("The max len of list_ids gt 50")
         except Exception as e:
             logger.error('Invalid input.The ids should be like "1-2-3".')
             logger.error(e)

@@ -4,6 +4,8 @@
 # @FileName: common.py
 # @Software: PyCharm
 import uuid
+import tempfile
+import os
 from contextlib import suppress
 from datetime import datetime
 from django.contrib.auth import get_user_model
@@ -12,6 +14,7 @@ from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from app_meeting_server.utils import crypto_gcm
+from app_meeting_server.utils.file_stream import write_content
 
 
 def get_cur_date():
@@ -55,3 +58,10 @@ def encrypt_openid(encrypt_openid):
 
 def decrypt_openid(decrypt_openid):
     return crypto_gcm.aes_gcm_decrypt(decrypt_openid, settings.AES_GCM_SECRET)
+
+
+def save_temp_img(content):
+    tmpdir = tempfile.gettempdir()
+    tmp_file = os.path.join(tmpdir, 'tmp.jpeg')
+    write_content(tmp_file, content, 'wb')
+    return tmp_file

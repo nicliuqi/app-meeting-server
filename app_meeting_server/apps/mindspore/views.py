@@ -29,6 +29,7 @@ from mindspore.utils import gene_wx_code, drivers, send_cancel_email
 from app_meeting_server.utils.auth import CustomAuthentication
 from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType
+from app_meeting_server.utils.check_params import check_email_list
 
 logger = logging.getLogger('log')
 
@@ -597,7 +598,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
             end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
             if start_time <= now_time:
                 err_msgs.append('The start time should not be later than the current time')
-            elif (start_time - now_time).days > 60:
+            if (start_time - now_time).days > 60:
                 err_msgs.append('The start time is at most 60 days later than the current time')
             if start_time >= end_time:
                 err_msgs.append('The start time should not be later than the end time')
@@ -613,8 +614,9 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
             err_msgs.append('Invalid etherpad address')
         if community != settings.COMMUNITY.lower():
             err_msgs.append('The field community must be the same as configure')
-        if len(emaillist) > 100:
-            emaillist = emaillist[:100]
+        err_msg_list = check_email_list(emaillist)
+        if err_msg_list:
+            err_msgs.extend(err_msg_list)
         if err_msgs:
             logger.error('[CreateMeetingView] Fail to validate when creating meetings, the error messages are {}'.
                          format(','.join(err_msgs)))
@@ -669,8 +671,6 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         agenda = data.get('agenda')
         record = data.get('record')
         user_id = self.request.user.id
-        # todo 是否需要将refresh_access移到最后
-        access = refresh_access(self.request.user)
         group_id = Group.objects.get(name=group_name).id
         # 根据时间判断当前可用host，并选择host
         start_search = datetime.datetime.strftime(
@@ -684,6 +684,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         unavailable_host_ids = [meeting['host_id'] for meeting in meetings]
         available_host_id = list(set(host_list) - set(unavailable_host_ids))
         logger.info('avilable_host_id: {}'.format(available_host_id))
+        access = refresh_access(self.request.user)
         if len(available_host_id) == 0:
             logger.warning('暂无可用host')
             return JsonResponse({'code': 1000, 'message': '时间冲突，请调整时间预定会议！', 'access': access})

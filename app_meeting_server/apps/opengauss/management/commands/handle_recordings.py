@@ -16,6 +16,8 @@ from app_meeting_server.utils.welink_apis import listRecordings, downloadHWCloud
 from opengauss.utils.welink_apis import getParticipants
 from app_meeting_server.utils.zoom_apis import getOauthToken
 from app_meeting_server.utils import zoom_apis
+from app_meeting_server.utils.file_stream import write_content
+
 
 logger = logging.getLogger('log')
 
@@ -112,10 +114,7 @@ def generate_cover(mid, topic, group_name, date, filename, start_time, end_time)
     html_path = filename.replace('.mp4', '.html')
     image_path = filename.replace('.mp4', '.png')
     content = cover_content(topic, group_name, date, start_time, end_time)
-    flags = os.O_CREAT | os.O_WRONLY
-    modes = stat.S_IWUSR
-    with os.fdopen(os.open(html_path, flags, modes), 'w') as f:
-        f.write(content)
+    write_content(html_path, content, 'w')
     os.system("cp app-meeting-server/static/opengauss/images/cover.png {}".format(os.path.dirname(filename)))
     os.system("wkhtmltoimage --enable-local-file-access {} {}".format(html_path, image_path))
     logger.info("meeting {}: 生成封面".format(mid))

@@ -55,14 +55,14 @@ class Command(BaseCommand):
             owner_file = 'community/sig/{}/OWNERS'.format(sig[0])
             if os.path.exists(owner_file):
                 with open('community/sig/{}/OWNERS'.format(sig[0]), 'r') as f:
-                    user_infos = yaml.load(f.read(), Loader=yaml.Loader)['maintainers']
+                    user_infos = yaml.safe_load(f.read())['maintainers']
             else:
                 sig_info_file = 'community/sig/{}/sig-info.yaml'.format(sig[0])
                 if not os.path.exists(sig_info_file):
                     self.logger.error('sig-info.yaml is required when OWNERS file does not exist.')
                     sys.exit(1)
                 with open(sig_info_file, 'r') as f:
-                    sig_info = yaml.load(f.read(), Loader=yaml.Loader)
+                    sig_info = yaml.safe_load(f.read())
                     user_infos = [maintainer['gitee_id'] for maintainer in sig_info['maintainers']]
             for maintainer in user_infos:
                 maintainers.append(maintainer)
@@ -84,7 +84,8 @@ class Command(BaseCommand):
             # 获取邮件列表
             r = requests.get(sig[1])
             html = HTML(r.text)
-            assert isinstance(html, lxml.etree._Element)
+            if not isinstance(html, lxml.etree._Element):
+                raise RuntimeError("get the html failed")
             try:
                 maillist = html.xpath('//li[contains(text(), "邮件列表")]/a/@href')[0].rstrip('/').split('/')[-1].\
                     replace('mailto:', '')
@@ -126,7 +127,7 @@ class Command(BaseCommand):
             owner_file = 'community/sig/{}/OWNERS'.format(sig[0])
             if os.path.exists(owner_file):
                 with open('community/sig/{}/OWNERS'.format(sig[0]), 'r') as f:
-                    user_infos = yaml.load(f.read(), Loader=yaml.Loader)['maintainers']
+                    user_infos = yaml.safe_load(f.read())['maintainers']
                 for maintainer in user_infos:
                     maintainers.append(maintainer)
             else:
@@ -135,7 +136,7 @@ class Command(BaseCommand):
                     self.logger.error('sig-info.yaml is required when OWNERS file does not exist.')
                     sys.exit(1)
                 with open(sig_info_file, 'r') as f:
-                    sig_info = yaml.load(f.read(), Loader=yaml.Loader)
+                    sig_info = yaml.safe_load(f.read())
                     maintainers = [maintainer['gitee_id'] for maintainer in sig_info['maintainers']]
             maintainer_dict[sig[0]] = maintainers
             owners = []
@@ -161,7 +162,7 @@ class Command(BaseCommand):
             description = None
             if 'sig-info.yaml' in os.listdir('community/sig/{}'.format(sig[0])):
                 with open('community/sig/{}/sig-info.yaml'.format(sig[0]), 'r') as f:
-                    sig_info = yaml.load(f.read(), Loader=yaml.Loader)
+                    sig_info = yaml.safe_load(f.read())
                     if 'description' in sig_info.keys():
                         description = sig_info['description']
             sig.append(description)

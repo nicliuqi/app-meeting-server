@@ -33,11 +33,6 @@ def sendmail(mid, record=None):
     start_time = ' '.join([date, start])
     toaddrs = toaddrs.replace(' ', '').replace('，', ',').replace(';', ',').replace('；', ',')
     toaddrs_list = toaddrs.split(',')
-    error_addrs = []
-    for addr in toaddrs_list:
-        if not re.match(r'^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$', addr):
-            error_addrs.append(addr)
-            toaddrs_list.remove(addr)
     toaddrs_string = ','.join(toaddrs_list)
 
     # 构造邮件
@@ -138,7 +133,6 @@ def sendmail(mid, record=None):
         server.login(settings.SMTP_SERVER_USER, settings.SMTP_SERVER_PASS)
         server.sendmail(sender, toaddrs_list, msg.as_string())
         logger.info('email string: {}'.format(toaddrs))
-        logger.info('error addrs: {}'.format(error_addrs))
         logger.info('email sent: {}'.format(toaddrs_string))
         server.quit()
     except smtplib.SMTPException as e:

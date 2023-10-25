@@ -17,6 +17,7 @@ from rest_framework.mixins import ListModelMixin, CreateModelMixin, UpdateModelM
 from multiprocessing import Process
 from rest_framework.response import Response
 from app_meeting_server.utils import crypto_gcm
+from app_meeting_server.utils.check_params import check_email_list
 from opengauss.send_email import sendmail
 from opengauss.models import Meeting, Video, User, Group, Record
 from opengauss.serializers import MeetingsSerializer, MeetingUpdateSerializer, MeetingDeleteSerializer, \
@@ -262,8 +263,9 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
             err_msgs.append('Invalid etherpad address')
         if community != settings.COMMUNITY.lower():
             err_msgs.append('The field community must be the same as configure')
-        if len(emaillist) > 100:
-            emaillist = emaillist[:100]
+        err_msg_list = check_email_list(emaillist)
+        if err_msg_list:
+            err_msgs.extend(err_msg_list)
         if err_msgs:
             logger.error('[CreateMeetingView] Fail to validate when creating meetings, the error messages are {}'.
                          format(','.join(err_msgs)))

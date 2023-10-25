@@ -11,6 +11,8 @@ from rest_framework.filters import SearchFilter
 from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import ListModelMixin, CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, \
     UpdateModelMixin
+
+from app_meeting_server.utils.check_params import check_email_list
 from openeuler.models import User, Group, Meeting, GroupUser, Collect, Video, Record, \
     Activity, ActivityCollect
 from openeuler.permissions import MaintainerPermission, AdminPermission, \
@@ -797,9 +799,10 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
             err_msgs.append('Invalid etherpad address')
         if community != settings.COMMUNITY.lower():
             err_msgs.append('The field community must be the same as configure')
-        # todo 1.emaillist这里直接取，还是判断参数错误？  2.没有判断的参数有：sponsor, summary, record
-        if len(emaillist) > 100:
-            emaillist = emaillist[:100]
+        # todo 1.没有判断的参数有：sponsor, summary, record
+        err_msg_list = check_email_list(emaillist)
+        if err_msg_list:
+            err_msgs.extend(err_msg_list)
         if err_msgs:
             logger.error('[MeetingsView] Fail to validate when creating meetings, the error messages are {}'.format(
                 ','.join(err_msgs)))
