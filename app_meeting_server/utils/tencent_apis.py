@@ -5,7 +5,7 @@ import json
 import logging
 import requests
 import time
-import secrets
+import random
 from django.conf import settings
 
 logger = logging.getLogger('log')
@@ -18,7 +18,7 @@ def get_signature(method, uri, body):
     secretKey = settings.TX_MEETING_SECRETKEY
     secretId = settings.TX_MEETING_SECRETID
     timestamp = str(int(time.time()))
-    nonce = secrets.token_hex(3)
+    nonce = str(int(random.randint(0, 1000000)))
     headers = {
         "X-TC-Key": secretId,
         "X-TC-Nonce": nonce,

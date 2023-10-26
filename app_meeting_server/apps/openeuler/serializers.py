@@ -3,8 +3,11 @@ import traceback
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from app_meeting_server.utils.check_params import check_group_id, check_user_ids
 from app_meeting_server.utils.common import get_uuid, make_signature, encrypt_openid
 from app_meeting_server.utils.wx_apis import get_openid
+from app_meeting_server.utils.ret_api import MyValidationError
 from openeuler.models import Collect, Group, User, Meeting, GroupUser, Record, Activity, ActivityCollect
 from django.db import transaction
 
@@ -20,20 +23,10 @@ class GroupUserAddSerializer(ModelSerializer):
         fields = ['group_id', 'ids']
 
     def validate_group_id(self, value):
-        if not Group.objects.filter(id=value):
-            raise serializers.ValidationError('Invalid group id')
-        return value
+        return check_group_id(Group, value)
 
     def validate_ids(self, value):
-        try:
-            list_ids = value.split('-')
-            if len(list_ids) > 50:
-                raise Exception("The max len of list_ids gt 50")
-        except Exception as e:
-            logger.error('Invalid input.The ids should be like "1-2-3".')
-            logger.error(e)
-            raise serializers.ValidationError('输入格式有误！', code='code_error')
-        return list_ids
+        return check_user_ids(value)
 
     def create(self, validated_data):
         users = User.objects.filter(id__in=validated_data['ids'], is_delete=0)
@@ -47,14 +40,14 @@ class GroupUserAddSerializer(ModelSerializer):
                     result_list.append(groupuser)
             return result_list
         except Exception as e:
-            logger.error('Failed to add maintainers to the group.')
-            logger.error(e)
-            raise serializers.ValidationError('创建失败！', code='code_error')
+            msg = 'Failed to add maintainers to the group'
+            logger.error("msg:{}, err:{}".format(msg, e))
+            raise MyValidationError(msg)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['code'] = 201
-        data['msg'] = u'添加成功'
+        data['msg'] = 'Success to add maintainers to the group'
         return data
 
 
@@ -66,14 +59,11 @@ class GroupUserDelSerializer(ModelSerializer):
         model = GroupUser
         fields = ['group_id', 'ids']
 
+    def validate_group_id(self, value):
+        return check_group_id(Group, value)
+
     def validate_ids(self, value):
-        try:
-            list_ids = value.split('-')
-        except Exception as e:
-            logger.error('Invalid input.The ids should be like "1-2-3".')
-            logger.error(e)
-            raise serializers.ValidationError('输入格式有误！', code='code_error')
-        return list_ids
+        return check_user_ids(value)
 
 
 class GroupsSerializer(ModelSerializer):
@@ -154,11 +144,11 @@ class LoginSerializer(serializers.ModelSerializer):
             code = res['code']
             if not code:
                 logger.warning('Login without jscode.')
-                raise serializers.ValidationError('需要code', code='code_error')
+                raise MyValidationError('Failed to get code')
             r = get_openid(code)
             if not r.get('openid'):
                 logger.warning('Failed to get openid.')
-                raise serializers.ValidationError('未获取到openid', code='code_error')
+                raise MyValidationError('Failed to get openid')
             openid = r['openid']
             encrypt_openid_str = encrypt_openid(openid)
             nickname = res['userInfo']['nickName'] if 'nickName' in res['userInfo'] else ''
@@ -180,7 +170,7 @@ class LoginSerializer(serializers.ModelSerializer):
             return user
         except Exception as e:
             logger.error("e:{}, traceback:{}".format(e, traceback.format_exc()))
-            raise serializers.ValidationError('非法参数', code='code_error')
+            raise MyValidationError('Login failed')
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

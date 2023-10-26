@@ -1,4 +1,6 @@
 import logging
+import traceback
+
 from django.db import transaction
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import serializers
@@ -6,6 +8,8 @@ from rest_framework.serializers import ModelSerializer
 from app_meeting_server.utils import wx_apis
 from app_meeting_server.utils.common import get_uuid, encrypt_openid
 from mindspore.models import Group, Meeting, Collect, User, GroupUser, City, CityUser, Activity, ActivityCollect
+from app_meeting_server.utils.check_params import check_group_id, check_user_ids
+from app_meeting_server.utils.ret_api import MyValidationError
 
 logger = logging.getLogger('log')
 
@@ -52,9 +56,8 @@ class LoginSerializer(serializers.ModelSerializer):
                     is_delete=0)
             return user
         except Exception as e:
-            logger.error('Invalid params')
-            logger.error(e)
-            raise serializers.ValidationError('非法参数', code='code_error')
+            logger.error("e:{}, traceback:{}".format(e, traceback.format_exc()))
+            raise MyValidationError('Login failed')
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -104,14 +107,11 @@ class GroupUserAddSerializer(ModelSerializer):
         model = GroupUser
         fields = ['group_id', 'ids']
 
+    def validate_group_id(self, value):
+        return check_group_id(Group, value)
+
     def validate_ids(self, value):
-        try:
-            list_ids = value.split('-')
-        except Exception as e:
-            logger.error('Invalid input.The ids should be like "1-2-3".')
-            logger.error(e)
-            raise serializers.ValidationError('输入格式有误！', code='code_error')
-        return list_ids
+        return check_user_ids(value)
 
     def create(self, validated_data):
         users = User.objects.filter(id__in=validated_data['ids'], is_delete=0)
@@ -125,14 +125,14 @@ class GroupUserAddSerializer(ModelSerializer):
                     result_list.append(groupuser)
             return result_list
         except Exception as e:
-            logger.error('Failed to add maintainers to the group.')
-            logger.error(e)
-            raise serializers.ValidationError('创建失败！', code='code_error')
+            msg = 'Failed to add maintainers to the group'
+            logger.error("msg:{}, err:{}".format(msg, e))
+            raise MyValidationError(msg)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['code'] = 201
-        data['msg'] = u'添加成功'
+        data['msg'] = 'Success to add maintainers to the group'
         return data
 
 
@@ -154,13 +154,7 @@ class CityUserAddSerializer(ModelSerializer):
         fields = ['city_id', 'ids']
 
     def validate_ids(self, value):
-        try:
-            list_ids = value.split('-')
-        except Exception as e:
-            logger.error('Invalid input.The ids should be like "1-2-3".')
-            logger.error(e)
-            raise serializers.ValidationError('输入格式有误！', code='code_error')
-        return list_ids
+        return check_user_ids(value)
 
     def create(self, validated_data):
         users = User.objects.filter(id__in=validated_data['ids'])
@@ -174,14 +168,13 @@ class CityUserAddSerializer(ModelSerializer):
                         GroupUser.objects.create(group_id=1, user_id=int(user.id))
             return city_user
         except Exception as e:
-            logger.error('Failed to add activity sponsors.')
-            logger.error(e)
-            raise serializers.ValidationError('创建失败！', code='code_error')
+            logger.error('Failed to add activity sponsors.and e:{}'.format(str(e)))
+            raise MyValidationError('Creation failed')
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['code'] = 201
-        data['msg'] = u'添加成功'
+        data['msg'] = 'Created successfully'
         return data
 
 
