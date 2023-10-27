@@ -24,9 +24,5 @@ elif settings.FOR_MINDSPORE:
     urlpatterns = [
         path('', include('mindspore.urls')),
     ]
-elif settings.FOR_OPENGAUSS:
-    urlpatterns = [
-        path('', include('opengauss.urls')),
-    ]
 else:
     urlpatterns = list()
