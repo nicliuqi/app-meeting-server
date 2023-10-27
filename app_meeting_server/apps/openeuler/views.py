@@ -349,7 +349,7 @@ class UserInfoView(GenericAPIView, RetrieveModelMixin):
         user_id = kwargs.get('pk')
         if user_id != request.user.id:
             logger.warning('user_id did not match.user_id:{}, request.user.id:{}'.format(user_id, request.user.id))
-            return MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         return self.retrieve(request, *args, **kwargs)
 
 
@@ -1103,7 +1103,7 @@ class ActivityView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         is_validated, data, err_msgs = self.validate(request)
         if not is_validated:
-            return MyValidationError(','.join(err_msgs))
+            raise MyValidationError(','.join(err_msgs))
         title = data.get('title')
         date = data.get('date')
         activity_type = data.get('activity_type')
@@ -1420,7 +1420,7 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         is_validated, data, err_msgs = self.validate(request)
         if not is_validated:
-            return MyValidationError(",".join(err_msgs))
+            raise MyValidationError(",".join(err_msgs))
         title = data.get('title')
         date = data.get('date')
         activity_type = data.get('activity_type')
@@ -1594,7 +1594,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
     def update(self, request, *args, **kwargs):
         is_validated, data, err_msgs = self.validate(request)
         if not is_validated:
-            return MyValidationError(','.join(err_msgs))
+            raise MyValidationError(','.join(err_msgs))
         activity_id = self.kwargs.get('pk')
         title = data.get('title')
         date = data.get('date')
@@ -1717,7 +1717,7 @@ class DraftPublishView(GenericAPIView, UpdateModelMixin):
     def update(self, request, *args, **kwargs):
         is_validated, data, err_msgs = self.validate(request)
         if not is_validated:
-            return MyValidationError(','.join(err_msgs))
+            raise MyValidationError(','.join(err_msgs))
         activity_id = self.kwargs.get('pk')
         data = self.request.data
         title = data.get('title')

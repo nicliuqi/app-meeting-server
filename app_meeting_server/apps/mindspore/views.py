@@ -209,7 +209,7 @@ class UserInfoView(GenericAPIView, RetrieveModelMixin):
         user_id = kwargs.get('pk')
         if user_id != request.user.id:
             logger.warning('user_id did not match.user_id:{}, request.user.id:{}'.format(user_id, request.user.id))
-            return MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         return self.retrieve(request, *args, **kwargs)
 
 
@@ -225,7 +225,7 @@ class GroupMembersView(GenericAPIView, ListModelMixin):
     def get(self, request, *args, **kwargs):
         group_name = self.request.GET.get('group')
         if not Group.objects.filter(name=group_name):
-            return MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -249,7 +249,7 @@ class NonGroupMembersView(GenericAPIView, ListModelMixin):
     def get(self, request, *args, **kwargs):
         group_name = self.request.GET.get('group')
         if not Group.objects.filter(name=group_name):
-            return MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -380,7 +380,7 @@ class CityMembersView(GenericAPIView, ListModelMixin):
     def get(self, request, *args, **kwargs):
         city_name = self.request.GET.get('city')
         if not City.objects.filter(name=city_name):
-            return MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -404,7 +404,7 @@ class NonCityMembersView(GenericAPIView, ListModelMixin):
     def get(self, request, *args, **kwargs):
         city_name = self.request.GET.get('city')
         if not City.objects.filter(name=city_name):
-            return MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -587,7 +587,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         is_validated, data, err_msgs = self.validate(request)
         if not is_validated:
-            return MyValidationError(",".join(err_msgs))
+            raise MyValidationError(",".join(err_msgs))
         platform = data.get('platform')
         host_list = data.get('host_list')
         topic = data.get('topic')
@@ -709,7 +709,7 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
         # 数据库更改Meeting的is_delete=1
         if status != 200:
             logger.error('Failed to delete meeting')
-            return MyValidationError('Failed to delete meeting')
+            raise MyValidationError('Failed to delete meeting')
         # 发送删除通知邮件
         send_cancel_email.sendmail(mid)
 
@@ -1001,7 +1001,7 @@ class CityUserDelView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         is_validated, validated_data, err_msgs = self.validate(request)
         if not is_validated:
-            return MyValidationError(",".join(err_msgs))
+            raise MyValidationError(",".join(err_msgs))
         city_id = validated_data.get('city_id')
         ids_list = validated_data.get('ids_list')
         CityUser.objects.filter(city_id=city_id, user_id__in=ids_list).delete()
@@ -1111,7 +1111,7 @@ class ActivityCreateView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         is_validated, data, err_msgs = self.validated(request)
         if not is_validated:
-            return MyValidationError(",".join(err_msgs))
+            raise MyValidationError(",".join(err_msgs))
         title = data.get('title')
         start_date = data.get('start_date')
         end_date = data.get('end_date')
