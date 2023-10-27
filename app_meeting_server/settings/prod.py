@@ -133,6 +133,12 @@ AES_GCM_SECRET = DEFAULT_CONF.get('AES_GCM_SECRET')
 AES_GCM_IV = DEFAULT_CONF.get('AES_GCM_IV')
 SIGNATURE_SECRET = DEFAULT_CONF.get('SIGNATURE_SECRET')
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'app_meeting_server.utils.auth.CustomAuthentication',
+    )
+}
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'ROTATE_REFRESH_TOKENS': False,
