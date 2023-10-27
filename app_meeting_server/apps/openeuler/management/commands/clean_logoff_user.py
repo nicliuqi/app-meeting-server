@@ -25,4 +25,4 @@ class Command(BaseCommand):
                     Collect.objects.filter(user_id=user_id).delete()
                     Activity.objects.filter(user_id=user_id).delete()
                     ActivityCollect.objects.filter(user_id=user_id).delete()
-                    User.objects.filter(user_id=user_id).delete()
+                    User.objects.filter(id=user_id).delete()

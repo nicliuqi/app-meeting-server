@@ -26,7 +26,7 @@ if not os.path.exists(CONFIG_PATH) or not os.path.exists(MYSQL_TLS_PEM_PATH):
 DEFAULT_CONF = yaml.safe_load(open(CONFIG_PATH, 'r'))
 MYSQL_TLS_PEM_CONTENT = open(MYSQL_TLS_PEM_PATH, 'r')
 
-is_delete_config = sys.argv[0] == 'uwsgi' or (len(sys.argv) >= 3 and sys.argv[2] not in ["makemigrations", "migrate"])
+is_delete_config = sys.argv[0] == 'uwsgi' or (len(sys.argv) >= 2 and sys.argv[1] not in ["makemigrations", "migrate"])
 if is_delete_config:
     os.remove(CONFIG_PATH)
     os.remove(MYSQL_TLS_PEM_PATH)
@@ -132,6 +132,12 @@ WELINK_HOSTS = {
 AES_GCM_SECRET = DEFAULT_CONF.get('AES_GCM_SECRET')
 AES_GCM_IV = DEFAULT_CONF.get('AES_GCM_IV')
 SIGNATURE_SECRET = DEFAULT_CONF.get('SIGNATURE_SECRET')
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'app_meeting_server.utils.auth.CustomAuthentication',
+    )
+}
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
@@ -368,3 +374,6 @@ elif FOR_MINDSPORE:
     TX_MEETING_SDKID = DEFAULT_CONF.get('TX_MEETING_SDKID')
     TX_MEETING_SECRETKEY = DEFAULT_CONF.get('TX_MEETING_SECRETKEY')
     TX_MEETING_SECRETID = DEFAULT_CONF.get('TX_MEETING_SECRETID')
+
+DEFAULT_CONF = None
+MYSQL_TLS_PEM_CONTENT = None

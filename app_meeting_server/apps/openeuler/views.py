@@ -398,8 +398,8 @@ class SponsorAddView(GenericAPIView, CreateModelMixin):
         user_ids = request.data.get('ids')
         new_user_ids = check_user_ids(user_ids)
         match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0).count()
-        if len(user_ids) != match_queryset:
-            logger.error("User data changes,Please refresh again:{}".format(user_ids))
+        if len(new_user_ids) != match_queryset:
+            logger.error("The input ids: {}, parse result {} not eq query result {}".format(user_ids, new_user_ids, match_queryset))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0).update(activity_level=2)
         access = refresh_access(self.request.user)
@@ -425,8 +425,8 @@ class SponsorDelView(GenericAPIView, CreateModelMixin):
         user_ids = request.data.get('ids')
         new_user_ids = check_user_ids(user_ids)
         match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=2).count()
-        if match_queryset != user_ids:
-            logger.error("User data changes,Please refresh again:{}".format(user_ids))
+        if match_queryset != len(new_user_ids):
+            logger.error("The input ids: {}, parse result {} not eq query result {}".format(user_ids, new_user_ids, match_queryset))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         User.objects.filter(id__in=new_user_ids, activity_level=2).update(activity_level=1)
         access = refresh_access(self.request.user)
@@ -693,7 +693,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         sponsor = data.get('sponsor')
         group_name = data.get('group_name')
         community = data.get('community', 'openeuler')
-        emaillist = data.get('emaillist')
+        emaillist = data.get('emaillist', '')
         summary = data.get('agenda')
         record = data.get('record')
         etherpad = data.get('etherpad')
@@ -765,7 +765,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         sponsor = data.get('sponsor')
         group_name = data.get('group_name')
         community = data.get('community')
-        emaillist = data.get('emaillist')
+        emaillist = data.get('emaillist', '')
         summary = data.get('summary')
         user_id = data.get('user_id')
         group_id = data.get('group_id')

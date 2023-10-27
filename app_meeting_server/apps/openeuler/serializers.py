@@ -116,10 +116,9 @@ class MeetingListSerializer(ModelSerializer):
         request = self.context.get("request")
         if request and hasattr(request, "user"):
             user = request.user
-            logger.error("-------------data is{}".format(user.__dict__))
         try:
             return Collect.objects.filter(user_id=user.id, meeting_id=obj.id).values()[0]['id']
-        except IndexError:
+        except IndexError as e:
             return
 
     def get_video_url(self, obj):
@@ -280,7 +279,7 @@ class ActivitiesSerializer(ModelSerializer):
         if request and hasattr(request, "user"):
             user = request.user
         try:
-            return ActivityCollect.objects.filter(user_id=user.pk, activity_id=obj.id).values()[0]['id']
+            return ActivityCollect.objects.filter(user_id=user.id, activity_id=obj.id).values()[0]['id']
         except IndexError:
             return
 

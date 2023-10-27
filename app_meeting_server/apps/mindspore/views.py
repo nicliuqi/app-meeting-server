@@ -462,9 +462,10 @@ class SponsorsAddView(GenericAPIView, CreateModelMixin):
         user_ids = request.data.get('ids')
         new_user_ids = check_user_ids(user_ids)
         match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0).count()
-        if len(user_ids) != match_queryset:
-            msg = "User data changes,Please refresh again"
-            raise MyValidationError(msg)
+        if len(new_user_ids) != match_queryset:
+            logger.error("The input ids: {}, parse result {} not eq query result {}".format(user_ids, new_user_ids,
+                                                                                            match_queryset))
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0).update(activity_level=2)
         access = refresh_access(self.request.user)
         return JsonResponse({'code': 201, 'msg': '添加成功', 'access': access})
@@ -489,9 +490,10 @@ class SponsorsDelView(GenericAPIView, CreateModelMixin):
         user_ids = request.data.get('ids')
         new_user_ids = check_user_ids(user_ids)
         match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=2).count()
-        if match_queryset != user_ids:
-            msg = "User data changes,Please refresh again"
-            raise MyValidationError(msg)
+        if match_queryset != len(new_user_ids):
+            logger.error("The input ids: {}, parse result {} not eq query result {}".format(user_ids, new_user_ids,
+                                                                                            match_queryset))
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         User.objects.filter(id__in=new_user_ids, activity_level=2).update(activity_level=1)
         access = refresh_access(self.request.user)
         return JsonResponse({'code': 204, 'msg': 'successfully deleted', 'access': access})
@@ -521,7 +523,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         group_name = data.get('group_name')
         community = data.get('community', 'openeuler')
         city = data.get('city')
-        emaillist = data.get('emaillist')
+        emaillist = data.get('emaillist', '')
         agenda = data.get('agenda')
         record = data.get('record')
 
@@ -600,7 +602,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         group_name = data.get('group_name')
         community = data.get('community')
         city = data.get('city')
-        emaillist = data.get('emaillist')
+        emaillist = data.get('emaillist', '')
         agenda = data.get('agenda')
         record = data.get('record')
         user_id = self.request.user.id

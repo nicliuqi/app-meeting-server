@@ -260,7 +260,7 @@ class MeetingsListSerializer(ModelSerializer):
         if request and hasattr(request, "user"):
             user = request.user
         try:
-            return Collect.objects.filter(user_id=user.pk, meeting_id=obj.id).values()[0]['id']
+            return Collect.objects.filter(user_id=user.id, meeting_id=obj.id).values()[0]['id']
         except IndexError:
             return
 
@@ -312,7 +312,7 @@ class ActivitiesSerializer(ModelSerializer):
         if request and hasattr(request, "user"):
             user = request.user
         try:
-            return ActivityCollect.objects.filter(user_id=user.pk, activity_id=obj.id).values()[0]['id']
+            return ActivityCollect.objects.filter(user_id=user.id, activity_id=obj.id).values()[0]['id']
         except IndexError:
             return
 
