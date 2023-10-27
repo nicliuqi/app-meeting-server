@@ -9,7 +9,7 @@ import os
 from contextlib import suppress
 from datetime import datetime
 from django.contrib.auth import get_user_model
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import PBKDF2PasswordHasher
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -39,8 +39,8 @@ def get_uuid():
 
 
 def make_signature(access_token):
-    signature = make_password(access_token, settings.SECRET_KEY)
-    return signature
+    pbkdf2_password_hasher = PBKDF2PasswordHasher()
+    return pbkdf2_password_hasher.encode(access_token, settings.SIGNATURE_SECRET, iterations=260000)
 
 
 def refresh_access(user):

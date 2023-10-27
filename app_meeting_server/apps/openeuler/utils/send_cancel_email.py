@@ -2,7 +2,6 @@ import datetime
 import icalendar
 import logging
 import pytz
-import re
 import smtplib
 from django.conf import settings
 from email import encoders
@@ -89,8 +88,7 @@ def sendmail(mid):
         server.starttls()
         server.login(settings.SMTP_SERVER_USER, settings.SMTP_SERVER_PASS)
         server.sendmail(sender, toaddrs_list, msg.as_string())
-        logger.info('email string: {}'.format(toaddrs))
-        logger.info('email sent: {}'.format(toaddrs_string))
         server.quit()
+        logger.info('send cancel email success: {}'.format(topic))
     except smtplib.SMTPException as e:
         logger.error(e)

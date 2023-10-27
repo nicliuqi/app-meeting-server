@@ -116,8 +116,9 @@ class MeetingListSerializer(ModelSerializer):
         request = self.context.get("request")
         if request and hasattr(request, "user"):
             user = request.user
+            logger.error("-------------data is{}".format(user.__dict__))
         try:
-            return Collect.objects.filter(user_id=user.pk, meeting_id=obj.id).values()[0]['id']
+            return Collect.objects.filter(user_id=user.id, meeting_id=obj.id).values()[0]['id']
         except IndexError:
             return
 

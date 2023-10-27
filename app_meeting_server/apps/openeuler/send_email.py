@@ -127,8 +127,7 @@ def sendmail(meeting, record=None):
         server.starttls()
         server.login(settings.SMTP_SERVER_USER, settings.SMTP_SERVER_PASS)
         server.sendmail(sender, toaddrs_list, msg.as_string())
-        logger.info('email string: {}'.format(toaddrs))
-        logger.info('email sent: {}'.format(toaddrs_string))
         server.quit()
+        logger.info('send create meeting email success: {}'.format(topic))
     except smtplib.SMTPException as e:
         logger.error(e)

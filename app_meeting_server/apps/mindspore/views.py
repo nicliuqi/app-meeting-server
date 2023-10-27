@@ -832,13 +832,10 @@ class CollectionDelView(GenericAPIView, DestroyModelMixin):
             return ret
 
     def destroy(self, request, *args, **kwargs):
-        meeting_id = kwargs.get('pk')
         user_id = request.user.id
-        if not Meeting.objects.filter(id=meeting_id, is_delete=0):
-            logger.error('Meeting {} is not exist'.format(meeting_id))
-            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        if not Collect.objects.filter(meeting_id=meeting_id, user_id=user_id):
-            logger.error('User {} had not collected meeting {}'.format(user_id, meeting_id))
+        collection_id = kwargs.get('pk')
+        if not Collect.objects.filter(id=collection_id, user_id=user_id):
+            logger.error('User {} had not collected collection id {}'.format(user_id, collection_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         instance = self.get_object()
         self.perform_destroy(instance)
@@ -1662,13 +1659,10 @@ class ActivityCollectionDelView(GenericAPIView, DestroyModelMixin):
             return ret
 
     def destroy(self, request, *args, **kwargs):
-        activity_id = kwargs.get('pk')
         user_id = request.user.id
-        if not Activity.objects.filter(id=activity_id, is_delete=0):
-            logger.error('Activity {} is not exist'.format(activity_id))
-            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        if not ActivityCollect.objects.filter(activity_id=self.kwargs.get('pk'), user_id=self.request.user.id):
-            logger.error('User {} had not collected activity {}'.format(user_id, activity_id))
+        collection_id = kwargs.get('pk')
+        if not Collect.objects.filter(id=collection_id, user_id=user_id):
+            logger.error('User {} had not collected collection id {}'.format(user_id, collection_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         instance = self.get_object()
         self.perform_destroy(instance)

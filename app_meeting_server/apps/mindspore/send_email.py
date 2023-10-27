@@ -2,7 +2,6 @@ import datetime
 import icalendar
 import logging
 import pytz
-import re
 import smtplib
 from email import encoders
 from email.mime.base import MIMEBase
@@ -132,9 +131,8 @@ def sendmail(mid, record=None):
         server.starttls()
         server.login(settings.SMTP_SERVER_USER, settings.SMTP_SERVER_PASS)
         server.sendmail(sender, toaddrs_list, msg.as_string())
-        logger.info('email string: {}'.format(toaddrs))
-        logger.info('email sent: {}'.format(toaddrs_string))
         server.quit()
+        logger.info('send create meeting email success: {}'.format(topic))
     except smtplib.SMTPException as e:
         logger.error(e)
 
