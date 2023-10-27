@@ -20,8 +20,8 @@ sys.path.insert(0, os.path.join(BASE_DIR, "apps"))
 CONFIG_PATH = os.getenv('CONFIG_PATH')
 MYSQL_TLS_PEM_PATH = os.getenv('MYSQL_TLS_PEM_PATH')
 
-sys.exit() if not os.path.exists(CONFIG_PATH) else print("Get config path successfully")
-sys.exit() if not os.path.exists(MYSQL_TLS_PEM_PATH) else print("Get mysql tls pem path successfully")
+if not os.path.exists(CONFIG_PATH) or not os.path.exists(MYSQL_TLS_PEM_PATH):
+    sys.exit()
 
 DEFAULT_CONF = yaml.safe_load(open(CONFIG_PATH, 'r'))
 MYSQL_TLS_PEM_CONTENT = open(MYSQL_TLS_PEM_PATH, 'r')
@@ -135,8 +135,7 @@ if FOR_OPENEULER or FOR_MINDSPORE:
     SIGNATURE_SECRET = DEFAULT_CONF.get('SIGNATURE_SECRET')
 
     SIMPLE_JWT = {
-        'ACCESS_TOKEN_LIFETIME': timedelta(minutes=10080),
-        'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+        'ACCESS_TOKEN_LIFETIME': timedelta(minutes=20),
         'ROTATE_REFRESH_TOKENS': False,
         'BLACKLIST_AFTER_ROTATION': True,
 
@@ -144,7 +143,6 @@ if FOR_OPENEULER or FOR_MINDSPORE:
         'SIGNING_KEY': SECRET_KEY,
         'VERIFYING_KEY': None,
 
-        # 'AUTH_HEADER_TYPES': (,),
         'USER_ID_FIELD': 'id',
         'USER_ID_CLAIM': 'user_id',
 
@@ -153,9 +151,6 @@ if FOR_OPENEULER or FOR_MINDSPORE:
 
         'JTI_CLAIM': 'jti',
 
-        'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
-        'SLIDING_TOKEN_LIFETIME': timedelta(minutes=1000),
-        'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
     }
 
 elif FOR_OPENGAUSS:

@@ -16,6 +16,7 @@ class Command(BaseCommand):
     logger = logging.getLogger('log')
 
     def handle(self, *args, **options):
+        os.chdir("/work/app-meeting-server/deploy/production/")
         os.system('test -d community && rm -rf community')
         os.system('git clone {}'.format(settings.COMMUNITY_REPO_URL))
         access_token = settings.CI_BOT_TOKEN
