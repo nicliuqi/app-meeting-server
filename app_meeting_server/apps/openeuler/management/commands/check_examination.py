@@ -1,24 +1,19 @@
 import logging
 import sys
-from bilibili_api.user import get_videos_g
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from openeuler.models import Record
 from obs import ObsClient
+from app_meeting_server.utils.bili_apis import get_all_bvids, get_credential, get_user
 
 logger = logging.getLogger('log')
 
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        uid = int(settings.BILI_UID)
-        if not uid:
-            logger.error('uid is required')
-            sys.exit(1)
-        videos = get_videos_g(uid=uid)
-        # 所有过审视频的bvid集合
-        bvs = [x['bvid'] for x in videos]
-        logger.info('所有B站过审视频的bvid: {}'.format(bvs))
+        credential = get_credential()
+        user = get_user(settings.BILI_UID, credential)
+        bvs = get_all_bvids(user)  # 所有过审视频的bvid集合
         logger.info('B站过审视频数: {}'.format(len(bvs)))
         access_key_id = settings.ACCESS_KEY_ID
         secret_access_key = settings.SECRET_ACCESS_KEY
