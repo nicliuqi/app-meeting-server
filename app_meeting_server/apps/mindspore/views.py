@@ -549,9 +549,10 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
             err_msgs.append('Invalid etherpad address')
         if community != settings.COMMUNITY.lower():
             err_msgs.append('The field community must be the same as configure')
-        err_msg_list = check_email_list(emaillist)
-        if err_msg_list:
-            err_msgs.extend(err_msg_list)
+        if emaillist:
+            err_msg_list = check_email_list(emaillist)
+            if err_msg_list:
+                err_msgs.extend(err_msg_list)
         if err_msgs:
             logger.error('[CreateMeetingView] Fail to validate when creating meetings, the error messages are {}'.
                          format(','.join(err_msgs)))

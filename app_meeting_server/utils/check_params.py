@@ -23,7 +23,7 @@ def check_email_list(email_list_str):
         if len(email) > 30:
             msg = "The length of email is gt 30"
             err_msgs.append(msg)
-        if not match_email(email):
+        if email and not match_email(email):
             msg = "The email does not conform to the format"
             err_msgs.append(msg)
     return err_msgs

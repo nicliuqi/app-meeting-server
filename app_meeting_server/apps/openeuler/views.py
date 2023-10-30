@@ -716,9 +716,10 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         if community != settings.COMMUNITY.lower():
             err_msgs.append('The field community must be the same as configure')
         # todo 1.没有判断的参数有：sponsor, summary, record
-        err_msg_list = check_email_list(emaillist)
-        if err_msg_list:
-            err_msgs.extend(err_msg_list)
+        if emaillist:
+            err_msg_list = check_email_list(emaillist)
+            if err_msg_list:
+                err_msgs.extend(err_msg_list)
         if err_msgs:
             logger.error('[MeetingsView] Fail to validate when creating meetings, the error messages are {}'.format(
                 ','.join(err_msgs)))
