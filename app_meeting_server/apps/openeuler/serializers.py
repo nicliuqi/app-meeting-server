@@ -6,6 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from app_meeting_server.utils.check_params import check_group_id, check_user_ids
 from app_meeting_server.utils.common import get_uuid, make_signature, encrypt_openid
+from app_meeting_server.utils.ret_code import RetCode
 from app_meeting_server.utils.wx_apis import get_openid
 from app_meeting_server.utils.ret_api import MyValidationError
 from openeuler.models import Collect, Group, User, Meeting, GroupUser, Record, Activity, ActivityCollect
@@ -42,7 +43,7 @@ class GroupUserAddSerializer(ModelSerializer):
         except Exception as e:
             msg = 'Failed to add maintainers to the group'
             logger.error("msg:{}, err:{}".format(msg, e))
-            raise MyValidationError(msg)
+            raise MyValidationError(RetCode.INTERNAL_ERROR)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -118,7 +119,7 @@ class MeetingListSerializer(ModelSerializer):
             user = request.user
         try:
             return Collect.objects.filter(user_id=user.id, meeting_id=obj.id).values()[0]['id']
-        except IndexError as e:
+        except IndexError:
             return
 
     def get_video_url(self, obj):
@@ -144,11 +145,11 @@ class LoginSerializer(serializers.ModelSerializer):
             code = res['code']
             if not code:
                 logger.warning('Login without jscode.')
-                raise MyValidationError('Failed to get code')
+                raise MyValidationError(RetCode.STATUS_USER_GET_CODE_FAILED)
             r = get_openid(code)
             if not r.get('openid'):
                 logger.warning('Failed to get openid.')
-                raise MyValidationError('Failed to get openid')
+                raise MyValidationError(RetCode.STATUS_USER_GET_OPENID_FAILED)
             openid = r['openid']
             encrypt_openid_str = encrypt_openid(openid)
             nickname = res['userInfo']['nickName'] if 'nickName' in res['userInfo'] else ''
@@ -170,7 +171,7 @@ class LoginSerializer(serializers.ModelSerializer):
             return user
         except Exception as e:
             logger.error("e:{}, traceback:{}".format(e, traceback.format_exc()))
-            raise MyValidationError('Login failed')
+            raise MyValidationError(RetCode.STATUS_USER_LOGIN_FAILED)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

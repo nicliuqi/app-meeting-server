@@ -33,7 +33,7 @@ from app_meeting_server.utils.operation_log import LoggerContext, OperationLogMo
 from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid
 from app_meeting_server.utils.ret_api import MyValidationError
 from app_meeting_server.utils.check_params import check_email_list, check_duration, check_group_id_and_user_ids, \
-    check_user_ids
+    check_user_ids, check_activity_params
 from app_meeting_server.utils.ret_code import RetCode
 
 logger = logging.getLogger('log')
@@ -128,8 +128,9 @@ class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
     def update(self, request, *args, **kwargs):
         now_time = datetime.datetime.now()
         if User.objects.get(id=self.request.user.id).agree_privacy_policy:
-            msg = 'The user has signed privacy policy agreement already.'
-            raise MyValidationError(msg)
+            msg = 'The user {} has signed privacy policy agreement already.'.format(self.request.user.id)
+            logger.error(msg)
+            raise MyValidationError(RetCode.STATUS_USER_HAS_SIGNED_POLICY)
         User.objects.filter(id=self.request.user.id).update(agree_privacy_policy=True,
                                                             agree_privacy_policy_time=now_time,
                                                             agree_privacy_policy_version=settings.PRIVACY_POLICY_VERSION)
@@ -226,8 +227,8 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
 
     def get(self, request, *args, **kwargs):
         if not Group.objects.filter(id=self.kwargs.get('pk')):
-            msg = "The Group is not exist"
-            raise MyValidationError(msg)
+            logger.error("The Group {} is not exist".format(self.kwargs.get("pk")))
+            raise MyValidationError(RetCode.STATUS_SIG_GROUP_NOT_EXIST)
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -530,11 +531,11 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
         user_id = request.user.id
         mid = self.kwargs.get('mid')
         if Meeting.objects.filter(mid=mid, is_delete=0).count() == 0:
-            logger.error('Invalid meeting id:{}'.format(mid))
-            raise MyValidationError("Invalid meeting information")
+            logger.error('That meeting :{} is not exist'.format(mid))
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         elif Meeting.objects.filter(mid=mid, user_id=user_id).count() == 0 or User.objects.filter(id=user_id, level=3).count() == 0:
             logger.error('User {} has no access to delete meeting {}'.format(user_id, mid))
-            raise MyValidationError("User has no access to delete meeting")
+            raise MyValidationError(RetCode.STATUS_USER_HAS_NO_PERMISSIONS)
         # 删除会议
         drivers.cancelMeeting(mid)
 
@@ -682,10 +683,8 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
 
     def validate(self, request):
         now_time = datetime.datetime.now()
-        err_msgs = []
         data = request.data
         platform = data.get('platform', 'zoom')
-        host_dict = None
         date = data.get('date')
         start = data.get('start')
         end = data.get('end')
@@ -698,32 +697,30 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         record = data.get('record')
         etherpad = data.get('etherpad')
         if not isinstance(platform, str):
-            err_msgs.append('Field platform must be string type')
+            logger.error("Field platform/{} must be string type".format(platform))
+            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
         else:
             host_dict = settings.MEETING_HOSTS.get(platform.lower())
             if not host_dict or not isinstance(host_dict, dict):
-                err_msgs.append('Could not match any meeting host')
+                logger.error("Could not match any meeting host")
+                raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
         try:
-            err_msg = check_duration(start, end, date, now_time)
-            if err_msg:
-                err_msgs.extend(err_msg)
+            check_duration(start, end, date, now_time)
         except ValueError:
-            err_msgs.append('Invalid start time or end time')
+            logger.error('Invalid start time or end time')
+            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
         if not Group.objects.filter(group_name=group_name):
-            err_msgs.append('Invalid group name: {}'.format(group_name))
+            logger.error('Invalid group name: {}'.format(group_name))
+            raise MyValidationError(RetCode.STATUS_SIG_GROUP_NOT_EXIST)
         if not etherpad.startswith(settings.ETHERPAD_PREFIX):
-            err_msgs.append('Invalid etherpad address')
+            logger.error('Invalid etherpad address {}'.format(str(etherpad)))
+            raise MyValidationError(RetCode.STATUS_MEETING_INVALID_ETHERPAD)
         if community != settings.COMMUNITY.lower():
-            err_msgs.append('The field community must be the same as configure')
+            logger.error('The field community must be the same as configure')
+            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
         # todo 1.没有判断的参数有：sponsor, summary, record
         if emaillist:
-            err_msg_list = check_email_list(emaillist)
-            if err_msg_list:
-                err_msgs.extend(err_msg_list)
-        if err_msgs:
-            logger.error('[MeetingsView] Fail to validate when creating meetings, the error messages are {}'.format(
-                ','.join(err_msgs)))
-            return False, None, err_msgs
+            check_email_list(emaillist)
         validated_data = {
             'platform': platform,
             'host_dict': host_dict,
@@ -741,7 +738,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
             'user_id': request.user.id,
             'group_id': Group.objects.get(group_name=group_name).id
         }
-        return True, validated_data, err_msgs
+        return validated_data
 
     def post(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
@@ -754,9 +751,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
 
     def create(self, request, *args, **kwargs):
         t1 = time.time()
-        is_validated, data, err_msgs = self.validate(request)
-        if not is_validated:
-            raise MyValidationError(','.join(err_msgs))
+        data = self.validate(request)
         platform = data.get('platform')
         host_dict = data.get('host_dict')
         date = data.get('date')
@@ -786,19 +781,17 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         available_host_id = list(set(host_ids) - set(unavailable_host_ids))
         logger.info('avilable_host_id:{}'.format(available_host_id))
         if len(available_host_id) == 0:
-            msg = 'There is currently no available host, please go to the official website to view scheduled meetings'
-            logger.warning('{}/{} No available host yet'.format(msg, platform))
-            raise MyValidationError(msg)
+            logger.warning('No available host:{} yet'.format(platform))
+            raise MyValidationError(RetCode.STATUS_MEETING_NO_AVAILABLE_HOST)
         # 从available_host_id中随机生成一个host_id,并在host_dict中取出
         host_id = secrets.choice(available_host_id)
         host = host_dict[host_id]
         logger.info('host_id:{}'.format(host_id))
         logger.info('host:{}'.format(host))
-
         status, content = drivers.createMeeting(platform, date, start, end, topic, host, record)
         if status not in [200, 201]:
-            msg = 'Failed to create meeting'
-            raise MyValidationError(msg)
+            logger.error("Failed to create meeting, and code is {}".format(str(status)))
+            raise MyValidationError(RetCode.STATUS_MEETING_FAILED_CREATE)
         mid = content['mid']
         start_url = content.get('start_url')
         join_url = content['join_url']
@@ -917,7 +910,7 @@ class CollectView(GenericAPIView, ListModelMixin, CreateModelMixin):
         user_id = request.user.id
         if Meeting.objects.filter(id=meeting_id, is_delete=0).count() == 0:
             logger.error('Meeting {} is not exist'.format(meeting_id))
-            raise MyValidationError("The meeting information has changed, please refresh and try again")
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         collect_users = Collect.objects.filter(meeting_id=meeting_id, user_id=user_id)
         if collect_users.count() == 0:
             user_collect = Collect.objects.create(meeting_id=meeting_id, user_id=user_id)
@@ -1033,62 +1026,6 @@ class ActivityView(GenericAPIView, CreateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (SponsorPermission,)
 
-    def validate(self, request):
-        now_time = datetime.datetime.now()
-        err_msgs = []
-        data = self.request.data
-        title = data.get('title')
-        date = data.get('date')
-        activity_type = data.get('activity_type')
-        synopsis = data.get('synopsis')
-        poster = data.get('poster')
-        register_url = data.get('register_url')
-        address = data.get('address')
-        detail_address = data.get('detail_address')
-        longitude = data.get('longitude')
-        latitude = data.get('latitude')
-        start = data.get('start')
-        end = data.get('end')
-        schedules = data.get('schedules')
-        # todo 1.没有校验的参数有：synopsis， address, detail_address, longitude, latitude, schedules
-        try:
-            if date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
-                err_msgs.append('The start date should be earlier than tomorrow')
-            if activity_type == online:
-                err_msg = check_duration(start, end, date, now_time)
-                if err_msg:
-                    err_msgs.extend(err_msg)
-        except ValueError:
-            err_msgs.append('Invalid datetime params')
-        if not title:
-            err_msgs.append('Activity title could not be empty')
-        if activity_type not in [offline, online]:
-            err_msgs.append('Invalid activity type: {}'.format(activity_type))
-        if poster not in range(1, 5):
-            err_msgs.append('Invalid poster: {}'.format(poster))
-        if not register_url.startswith('https://'):
-            err_msgs.append('Invalid register url: {}'.format(register_url))
-        if err_msgs:
-            logger.error('[ActivityView] Fail to validate when creating activity, the error messages are {}'.format(
-                ','.join(err_msgs)))
-            return False, None, err_msgs
-        validated_data = {
-            'title': title,
-            'date': date,
-            'activity_type': activity_type,
-            'synopsis': synopsis,
-            'poster': poster,
-            'register_url': register_url,
-            'address': address,
-            'detail_address': detail_address,
-            'longitude': longitude,
-            'latitude': latitude,
-            'start': start,
-            'end': end,
-            'schedules': schedules
-        }
-        return True, validated_data, err_msgs
-
     def post(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
                            OperationLogType.OP_TYPE_CREATE,
@@ -1099,9 +1036,7 @@ class ActivityView(GenericAPIView, CreateModelMixin):
             return ret
 
     def create(self, request, *args, **kwargs):
-        is_validated, data, err_msgs = self.validate(request)
-        if not is_validated:
-            raise MyValidationError(','.join(err_msgs))
+        data = check_activity_params(request.data, online, offline)
         title = data.get('title')
         date = data.get('date')
         activity_type = data.get('activity_type')
@@ -1351,61 +1286,6 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (SponsorPermission,)
 
-    def validate(self, request):
-        now_time = datetime.datetime.now()
-        err_msgs = []
-        data = self.request.data
-        title = data.get('title')
-        date = data.get('date')
-        activity_type = data.get('activity_type')
-        synopsis = data.get('synopsis')
-        poster = data.get('poster')
-        register_url = data.get('register_url')
-        address = data.get('address')
-        detail_address = data.get('detail_address')
-        longitude = data.get('longitude')
-        latitude = data.get('latitude')
-        start = data.get('start')
-        end = data.get('end')
-        schedules = data.get('schedules')
-        try:
-            if date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
-                err_msgs.append('The start date should be earlier than tomorrow')
-            if activity_type == online:
-                err_msg = check_duration(start, end, date, now_time)
-                if err_msg:
-                    err_msgs.extend(err_msg)
-        except ValueError:
-            err_msgs.append('Invalid datetime params')
-        if not title:
-            err_msgs.append('Activity title could not be empty')
-        if activity_type not in [offline, online]:
-            err_msgs.append('Invalid activity type')
-        if poster not in range(1, 5):
-            err_msgs.append('Invalid poster')
-        if not register_url.startswith('https://'):
-            err_msgs.append('Invalid register url')
-        if err_msgs:
-            logger.error('[ActivityView] Fail to validate when creating activity, the error messages are {}'.format(
-                ','.join(err_msgs)))
-            return False, None, err_msgs
-        validated_data = {
-            'title': title,
-            'date': date,
-            'activity_type': activity_type,
-            'synopsis': synopsis,
-            'poster': poster,
-            'register_url': register_url,
-            'address': address,
-            'detail_address': detail_address,
-            'longitude': longitude,
-            'latitude': latitude,
-            'start': start,
-            'end': end,
-            'schedules': schedules
-        }
-        return True, validated_data, err_msgs
-
     def post(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
                            OperationLogType.OP_TYPE_CREATE,
@@ -1416,9 +1296,7 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
             return ret
 
     def create(self, request, *args, **kwargs):
-        is_validated, data, err_msgs = self.validate(request)
-        if not is_validated:
-            raise MyValidationError(",".join(err_msgs))
+        data = check_activity_params(request.data, online, offline)
         title = data.get('title')
         date = data.get('date')
         activity_type = data.get('activity_type')
@@ -1521,65 +1399,6 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (SponsorPermission,)
 
-    def validate(self, request):
-        now_time = datetime.datetime.now()
-        err_msgs = []
-        activity_id = self.kwargs.get('pk')
-        user_id = self.request.user.id
-        data = self.request.data
-        title = data.get('title')
-        date = data.get('date')
-        activity_type = data.get('activity_type')
-        synopsis = data.get('synopsis')
-        poster = data.get('poster')
-        register_url = data.get('register_url')
-        address = data.get('address')
-        detail_address = data.get('detail_address')
-        longitude = data.get('longitude')
-        latitude = data.get('latitude')
-        start = data.get('start')
-        end = data.get('end')
-        schedules = data.get('schedules')
-        if not Activity.objects.filter(id=activity_id, user_id=user_id, status=1):
-            err_msgs.append('Invalid activity id')
-        try:
-            if date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
-                err_msgs.append('The start date should be earlier than tomorrow')
-            if activity_type == online:
-                err_msg = check_duration(start, end, date, now_time)
-                if err_msg:
-                    err_msgs.extend(err_msg)
-        except ValueError:
-            err_msgs.append('Invalid datetime params')
-        if not title:
-            err_msgs.append('Activity title could not be empty')
-        if activity_type not in [offline, online]:
-            err_msgs.append('Invalid activity type')
-        if poster not in range(1, 5):
-            err_msgs.append('Invalid poster')
-        if not register_url.startswith('https://'):
-            err_msgs.append('Invalid register url')
-        if err_msgs:
-            logger.error('[ActivityView] Fail to validate when creating activity, the error messages are {}'.format(
-                ','.join(err_msgs)))
-            return False, None, err_msgs
-        validated_data = {
-            'title': title,
-            'date': date,
-            'activity_type': activity_type,
-            'synopsis': synopsis,
-            'poster': poster,
-            'register_url': register_url,
-            'address': address,
-            'detail_address': detail_address,
-            'longitude': longitude,
-            'latitude': latitude,
-            'start': start,
-            'end': end,
-            'schedules': schedules
-        }
-        return True, validated_data, err_msgs
-
     def put(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
                            OperationLogType.OP_TYPE_MODIFY,
@@ -1590,10 +1409,12 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
             return ret
 
     def update(self, request, *args, **kwargs):
-        is_validated, data, err_msgs = self.validate(request)
-        if not is_validated:
-            raise MyValidationError(','.join(err_msgs))
         activity_id = self.kwargs.get('pk')
+        user_id = self.request.user.id
+        if not Activity.objects.filter(id=activity_id, user_id=user_id, status=1):
+            logger.error('Invalid activity id:{}'.format(str(activity_id)))
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
+        data = check_activity_params(request.data, online, offline)
         title = data.get('title')
         date = data.get('date')
         activity_type = data.get('activity_type')
@@ -1713,11 +1534,12 @@ class DraftPublishView(GenericAPIView, UpdateModelMixin):
             return ret
 
     def update(self, request, *args, **kwargs):
-        is_validated, data, err_msgs = self.validate(request)
-        if not is_validated:
-            raise MyValidationError(','.join(err_msgs))
         activity_id = self.kwargs.get('pk')
-        data = self.request.data
+        user_id = self.request.user.id
+        if not Activity.objects.filter(id=activity_id, user_id=user_id, status=1):
+            logger.error('Invalid activity id {}'.format(str(activity_id)))
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
+        data = check_activity_params(request.data, online, offline)
         title = data.get('title')
         date = data.get('date')
         activity_type = data['activity_type']

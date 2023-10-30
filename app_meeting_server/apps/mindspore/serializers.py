@@ -7,6 +7,7 @@ from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from app_meeting_server.utils import wx_apis
 from app_meeting_server.utils.common import get_uuid, encrypt_openid
+from app_meeting_server.utils.ret_code import RetCode
 from mindspore.models import Group, Meeting, Collect, User, GroupUser, City, CityUser, Activity, ActivityCollect
 from app_meeting_server.utils.check_params import check_group_id, check_user_ids
 from app_meeting_server.utils.ret_api import MyValidationError
@@ -57,7 +58,7 @@ class LoginSerializer(serializers.ModelSerializer):
             return user
         except Exception as e:
             logger.error("e:{}, traceback:{}".format(e, traceback.format_exc()))
-            raise MyValidationError('Login failed')
+            raise MyValidationError(RetCode.STATUS_USER_LOGIN_FAILED)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -127,7 +128,7 @@ class GroupUserAddSerializer(ModelSerializer):
         except Exception as e:
             msg = 'Failed to add maintainers to the group'
             logger.error("msg:{}, err:{}".format(msg, e))
-            raise MyValidationError(msg)
+            raise MyValidationError(RetCode.INTERNAL_ERROR)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -169,7 +170,7 @@ class CityUserAddSerializer(ModelSerializer):
             return city_user
         except Exception as e:
             logger.error('Failed to add activity sponsors.and e:{}'.format(str(e)))
-            raise MyValidationError('Creation failed')
+            raise MyValidationError(RetCode.INTERNAL_ERROR)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

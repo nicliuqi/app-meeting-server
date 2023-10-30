@@ -8,6 +8,7 @@ from django.utils.encoding import force_str
 from rest_framework import status
 from rest_framework.exceptions import ErrorDetail, APIException
 from django.utils.translation import gettext_lazy as _
+from app_meeting_server.utils.ret_code import RetCode
 
 
 class MyValidationError(APIException):
@@ -16,7 +17,9 @@ class MyValidationError(APIException):
     default_code = 'invalid'
 
     def __init__(self, detail=None, code=None):
-        if detail is None:
+        if isinstance(detail, int):
+            detail = RetCode.get_name_by_code(detail)
+        elif detail is None:
             detail = self.default_detail
         if code is None:
             code = self.default_code
