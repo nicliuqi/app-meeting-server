@@ -34,19 +34,11 @@ if sys.argv[0] == 'uwsgi':
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-GITEE_OAUTH_CLIENT_ID = DEFAULT_CONF.get('GITEE_OAUTH_CLIENT_ID', '')
-
-GITEE_OAUTH_CLIENT_SECRET = DEFAULT_CONF.get('GITEE_OAUTH_CLIENT_SECRET', '')
-
-GITEE_OAUTH_REDIRECT = DEFAULT_CONF.get('GITEE_OAUTH_REDIRECT', '')
-
-REDIRECT_HOME_PAGE = DEFAULT_CONF.get('REDIRECT_HOME_PAGE', '')
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = DEFAULT_CONF.get('SECRET_KEY', '')
+SECRET_KEY = DEFAULT_CONF.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -95,7 +87,6 @@ CORS_ORIGIN_ALLOW_ALL = True
 SESSION_COOKIE_HTTPONLY = True
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -105,6 +96,30 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'opengauss_meetings.urls'
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+
+    # 'AUTH_HEADER_TYPES': (,),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+
+    'JTI_CLAIM': 'jti',
+
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=1000),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+}
 
 TEMPLATES = [
     {
@@ -141,18 +156,18 @@ DATABASES = {
 
 OPENGAUSS_MEETING_HOSTS = {
     'zoom': {
-        DEFAULT_CONF.get('ZOOM_HOST_FIRST', ''): DEFAULT_CONF.get('ZOOM_ACCOUNT_FIRST', ''),
-        DEFAULT_CONF.get('ZOOM_HOST_SECOND', ''): DEFAULT_CONF.get('ZOOM_ACCOUNT_SECOND', '')
+        DEFAULT_CONF.get('ZOOM_HOST_FIRST'): DEFAULT_CONF.get('ZOOM_ACCOUNT_FIRST'),
+        DEFAULT_CONF.get('ZOOM_HOST_SECOND'): DEFAULT_CONF.get('ZOOM_ACCOUNT_SECOND')
     },
     'welink': {
-        DEFAULT_CONF.get('WELINK_HOST_1', ''): DEFAULT_CONF.get('WELINK_HOST_1', '')
+        DEFAULT_CONF.get('WELINK_HOST_1'): DEFAULT_CONF.get('WELINK_HOST_1')
     }
 }
 
 WELINK_HOSTS = {
-    DEFAULT_CONF.get('WELINK_HOST_1', ''): {
-        'account': DEFAULT_CONF.get('WELINK_HOST_1_ACCOUNT', ''),
-        'pwd': DEFAULT_CONF.get('WELINK_HOST_1_PWD', '')
+    DEFAULT_CONF.get('WELINK_HOST_1'): {
+        'account': DEFAULT_CONF.get('WELINK_HOST_1_ACCOUNT'),
+        'pwd': DEFAULT_CONF.get('WELINK_HOST_1_PWD')
     }
 }
 
@@ -194,57 +209,50 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 STATIC_URL = '/static/'
 
-cur_path = os.path.dirname(os.path.realpath(__file__))  # log_path是存放日志的路径
+cur_path = os.path.dirname(os.path.realpath(__file__))
 
 log_path = os.path.join(os.path.dirname(cur_path), 'logs')
 
 if not os.path.exists(log_path):
-    os.mkdir(log_path)  # 如果不存在这个logs文件夹，就自动创建一个
+    os.mkdir(log_path)
 
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': True,
     'formatters': {
-        # 日志格式
         'standard': {
             'format': '[%(asctime)s] [%(filename)s:%(lineno)d] [%(module)s:%(funcName)s] '
                       '[%(levelname)s]- %(message)s'},
-        'simple': {  # 简单格式
+        'simple': {
             'format': '%(levelname)s %(message)s'
         },
     },
-    # 过滤
     'filters': {
     },
-    # 定义具体处理日志的方式
     'handlers': {
-        # 默认记录所有日志
         'default': {
             'level': 'INFO',
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(log_path, 'all-{}.log'.format(time.strftime('%Y-%m-%d'))),
-            'maxBytes': 1024 * 1024 * 5,  # 文件大小
-            'backupCount': 5,  # 备份数
-            'formatter': 'standard',  # 输出格式
-            'encoding': 'utf-8',  # 设置默认编码，否则打印出来汉字乱码
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 5,
+            'formatter': 'standard',
+            'encoding': 'utf-8',
         },
-        # 输出错误日志
         'error': {
             'level': 'ERROR',
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(log_path, 'error-{}.log'.format(time.strftime('%Y-%m-%d'))),
-            'maxBytes': 1024 * 1024 * 5,  # 文件大小
-            'backupCount': 5,  # 备份数
-            'formatter': 'standard',  # 输出格式
-            'encoding': 'utf-8',  # 设置默认编码
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 5,
+            'formatter': 'standard',
+            'encoding': 'utf-8',
         },
-        # 控制台输出
         'console': {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'standard'
         },
-        # 输出info日志
         'info': {
             'level': 'INFO',
             'class': 'logging.handlers.RotatingFileHandler',
@@ -252,18 +260,15 @@ LOGGING = {
             'maxBytes': 1024 * 1024 * 5,
             'backupCount': 5,
             'formatter': 'standard',
-            'encoding': 'utf-8',  # 设置默认编码
+            'encoding': 'utf-8',
         },
     },
-    # 配置用哪几种 handlers 来处理日志
     'loggers': {
-        # 类型 为 django 处理所有类型的日志， 默认调用
         'django': {
             'handlers': ['default', 'console'],
             'level': 'INFO',
             'propagate': False
         },
-        # log 调用时需要当作参数传入
         'log': {
             'handlers': ['error', 'info', 'console', 'default'],
             'level': 'INFO',
@@ -272,15 +277,32 @@ LOGGING = {
     }
 }
 
-GMAIL_USERNAME = DEFAULT_CONF.get('GMAIL_USERNAME', '')
-GMAIL_PASSWORD = DEFAULT_CONF.get('GMAIL_PASSWORD', '')
-SMTP_SERVER_HOST = DEFAULT_CONF.get('SMTP_SERVER_HOST', '')
-SMTP_SERVER_PORT = 25
-CSRF_COOKIE_AGE = 1800
-CSRF_COOKIE_NAME = 'meeting-csrftoken'
-CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_SAMESITE = 'strict'
-COOKIE_EXPIRE = timedelta(minutes=30)
-ACCESS_TOKEN_NAME = 'meeting-accesstoken'
-ZOOM_AUTH_URL = DEFAULT_CONF.get('ZOOM_AUTH_URL')
-ZOOM_AUTH_HEADER = DEFAULT_CONF.get('ZOOM_AUTH_HEADER')
+ACCESS_KEY_ID = DEFAULT_CONF.get('ACCESS_KEY_ID')
+ACCESS_KEY_ID_2 = DEFAULT_CONF.get('ACCESS_KEY_ID_2')
+AES_GCM_IV = DEFAULT_CONF.get('AES_GCM_IV')
+AES_GCM_SECRET = DEFAULT_CONF.get('AES_GCM_SECRET')
+BILI_JCT = DEFAULT_CONF.get('BILI_JCT')
+BILI_UID = DEFAULT_CONF.get('BILI_UID')
+ETHERPAD_PREFIX = DEFAULT_CONF.get('ETHERPAD_PREFIX')
+GITEE_OAUTH_CLIENT_ID = DEFAULT_CONF.get('GITEE_OAUTH_CLIENT_ID')
+GITEE_OAUTH_CLIENT_SECRET = DEFAULT_CONF.get('GITEE_OAUTH_CLIENT_SECRET')
+GITEE_OAUTH_REDIRECT = DEFAULT_CONF.get('GITEE_OAUTH_REDIRECT')
+GITEE_OAUTH_URL = DEFAULT_CONF.get('GITEE_OAUTH_URL')
+GITEE_V5_API_PREFIX = DEFAULT_CONF.get('GITEE_V5_API_PREFIX')
+OBS_BUCKETNAME = DEFAULT_CONF.get('OBS_BUCKETNAME')
+OBS_BUCKETNAME_2 = DEFAULT_CONF.get('OBS_BUCKETNAME_2')
+OBS_ENDPOINT = DEFAULT_CONF.get('OBS_ENDPOINT')
+OBS_ENDPOINT_2 = DEFAULT_CONF.get('OBS_ENDPOINT_2')
+QUERY_TOKEN = DEFAULT_CONF.get('QUERY_TOKEN')
+SECRET_ACCESS_KEY = DEFAULT_CONF.get('SECRET_ACCESS_KEY')
+SECRET_ACCESS_KEY_2 = DEFAULT_CONF.get('SECRET_ACCESS_KEY_2')
+SESSDATA = DEFAULT_CONF.get('SESSDATA')
+SIGNATURE_SECRET = DEFAULT_CONF.get('SIGNATURE_SECRET')
+SMTP_SERVER_SENDER = DEFAULT_CONF.get('SMTP_SERVER_SENDER')
+SMTP_SERVER_HOST = DEFAULT_CONF.get('SMTP_SERVER_HOST')
+SMTP_SERVER_PASS = DEFAULT_CONF.get('SMTP_SERVER_PASS')
+SMTP_SERVER_PORT = DEFAULT_CONF.get('SMTP_SERVER_PORT')
+SMTP_SERVER_USER = DEFAULT_CONF.get('SMTP_SERVER_USER')
+WELINK_API_PREFIX = DEFAULT_CONF.get('WELINK_API_PREFIX')
+ZOOM_API_PREFIX = DEFAULT_CONF.get('ZOOM_API_PREFIX')
+ZOOM_TOKEN_OBJECT = DEFAULT_CONF.get('ZOOM_TOKEN_OBJECT')
