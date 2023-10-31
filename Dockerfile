@@ -6,8 +6,6 @@ RUN yum update -y && \
     yum install -y vim wget git xz tar make automake autoconf libtool gcc gcc-c++ kernel-devel libmaxminddb-devel pcre-devel openssl openssl-devel tzdata \
         readline-devel libffi-devel python3-devel mariadb-devel python3-pip net-tools.x86_64 iputils
 
-RUN pip3 install uwsgi
-
 WORKDIR /work/app-meeting-server
 COPY . /work/app-meeting-server
 COPY ./deploy/fonts/simsun.ttc /usr/share/fonts
@@ -28,8 +26,8 @@ RUN git clone https://$PUBLIC_USER:$PUBLIC_PASSWORD@github.com/Open-Infra-Ops/pl
     rm -rf /work/app-meeting-server/plugins && \
     cd /work/app-meeting-server/armorrasp && pip3 install armorrasp.tar.gz
 
-
-RUN cp /usr/bin/python3 /usr/bin/python
+RUN yum remove -y gcc python3-pip
+RUN ln -s /usr/bin/python3 /usr/bin/python
 ENV LANG=en_US.UTF-8
 ARG user=meetingserver
 ARG group=meetingserver

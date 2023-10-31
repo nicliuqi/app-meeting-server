@@ -1,74 +1,29 @@
 import datetime
-import json
 import logging
 import math
 import requests
 import secrets
-import time
-import yaml
 from django.conf import settings
-from django.middleware.csrf import get_token
 from django.http import JsonResponse
-from django.shortcuts import redirect
+from rest_framework import permissions
 from rest_framework.filters import SearchFilter
 from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import ListModelMixin, CreateModelMixin, UpdateModelMixin, RetrieveModelMixin, \
     DestroyModelMixin
 from multiprocessing import Process
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from meetings.auth import CustomAuthentication
 from meetings.send_email import sendmail
-from meetings.models import Meeting, Video, User, Group, Record
+from meetings.models import Meeting, Video, User, Group, Record, GroupUser
 from meetings.serializers import MeetingsSerializer, MeetingUpdateSerializer, MeetingDeleteSerializer, \
-    MeetingDetailSerializer, GroupsSerializer, AllMeetingsSerializer
-from meetings.utils import cryptos
-from meetings.permissions import QueryPermission
+    GroupsSerializer, AllMeetingsSerializer
+from meetings.permissions import QueryPermission, MaintainerPermission
 from meetings.utils import drivers
+from meetings.utils.common import make_signature, refresh_access, decrypt, encrypt
 
 logger = logging.getLogger('log')
-
-
-def IdentifyUser(request):
-    """
-    Identify user by decrypting AES encoding
-    :param request: request object
-    :return: user_id
-    """
-    access_token = request.COOKIES.get(settings.ACCESS_TOKEN_NAME)
-    if not access_token:
-        return JsonResponse({'code': 400, 'msg': '请求头中缺少认证信息'})
-    if not isinstance(access_token, str):
-        return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-    if len(access_token) != 48:
-        return JsonResponse({'code': 400, 'msg': 'Bad Request'})
-    text, iv = access_token[:32], access_token[32:]
-    user_id = int(cryptos.decrypt(text, iv.encode('utf-8')))
-    return user_id
-
-
-def refresh_token(user_id):
-    iv = secrets.token_hex(8)
-    text = cryptos.encrypt(str(user_id), iv.encode('utf-8'))
-    access_token = text + iv
-    return access_token
-
-
-def refresh_cookie(user_id, response, access_token):
-    response.delete_cookie(settings.ACCESS_TOKEN_NAME)
-    now_time = datetime.datetime.now()
-    expire = now_time + settings.COOKIE_EXPIRE
-    expire_timestamp = int(time.mktime(expire.timetuple()))
-    User.objects.filter(id=user_id).update(expire_time=expire_timestamp)
-    response.set_cookie(settings.ACCESS_TOKEN_NAME, access_token, expires=expire, secure=True, httponly=True, samesite='strict')
-    return response
-
-
-def check_expire(expire_time, now_time):
-    if expire_time == 0:
-        return False
-    if now_time > expire_time:
-        return False
-    else:
-        return True
 
 
 class GiteeAuthView(GenericAPIView, ListModelMixin):
@@ -86,64 +41,61 @@ class GiteeAuthView(GenericAPIView, ListModelMixin):
         return JsonResponse(response)
 
 
-class GiteeBackView(GenericAPIView, ListModelMixin):
-    """
-    Request user info through auth code and save info
-    """
-
-    def get(self, request):
-        code = request.GET.get('code', None)
+class LoginView(GenericAPIView):
+    def post(self, request, *args, **kwargs):
+        code = self.request.data.get('code')
         client_id = settings.GITEE_OAUTH_CLIENT_ID
         client_secret = settings.GITEE_OAUTH_CLIENT_SECRET
         redirect_uri = settings.GITEE_OAUTH_REDIRECT
-        r = requests.post(
-            'https://gitee.com/oauth/token?grant_type=authorization_code&code={}&client_id={}&redirect_uri={}&client_secret={}'.format(
-                code, client_id, redirect_uri, client_secret))
-        if r.status_code == 200:
-            access_token = r.json()['access_token']
-            r = requests.get('https://gitee.com/api/v5/user?access_token={}'.format(access_token))
-            if r.status_code == 200:
-                gid = r.json()['id']
-                gitee_id = r.json()['login']
-                name = r.json()['name']
-                avatar = r.json()['avatar_url']
-                if not User.objects.filter(gid=gid):
-                    User.objects.create(gid=gid, gitee_id=gitee_id, name=name, avatar=avatar)
-                else:
-                    User.objects.filter(gid=gid).update(gitee_id=gitee_id, name=name, avatar=avatar)
-                response = redirect(settings.REDIRECT_HOME_PAGE)
-                user_id = User.objects.get(gid=gid).id
-                iv = secrets.token_hex(8)
-                access_token = cryptos.encrypt(str(user_id), iv.encode('utf-8'))
-                now_time = datetime.datetime.now()
-                expire = now_time + settings.COOKIE_EXPIRE
-                expire_timestamp = int(time.mktime(expire.timetuple()))
-                User.objects.filter(gid=gid).update(expire_time=expire_timestamp)
-                response.set_cookie(settings.ACCESS_TOKEN_NAME, access_token + iv, expires=expire, secure=True, httponly=True, samesite='strict')
-                request.META['CSRF_COOKIE'] = get_token(self.request)
-                return response
-        else:
-            return JsonResponse(r.json())
+        r = requests.post('{}?grant_type=authorization_code&code={}&client_id={}&redirect_uri={}&client_secret={}'.
+                          format(settings.GITEE_OAUTH_URL, code, client_id, redirect_uri, client_secret))
+        if r.status_code != 200:
+            resp = JsonResponse({
+                'code': 400,
+                'msg': 'Fail to login'
+            })
+            resp.status_code = 400
+            return resp
+        access_token = r.json().get('access_token')
+        r = requests.get('{}/user?access_token={}'.format(settings.GITEE_V5_API_PREFIX, access_token))
+        if r.status_code != 200:
+            return JsonResponse({
+                'code': 400,
+                'msg': 'Fail to get user info'
+            })
+        gitee_id = r.json().get('login')
+        encrypt_gitee_id = encrypt(gitee_id)
+        if not User.objects.filter(gitee_id=encrypt_gitee_id):
+            User.objects.create(gitee_id=encrypt_gitee_id)
+        user = User.objects.get(gitee_id=encrypt_gitee_id)
+        refresh = RefreshToken.for_user(user)
+        access = str(refresh.access_token)
+        signature = make_signature(access)
+        User.objects.filter(id=user.id).update(signature=signature)
+        return JsonResponse({
+            'code': 200,
+            'msg': 'success',
+            'access': access
+        })
 
 
 class LogoutView(GenericAPIView):
     """
     Log out
     """
+
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
     def get(self, request):
-        try:
-            now_time = int(time.time())
-            user_id = IdentifyUser(request)
-            expire_time = User.objects.get(id=user_id).expire_time
-            if not check_expire(expire_time, now_time):
-                return JsonResponse({'code': 401, 'msg': '身份认证过期', 'en_msg': 'Unauthorised'})
-        except:
-            return JsonResponse({'code': 401, 'msg': '用户未认证', 'en_msg': 'Unauthorised'})
-        User.objects.filter(id=user_id).update(expire_time=0)
-        response = JsonResponse({'code': 200, 'msg': 'OK'})
-        response.delete_cookie(settings.ACCESS_TOKEN_NAME)
-        response.delete_cookie(settings.CSRF_COOKIE_NAME)
-        return response
+        access = refresh_access(self.request.user)
+        signature = make_signature(access)
+        User.objects.filter(id=self.request.user.id).update(signature=signature)
+        return JsonResponse({
+            'code': 200,
+            'msg': 'success',
+            'access': access
+        })
 
 
 class UserInfoView(GenericAPIView):
@@ -151,30 +103,27 @@ class UserInfoView(GenericAPIView):
     Get login user info
     """
 
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
+
     def get(self, request, *args, **kwargs):
-        try:
-            user_id = IdentifyUser(request)
-            if not User.objects.filter(id=user_id):
-                return JsonResponse({'code': 400, 'msg': 'The user does not exist'})
-            user = User.objects.get(id=user_id)
-            gitee_id = user.gitee_id
-            with open('share/openGauss_sigs.yaml', 'r') as f:
-                sigs = yaml.safe_load(f)
-            self_sigs = []
-            for sig in sigs:
-                if gitee_id in sig['sponsors']:
-                    self_sigs.append(sig['name'])
-            data = {
-                'user': {
-                    'id': user.id,
-                    'gitee_id': gitee_id
-                },
-                'sigs': self_sigs
-            }
-            return JsonResponse({'code': 200, 'msg': 'userinfo', 'data': data})
-        except Exception as e:
-            logger.error(e)
-            return JsonResponse({'code': 400, 'msg': 'access_token错误', 'en_msg': 'Invalid access_token'})
+        user = self.request.user
+        user_id = user.id
+        gitee_id = decrypt(user.gitee_id)
+        groups_list = GroupUser.objects.filter(user_id=user_id).values_list('group_id', flat=True)
+        sigs = [Group.objects.get(id=x).name for x in groups_list]
+        data = {
+            'user': {
+                'id': user.id,
+                'gitee_id': gitee_id
+            },
+            'sigs': sigs
+        }
+        return JsonResponse({
+            'code': 200,
+            'msg': 'success',
+            'data': data
+        })
 
 
 class CreateMeetingView(GenericAPIView, CreateModelMixin):
@@ -183,62 +132,58 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
     """
     serializer_class = MeetingsSerializer
     queryset = Meeting.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (MaintainerPermission,)
 
     def post(self, request, *args, **kwargs):
-        if request.COOKIES.get(settings.CSRF_COOKIE_NAME) != request.META.get('HTTP_X_CSRFTOKEN'):
-            return JsonResponse({'code': 403, 'msg': 'Forbidden'})
-        try:
-            now_time = int(time.time())
-            user_id = IdentifyUser(request)
-            expire_time = User.objects.get(id=user_id).expire_time
-            if not check_expire(expire_time, now_time):
-                return JsonResponse({'code': 401, 'msg': '身份认证过期', 'en_msg': 'Unauthorised'})
-        except:
-            return JsonResponse({'code': 401, 'msg': '用户未认证', 'en_msg': 'Unauthorised'})
         data = self.request.data
-        platform = data['platform'] if 'platform' in data else 'zoom'
+        user_id = self.request.user.id
+        platform = data.get('platform', 'zoom')
         platform = platform.lower()
         host_dict = settings.OPENGAUSS_MEETING_HOSTS[platform]
-        date = data['date']
-        start = data['start']
-        end = data['end']
-        topic = data['topic']
-        sponsor = data['sponsor']
-        group_name = data['group_name']
-        etherpad = data['etherpad'] if 'etherpad' in data else None
+        date = data.get('date')
+        start = data.get('start')
+        end = data.get('end')
+        topic = data.get('topic')
+        sponsor = data.get('sponsor')
+        group_name = data.get('group_name')
+        etherpad = data.get('etherpad')
         if not etherpad:
-            etherpad = 'https://etherpad.opengauss.org/p/{}-meetings'.format(group_name)
-        community = data['community'] if 'community' in data else 'opengauss'
-        emaillist = data['emaillist'] if 'emaillist' in data else None
-        summary = data['agenda'] if 'agenda' in data else None
-        record = data['record'] if 'record' in data else None
-        try:
-            group_id = Group.objects.get(name=group_name).id
-        except Exception:
+            etherpad = '{}/p/{}-meetings'.format(settings.ETHERPAD_PREFIX, group_name)
+        community = data.get('community', 'opengauss')
+        emaillist = data.get('emaillist')
+        summary = data.get('agenda')
+        record = data.get('record')
+        if not Group.objects.filter(name=group_name):
             logger.error('Invalid group_name')
             return JsonResponse({'code': 400, 'msg': '错误的SIG组名', 'en_msg': 'Invalid SIG name'})
-        if User.objects.get(id=user_id).gitee_id not in Group.objects.get(name=group_name).members:
-            logger.error('user is not member of {}'.format(group_name))
-            return JsonResponse(
-                {'code': 400, 'msg': '用户未在该组', 'en_msg': 'The user is not member of {}'.format(group_name)})
+        group_id = Group.objects.get(name=group_name).id
+        if not GroupUser.objects.filter(group_id=group_id, user_id=user_id):
+            return JsonResponse({'code': 400, 'msg': '无权操作', 'en_msg': 'Access denied'})
         start_time = ' '.join([date, start])
-        if start_time < datetime.datetime.now().strftime('%Y-%m-%d %H:%M'):
-            logger.warning('The start time should not be earlier than the current time.')
-            return JsonResponse({'code': 1005, 'msg': '请输入正确的开始时间',
-                                 'en_msg': 'The start time should not be earlier than the current time'})
-        if start >= end:
-            logger.warning('The end time must be greater than the start time.')
-            return JsonResponse(
-                {'code': 1001, 'msg': '请输入正确的结束时间', 'en_msg': 'The end time must be greater than the start time'})
-        if date > (datetime.datetime.today() + datetime.timedelta(days=14)).strftime('%Y-%m-%d'):
-            logger.warning('The date is more than 14.')
-            return JsonResponse({'code': 1002, 'msg': '预定时间不能超过当前14天', 'en_msg': 'The scheduled time cannot exceed 14'})
-        start_search = datetime.datetime.strftime(
-            (datetime.datetime.strptime(start, '%H:%M') - datetime.timedelta(minutes=30)),
-            '%H:%M')
-        end_search = datetime.datetime.strftime(
-            (datetime.datetime.strptime(end, '%H:%M') + datetime.timedelta(minutes=30)),
-            '%H:%M')
+        end_time = ' '.join([date, end])
+        try:
+            if datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M') < datetime.datetime.now():
+                logger.warning('The start time should not be earlier than the current time.')
+                return JsonResponse({'code': 1005, 'msg': '请输入正确的开始时间',
+                                     'en_msg': 'The start time should not be earlier than the current time'})
+            if datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M') >= \
+                    datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M'):
+                logger.warning('The end time must be greater than the start time.')
+                return JsonResponse(
+                    {'code': 1001, 'msg': '请输入正确的结束时间', 'en_msg': 'The end time must be greater than the start time'})
+            if date > (datetime.datetime.today() + datetime.timedelta(days=14)).strftime('%Y-%m-%d'):
+                logger.warning('The date is more than 14.')
+                return JsonResponse({'code': 1002, 'msg': '预定时间不能超过当前14天', 'en_msg':
+                    'The scheduled time cannot exceed 14'})
+            start_search = datetime.datetime.strftime(
+                (datetime.datetime.strptime(start, '%H:%M') - datetime.timedelta(minutes=30)),
+                '%H:%M')
+            end_search = datetime.datetime.strftime(
+                (datetime.datetime.strptime(end, '%H:%M') + datetime.timedelta(minutes=30)),
+                '%H:%M')
+        except ValueError:
+            return JsonResponse({'code': 400, 'msg': '错误的日期或时间参数', 'en_msg': 'Wrong date or time params'})
         # 查询待创建的会议与现有的预定会议是否冲突
         unavailable_host_id = []
         available_host_id = []
@@ -328,13 +273,12 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         Meeting.objects.filter(mid=mid).update(sequence=sequence + 1)
 
         # 返回请求数据
-        access_token = refresh_token(user_id)
+        access = refresh_access(self.request.user)
         resp = {'code': 201, 'msg': '创建成功', 'en_msg': 'Schedule meeting successfully'}
         meeting_id = Meeting.objects.get(mid=mid).id
         resp['id'] = meeting_id
+        resp['access'] = access
         response = JsonResponse(resp)
-        refresh_cookie(user_id, response, access_token)
-        request.META['CSRF_COOKIE'] = get_token(request)
         return response
 
 
@@ -344,72 +288,68 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
     """
     serializer_class = MeetingUpdateSerializer
     queryset = Meeting.objects.filter(is_delete=0)
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (MaintainerPermission,)
 
     def put(self, request, *args, **kwargs):
-        if request.COOKIES.get(settings.CSRF_COOKIE_NAME) != request.META.get('HTTP_X_CSRFTOKEN'):
-            return JsonResponse({'code': 403, 'msg': 'Forbidden'})
-        # 鉴权
-        try:
-            now_time = int(time.time())
-            user_id = IdentifyUser(request)
-            expire_time = User.objects.get(id=user_id).expire_time
-            if not check_expire(expire_time, now_time):
-                return JsonResponse({'code': 401, 'msg': '身份认证过期', 'en_msg': 'Unauthorised'})
-        except:
-            return JsonResponse({'code': 401, 'msg': '用户未认证', 'en_msg': 'Unauthorised'})
+        user_id = self.request.user.id
         mid = self.kwargs.get('mid')
-        if not Meeting.objects.filter(user_id=user_id, mid=mid, is_delete=0):
-            return JsonResponse({'code': 404, 'msg': '会议不存在', 'en_msg': 'The meeting does not exist'})
-
+        if not Meeting.objects.filter(mid=mid, is_delete=0):
+            return JsonResponse({
+                'code': 400,
+                'msg': 'Meeting does not exist'
+            })
+        if not Meeting.objects.filter(user_id=user_id, mid=mid):
+            return JsonResponse({
+                'code': '401',
+                'msg': 'Access denied'
+            })
         # 获取data
         data = self.request.data
-        topic = data['topic']
-        sponsor = data['sponsor']
-        date = data['date']
-        start = data['start']
-        end = data['end']
-        group_name = data['group_name']
-        community = 'opengauss'
-        summary = data['agenda'] if 'agenda' in data else None
-        emaillist = data['emaillist'] if 'emaillist' in data else None
-        record = data['record'] if 'record' in data else None
-        etherpad = data['etherpad'] if 'etherpad' in data else 'https://etherpad.opengauss.org/p/{}-meetings'.format(
-            group_name)
+        topic = data.get('topic')
+        sponsor = data.get('sponsor')
+        date = data.get('date')
+        start = data.get('start')
+        end = data.get('end')
+        group_name = data.get('group_name')
+        community = data.get('community', 'opengauss')
+        summary = data.get('agenda')
+        emaillist = data.get('emaillist')
+        record = data.get('record')
+        etherpad = data.get('etherpad')
+        if not etherpad:
+            etherpad = '{}/p/{}-meetings'.format(settings.ETHERPAD_PREFIX, group_name)
         group_id = Group.objects.get(name=group_name).id
 
         # 根据时间判断冲突
         start_time = ' '.join([date, start])
-        if start_time < datetime.datetime.now().strftime('%Y-%m-%d %H:%M'):
-            logger.warning('The start time should not be earlier than the current time.')
-            return JsonResponse({'code': 1005, 'msg': '请输入正确的开始时间',
-                                 'en_msg': 'The start time should not be earlier than the current time'})
-        if start >= end:
-            logger.warning('The end time must be greater than the start time.')
-            return JsonResponse(
-                {'code': 1001, 'msg': '请输入正确的结束时间', 'en_msg': 'The end time must be greater than the start time'})
-        start_search = datetime.datetime.strftime(
-            (datetime.datetime.strptime(start, '%H:%M') - datetime.timedelta(minutes=30)),
-            '%H:%M')
-        end_search = datetime.datetime.strftime(
-            (datetime.datetime.strptime(end, '%H:%M') + datetime.timedelta(minutes=30)),
-            '%H:%M')
+        end_time = ' '.join([date, end])
+        try:
+            if datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M') < datetime.datetime.now():
+                logger.warning('The start time should not be earlier than the current time.')
+                return JsonResponse({'code': 1005, 'msg': '请输入正确的开始时间',
+                                     'en_msg': 'The start time should not be earlier than the current time'})
+            if datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M') >= \
+                    datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M'):
+                logger.warning('The end time must be greater than the start time.')
+                return JsonResponse({'code': 1001, 'msg': '请输入正确的结束时间',
+                                     'en_msg':'The end time must be greater than the start time'})
+            start_search = datetime.datetime.strftime(
+                (datetime.datetime.strptime(start, '%H:%M') - datetime.timedelta(minutes=30)),
+                '%H:%M')
+            end_search = datetime.datetime.strftime(
+                (datetime.datetime.strptime(end, '%H:%M') + datetime.timedelta(minutes=30)),
+                '%H:%M')
+        except ValueError:
+            return JsonResponse({'code': 400, 'msg': '错误的日期或时间参数', 'en_msg': 'Wrong date or time params'})
         # 查询待创建的会议与现有的预定会议是否冲突
         meeting = Meeting.objects.get(mid=mid)
         host_id = meeting.host_id
-        if Meeting.objects.filter(date=date, is_delete=0, host_id=host_id, end__gt=start_search, start__lt=end_search).exclude(mid=mid):
+        if Meeting.objects.filter(date=date, is_delete=0, host_id=host_id, end__gt=start_search, start__lt=end_search).\
+                exclude(mid=mid):
             logger.info('会议冲突！主持人在{}-{}已经创建了会议'.format(start_search, end_search))
             return JsonResponse({'code': 400, 'msg': '会议冲突！主持人在{}-{}已经创建了会议'.format(start_search, end_search),
                                  'en_msg': 'Schedule time conflict'})
-        # start_time拼接
-        if int(start.split(':')[0]) >= 8:
-            start_time = date + 'T' + ':'.join([str(int(start.split(':')[0]) - 8), start.split(':')[1], '00Z'])
-        else:
-            d = datetime.datetime.strptime(date, '%Y-%m-%d') - datetime.timedelta(days=1)
-            d2 = datetime.datetime.strftime(d, '%Y-%m-%d %H%M%S')[:10]
-            start_time = d2 + 'T' + ':'.join([str(int(start.split(':')[0]) + 16), start.split(':')[1], '00Z'])
-        # 计算duration
-        duration = (int(end.split(':')[0]) - int(start.split(':')[0])) * 60 + (
-                int(end.split(':')[1]) - int(start.split(':')[1]))
 
         update_topic = '[Update] ' + topic
         status = drivers.updateMeeting(mid, date, start, end, update_topic, record)
@@ -466,11 +406,9 @@ class UpdateMeetingView(GenericAPIView, UpdateModelMixin, DestroyModelMixin, Ret
         p1.start()
         Meeting.objects.filter(mid=mid).update(sequence=sequence + 1)
         # 返回请求数据
-        access_token = refresh_token(user_id)
-        resp = {'code': 204, 'msg': '修改成功', 'en_msg': 'Update successfully', 'id': mid}
+        access = refresh_access(self.request.user)
+        resp = {'code': 204, 'msg': '修改成功', 'en_msg': 'Update successfully', 'id': mid, 'access': access}
         response = JsonResponse(resp)
-        refresh_cookie(user_id, response, access_token)
-        request.META['CSRF_COOKIE'] = get_token(request)
         return response
 
 
@@ -480,22 +418,22 @@ class DeleteMeetingView(GenericAPIView, UpdateModelMixin):
     """
     serializer_class = MeetingDeleteSerializer
     queryset = Meeting.objects.filter(is_delete=0)
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (MaintainerPermission,)
 
     def delete(self, request, *args, **kwargs):
-        if request.COOKIES.get(settings.CSRF_COOKIE_NAME) != request.META.get('HTTP_X_CSRFTOKEN'):
-            return JsonResponse({'code': 403, 'msg': 'Forbidden'})
-        # 鉴权
-        try:
-            now_time = int(time.time())
-            user_id = IdentifyUser(request)
-            expire_time = User.objects.get(id=user_id).expire_time
-            if not check_expire(expire_time, now_time):
-                return JsonResponse({'code': 401, 'msg': '身份认证过期', 'en_msg': 'Unauthorised'})
-        except:
-            return JsonResponse({'code': 401, 'msg': '用户未认证', 'en_msg': 'Unauthorised'})
+        user_id = self.request.user.id
         mid = self.kwargs.get('mid')
-        if not Meeting.objects.filter(user_id=user_id, mid=mid, is_delete=0):
-            return JsonResponse({'code': 404, 'msg': '会议不存在', 'en_msg': 'The meeting does not exist'})
+        if not Meeting.objects.filter(mid=mid, is_delete=0):
+            return JsonResponse({
+                'code': 400,
+                'msg': 'Meeting does not exist'
+            })
+        if not Meeting.objects.filter(user_id=user_id, mid=mid):
+            return JsonResponse({
+                'code': '401',
+                'msg': 'Access denied'
+            })
         drivers.cancelMeeting(mid)
         # 数据库软删除数据
         Meeting.objects.filter(mid=mid).update(is_delete=1)
@@ -525,22 +463,9 @@ class DeleteMeetingView(GenericAPIView, UpdateModelMixin):
         }
         sendmail(m)
         Meeting.objects.filter(mid=mid).update(sequence=sequence + 1)
-        access_token = refresh_token(user_id)
-        response = JsonResponse({'code': 204, 'msg': '已删除会议{}'.format(mid), 'en_msg': 'Delete successfully'})
-        refresh_cookie(user_id, response, access_token)
-        request.META['CSRF_COOKIE'] = get_token(request)
-        return response
-
-
-class MeetingDetailView(GenericAPIView, RetrieveModelMixin):
-    """
-    Meeting detail
-    """
-    serializer_class = MeetingDetailSerializer
-    queryset = Meeting.objects.filter(is_delete=0)
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
+        access = refresh_access(self.request.user)
+        resp = {'code': 204, 'msg': '已删除会议', 'en_msg': 'Delete successfully', 'access': access}
+        return JsonResponse(resp)
 
 
 class GroupsView(GenericAPIView, ListModelMixin):
@@ -593,7 +518,6 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
                             'name': meeting.topic,
                             'creator': meeting.sponsor,
                             'detail': meeting.agenda,
-                            'url': User.objects.get(id=meeting.user_id).avatar,
                             'join_url': meeting.join_url,
                             'meeting_id': meeting.mid,
                             'etherpad': meeting.etherpad,
@@ -622,7 +546,6 @@ class MeetingsDataView(GenericAPIView, ListModelMixin):
                         'name': meeting.topic,
                         'creator': meeting.sponsor,
                         'detail': meeting.agenda,
-                        'url': User.objects.get(id=meeting.user_id).avatar,
                         'join_url': meeting.join_url,
                         'meeting_id': meeting.mid,
                         'etherpad': meeting.etherpad,
