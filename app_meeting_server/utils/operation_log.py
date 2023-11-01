@@ -163,7 +163,7 @@ class OperationLogDesc(OperationBase):
 
     CN_OPERATION = {
         # user
-        OP_DESC_USER_LOGIN_CODE: "用户登录。",
+        OP_DESC_USER_LOGIN_CODE: "用户（%s）登录。",
         OP_DESC_USER_LOGOUT_CODE: "用户（%s）登出。",
         OP_DESC_USER_LOGOFF_CODE: "用户（%s）注销。",
         OP_DESC_USER_MODIIFY_CODE: "用户（%s）修改用户（%s）信息。",
@@ -203,7 +203,7 @@ class OperationLogDesc(OperationBase):
 
     EN_OPERATION = {
         # user
-        OP_DESC_USER_LOGIN_CODE: "The user login.",
+        OP_DESC_USER_LOGIN_CODE: "The user(%s) login.",
         OP_DESC_USER_LOGOUT_CODE: "The user(%s) logout.",
         OP_DESC_USER_LOGOFF_CODE: "The user(%s) logoff.",
         OP_DESC_USER_MODIIFY_CODE: "The user(%s) modify the user(%s) info.",

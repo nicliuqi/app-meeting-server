@@ -51,7 +51,9 @@ class LoginView(GenericAPIView, CreateModelMixin, ListModelMixin):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
                            OperationLogType.OP_TYPE_LOGIN,
                            OperationLogDesc.OP_DESC_USER_LOGIN_CODE) as log_context:
+            log_context.log_vars = ["anonymous"]
             ret = self.create(request, *args, **kwargs)
+            log_context.log_vars = [str(ret.data.get("user_id"))]
             log_context.result = ret
             return ret
 
@@ -77,7 +79,7 @@ class LogoutView(GenericAPIView):
         refresh_access(self.request.user)
         resp = JsonResponse({
             'code': 201,
-            'msg': 'User {} logged out'.format(self.request.user.id)
+            'msg': 'User logged out'
         })
         logger.info('User {} logged out'.format(self.request.user.id))
         return resp
@@ -105,7 +107,7 @@ class LogoffView(GenericAPIView):
         refresh_access(self.request.user)
         resp = JsonResponse({
             'code': 201,
-            'msg': 'User {} logged off'.format(user_id)
+            'msg': 'User logged off'
         })
         logger.info('User {} logged off'.format(user_id))
         return resp
@@ -226,7 +228,7 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
     permission_classes = (AdminPermission,)
 
     def get(self, request, *args, **kwargs):
-        if not Group.objects.filter(id=self.kwargs.get('pk')):
+        if Group.objects.filter(id=self.kwargs.get('pk')).count() == 0:
             logger.error("The Group {} is not exist".format(self.kwargs.get("pk")))
             raise MyValidationError(RetCode.STATUS_SIG_GROUP_NOT_EXIST)
         return self.list(request, *args, **kwargs)

@@ -1,5 +1,6 @@
 import logging
 import sys
+import os
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from openeuler.models import Record
@@ -11,6 +12,7 @@ logger = logging.getLogger('log')
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
+        os.chdir("/work/app-meeting-server/deploy/production/")
         credential = get_credential()
         user = get_user(settings.BILI_UID, credential)
         bvs = get_all_bvids(user)  # 所有过审视频的bvid集合
