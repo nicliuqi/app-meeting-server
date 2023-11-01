@@ -34,6 +34,10 @@ def sendmail(mid, record=None):
     toaddrs_list = toaddrs.split(',')
     toaddrs_string = ','.join(toaddrs_list)
 
+    if not toaddrs_string:
+        logger.info('Event of creating meeting {} has no email to send.'.format(mid))
+        return
+
     # 构造邮件
     msg = MIMEMultipart()
 

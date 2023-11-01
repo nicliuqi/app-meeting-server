@@ -157,14 +157,14 @@ class LoginSerializer(serializers.ModelSerializer):
             user = User.objects.filter(openid=encrypt_openid_str).first()
             # 如果user不存在，数据库创建user
             if not user:
-                nickname = get_uuid()
+                if nickname == '微信用户':
+                    nickname = get_uuid()
                 user = User.objects.create(
                     nickname=nickname,
                     avatar=avatar,
                     openid=encrypt_openid_str)
             else:
                 User.objects.filter(openid=encrypt_openid_str).update(
-                    nickname=nickname,
                     avatar=avatar,
                     is_delete=0)
             return user

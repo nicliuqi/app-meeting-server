@@ -670,21 +670,6 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (MaintainerPermission,)
 
-    def validate(self, request):
-        err_msgs = []
-        user_id = self.request.user.id
-        mid = self.kwargs.get('mmid')
-        if not Meeting.objects.filter(mid=mid, is_delete=0):
-            err_msgs.append('Meeting {} is not exist'.format(mid))
-        elif not Meeting.objects.filter(mid=mid, user_id=user_id, is_delete=0) or User.objects.get(
-                id=user_id).level != 3:
-            err_msgs.append('User {} has no access to delete meeting {}'.format(user_id, mid))
-        if not err_msgs:
-            return True
-        logger.error('[CancelMeetingView] Fail to validate when deleting meeting, the error messages are {}'.
-                     format(','.join(err_msgs)))
-        return False
-
     def put(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
                            OperationLogType.OP_TYPE_DELETE,
@@ -700,8 +685,7 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
         if Meeting.objects.filter(mid=mid, is_delete=0).count() == 0:
             logger.error('Invalid meeting id:{}'.format(mid))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        elif Meeting.objects.filter(mid=mid, user_id=user_id).count() == 0 or User.objects.filter(id=user_id,
-                                                                                                  level=3).count() == 0:
+        elif not (Meeting.objects.filter(mid=mid, user_id=user_id).count() != 0 or User.objects.filter(id=user_id, level=3).count() != 0):
             logger.error('User {} has no access to delete meeting {}'.format(user_id, mid))
             raise MyValidationError(RetCode.STATUS_USER_HAS_NO_PERMISSIONS)
         status = drivers.cancelMeeting(mid)
@@ -1657,7 +1641,7 @@ class ActivityCollectionDelView(GenericAPIView, DestroyModelMixin):
     def destroy(self, request, *args, **kwargs):
         user_id = request.user.id
         collection_id = kwargs.get('pk')
-        if not Collect.objects.filter(id=collection_id, user_id=user_id):
+        if not ActivityCollect.objects.filter(id=collection_id, user_id=user_id):
             logger.error('User {} had not collected collection id {}'.format(user_id, collection_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         instance = self.get_object()

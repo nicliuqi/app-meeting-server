@@ -29,7 +29,7 @@ def sendmail(mid):
     toaddrs_list = toaddrs.split(',')
     toaddrs_string = ','.join(toaddrs_list)
     toaddrs_list = sorted(list(set(toaddrs_list)))
-    if not toaddrs_list:
+    if not toaddrs_string:
         logger.info('Event of cancelling meeting {} has no email to send.'.format(mid))
         return
 

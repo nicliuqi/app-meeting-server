@@ -32,7 +32,7 @@ def sendmail(meeting, record=None):
     toaddrs_string = ','.join(toaddrs_list)
     # 发送列表去重，排序
     toaddrs_list = sorted(list(set(toaddrs_list)))
-    if not toaddrs_list:
+    if not toaddrs_string:
         logger.info('Event of creating meeting {} has no email to send.'.format(mid))
         return
 

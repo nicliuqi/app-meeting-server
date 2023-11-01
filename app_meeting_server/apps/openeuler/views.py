@@ -533,7 +533,7 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
         if Meeting.objects.filter(mid=mid, is_delete=0).count() == 0:
             logger.error('That meeting :{} is not exist'.format(mid))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        elif Meeting.objects.filter(mid=mid, user_id=user_id).count() == 0 or User.objects.filter(id=user_id, level=3).count() == 0:
+        elif not (Meeting.objects.filter(mid=mid, user_id=user_id).count() != 0 or User.objects.filter(id=user_id, level=3).count() != 0):
             logger.error('User {} has no access to delete meeting {}'.format(user_id, mid))
             raise MyValidationError(RetCode.STATUS_USER_HAS_NO_PERMISSIONS)
         # 删除会议
@@ -1647,7 +1647,7 @@ class ActivityCollectDelView(GenericAPIView, DestroyModelMixin):
     def destroy(self, request, *args, **kwargs):
         user_id = request.user.id
         collection_id = kwargs.get('pk')
-        if not Collect.objects.filter(id=collection_id, user_id=user_id):
+        if not ActivityCollect.objects.filter(id=collection_id, user_id=user_id):
             logger.error('User {} had not collected collection id {}'.format(user_id, collection_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         instance = self.get_object()
