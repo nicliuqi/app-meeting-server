@@ -17,10 +17,9 @@ from openeuler.models import User, Group, Meeting, GroupUser, Collect, Video, Re
 from openeuler.permissions import MaintainerPermission, AdminPermission, \
     ActivityAdminPermission, SponsorPermission, QueryPermission
 from openeuler.serializers import LoginSerializer, GroupsSerializer, MeetingSerializer, \
-    UsersSerializer, UserSerializer, GroupUserAddSerializer, GroupSerializer, UsersInGroupSerializer, \
-    UserGroupSerializer, MeetingListSerializer, GroupUserDelSerializer, UserInfoSerializer, SigsSerializer, \
-    MeetingsDataSerializer, AllMeetingsSerializer, CollectSerializer, SponsorSerializer, SponsorInfoSerializer, \
-    ActivitySerializer, ActivitiesSerializer, ActivityDraftUpdateSerializer, ActivityUpdateSerializer, \
+    UsersSerializer, UserSerializer, GroupUserAddSerializer, UsersInGroupSerializer, \
+    UserGroupSerializer, MeetingListSerializer, GroupUserDelSerializer, UserInfoSerializer, \
+    MeetingsDataSerializer, AllMeetingsSerializer, CollectSerializer, SponsorSerializer, ActivitySerializer, ActivitiesSerializer, ActivityDraftUpdateSerializer, ActivityUpdateSerializer, \
     ActivityCollectSerializer, ActivityRetrieveSerializer
 from rest_framework.response import Response
 from multiprocessing import Process
@@ -181,24 +180,6 @@ class GroupsView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
 
-class SigsView(GenericAPIView, ListModelMixin):
-    """查询所有SIG组的名称、首页、邮件列表、IRC频道及成员的nickname、gitee_name、avatar"""
-    serializer_class = SigsSerializer
-    queryset = Group.objects.all()
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-
-class GroupView(GenericAPIView, RetrieveModelMixin):
-    """查询单个SIG组"""
-    serializer_class = GroupSerializer
-    queryset = Group.objects.all()
-
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-
 class UsersIncludeView(GenericAPIView, ListModelMixin):
     """查询所选SIG组的所有成员"""
     serializer_class = UsersInGroupSerializer
@@ -238,51 +219,6 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
         ids = [x.user_id for x in groupusers]
         user = User.objects.filter().exclude(id__in=ids)
         return user
-
-
-class UserGroupView(GenericAPIView, ListModelMixin):
-    """查询该用户的SIG组以及该组的etherpad"""
-    serializer_class = UserGroupSerializer
-    queryset = GroupUser.objects.all()
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-    def get_queryset(self):
-        usergroup = GroupUser.objects.filter(user_id=self.kwargs['pk']).all()
-        return usergroup
-
-
-class UserView(GenericAPIView, UpdateModelMixin):
-    """更新用户gitee_name"""
-    serializer_class = UserSerializer
-    queryset = User.objects.all()
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (AdminPermission,)
-
-    def put(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_MODIIFY_CODE) as log_context:
-            log_context.log_vars = [request.user.id, request.user.id]
-            ret = self.update(request, *args, **kwargs)
-            log_context.result = ret
-            return ret
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        if getattr(instance, '_prefetched_objects_cache', None):
-            instance._prefetched_objects_cache = {}
-        access = refresh_access(self.request.user)
-        data = serializer.data
-        data['access'] = access
-        response = Response()
-        response.data = data
-        return response
 
 
 class GroupUserAddView(GenericAPIView, CreateModelMixin):
@@ -436,18 +372,18 @@ class SponsorDelView(GenericAPIView, CreateModelMixin):
         return JsonResponse({'code': 204, 'msg': 'successfully deleted', 'access': access})
 
 
-class SponsorInfoView(GenericAPIView, UpdateModelMixin):
-    """修改活动发起人信息"""
-    serializer_class = SponsorInfoSerializer
-    queryset = User.objects.filter(is_delete=0, activity_level=2)
+class UserView(GenericAPIView, UpdateModelMixin):
+    """更新用户gitee_name"""
+    serializer_class = UserSerializer
+    queryset = User.objects.all()
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (ActivityAdminPermission,)
+    permission_classes = (AdminPermission,)
 
     def put(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
                            OperationLogType.OP_TYPE_MODIFY,
                            OperationLogDesc.OP_DESC_USER_MODIIFY_CODE) as log_context:
-            log_context.log_vars = [kwargs.get("pk"), request.data.get("gitee_name")]
+            log_context.log_vars = [request.user.id, request.user.id]
             ret = self.update(request, *args, **kwargs)
             log_context.result = ret
             return ret
@@ -466,6 +402,19 @@ class SponsorInfoView(GenericAPIView, UpdateModelMixin):
         response = Response()
         response.data = data
         return response
+
+
+class UserGroupView(GenericAPIView, ListModelMixin):
+    """查询该用户的SIG组以及该组的etherpad"""
+    serializer_class = UserGroupSerializer
+    queryset = GroupUser.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def get_queryset(self):
+        usergroup = GroupUser.objects.filter(user_id=self.kwargs['pk']).all()
+        return usergroup
 
 
 # ------------------------------meeting view------------------------------

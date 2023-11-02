@@ -34,8 +34,8 @@ class GroupUserAddSerializer(ModelSerializer):
         group_id = Group.objects.filter(id=validated_data['group_id']).first()
         try:
             result_list = list()
-            for user in users:
-                with transaction.atomic():
+            with transaction.atomic():
+                for user in users:
                     groupuser = GroupUser.objects.create(group_id=group_id.id, user_id=int(user.id))
                     User.objects.filter(id=int(user.id), level=1).update(level=2)
                     result_list.append(groupuser)
