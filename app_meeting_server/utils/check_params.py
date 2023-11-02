@@ -56,6 +56,22 @@ def check_date(date_str):
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
 
+def check_schedules(schedules_list):
+    for schedules in schedules_list:
+        start = schedules["start"]
+        end = schedules["end"]
+        check_date(start)
+        check_date(end)
+        topic = schedules["topic"]
+        check_invalid_content(topic)
+        for speakers in schedules["speakerList"]:
+            name = speakers["name"]
+            check_invalid_content(name)
+            title = speakers.get("title")
+            if title:
+                check_invalid_content(title)
+
+
 def check_email_list(email_list_str):
     # len of email list str gt 1000 and the single email limit 50 and limit 20 email
     if len(email_list_str) > 1000:
@@ -265,9 +281,9 @@ def check_activity_params(data, online, offline):
         check_invalid_content(address)
         check_invalid_content(detail_address)
     # 8.check schedules
+    check_schedules(schedules)
     schedules_str = json.dumps(schedules)
     check_field(schedules_str, 8192)
-    check_invalid_content(schedules_str)
     validated_data = {
         'title': title,
         'date': date,
