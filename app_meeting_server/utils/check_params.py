@@ -4,8 +4,12 @@
 # @FileName: check_params.py
 # @Software: PyCharm
 import datetime
+import json
 import logging
+import html
+import re
 from django.db import models
+from django.conf import settings
 from app_meeting_server.utils.regular_match import match_email
 from app_meeting_server.utils.ret_api import MyValidationError
 from app_meeting_server.utils.ret_code import RetCode
@@ -13,15 +17,54 @@ from app_meeting_server.utils.ret_code import RetCode
 logger = logging.getLogger('log')
 
 
+def check_invalid_content(content):
+    # check xss and url, and \r\n
+    # 1.check xss
+    content = content.strip()
+    text = html.escape(content, quote=True)
+    if len(text) != len(content):
+        logger.error("check xss:{}".format(content))
+        raise MyValidationError(RetCode.STATUS_START_VALID_XSS)
+    # 2.check url
+    reg = re.findall('https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', content)
+    if reg:
+        logger.error("check invalid url:{}".format(",".join(reg)))
+        raise MyValidationError(RetCode.STATUS_START_VALID_URL)
+    # 3.check \r\n and replace it
+    content = content.replace("\r", '')
+    content = content.replace("\n", '')
+    content = content.replace("\r\n", '')
+    return content
+
+
+def check_field(field, field_bit):
+    if len(field) == 0 or len(field) > field_bit:
+        logger.error("check invalid field({}) over bit({})".format(str(field), str(field_bit)))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+
+
+def check_date(date_str):
+    # date_str is 08:00   08 in 08-11 00 in 00-60
+    date_list = date_str.split(":")
+    hours_int = int(date_list[0])
+    minute_int = int(date_list[1])
+    if hours_int < 8 or hours_int > 23:
+        logger.error("hours {} must in 8-23".format(str(hours_int)))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    if minute_int < 0 or minute_int > 60:
+        logger.error("minute {} must in 0:60".format(str(hours_int)))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+
+
 def check_email_list(email_list_str):
-    # len of email list str gt 600 and the single email limit 30 and limit 20 email
-    if len(email_list_str) > 600:
-        logger.error("The length of email_list is gt 600")
+    # len of email list str gt 1000 and the single email limit 50 and limit 20 email
+    if len(email_list_str) > 1000:
+        logger.error("The length of email_list is gt 1000")
         raise MyValidationError(RetCode.STATUS_MEETING_EMAIL_LIST_OVER_LIMIT)
     email_list = email_list_str.split(";")
     for email in email_list:
-        if len(email) > 30:
-            logger.error("The length of email is gt 30")
+        if len(email) > 50:
+            logger.error("The length of email is gt 50")
             raise MyValidationError(RetCode.STATUS_MEETING_EMAIL_OVER_LIMIT)
         if email and not match_email(email):
             logger.error("The email does not conform to the format")
@@ -30,6 +73,8 @@ def check_email_list(email_list_str):
 
 def check_duration(start, end, date, now_time):
     err_msg = list()
+    check_date(start)
+    check_date(end)
     start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
     end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
     if start_time <= now_time:
@@ -82,11 +127,92 @@ def check_group_user(group_user_model, group_id, user_ids):
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
 
-def check_group_id_and_user_ids(group_id, user_ids, group_user_model,  group_model):
+def check_group_id_and_user_ids(group_id, user_ids, group_user_model, group_model):
     group_id = check_group_id(group_model, group_id)
     new_list_ids = check_user_ids(user_ids)
     check_group_user(group_user_model, group_id, new_list_ids)
     return group_id, new_list_ids
+
+
+def check_meetings_params(request, group_model):
+    data = request.data
+    now_time = datetime.datetime.now()
+    topic = data.get('topic')
+    platform = data.get('platform', 'zoom')
+    sponsor = data.get('sponsor')
+    date = data.get('date')
+    start = data.get('start')
+    end = data.get('end')
+    group_id = data.get('group_id')
+    group_name = data.get('group_name')
+    emaillist = data.get('emaillist', '')
+    community = data.get('community', 'openeuler')
+    summary = data.get('agenda')
+    record = data.get('record')
+    etherpad = data.get('etherpad')
+    # 1.check topic
+    check_field(topic, 128)
+    check_invalid_content(topic)
+    # 2.check platform
+    if not isinstance(platform, str):
+        logger.error("Field platform/{} must be string type".format(platform))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    else:
+        host_dict = settings.MEETING_HOSTS.get(platform.lower())
+        if not host_dict or not isinstance(host_dict, dict):
+            logger.error("Could not match any meeting host")
+            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    # 3.check sponsor
+    check_field(sponsor, 20)
+    check_invalid_content(sponsor)
+    # 4.check start,end,date
+    try:
+        check_duration(start, end, date, now_time)
+    except ValueError:
+        logger.error('Invalid start time or end time')
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    # 5. check group
+    groups_obj = group_model.objects.filter(group_name=group_name, id=group_id)
+    if groups_obj.count() == 0:
+        logger.error('Invalid group name: {}'.format(group_name))
+        raise MyValidationError(RetCode.STATUS_SIG_GROUP_NOT_EXIST)
+    # 6. check etherpad
+    check_field(etherpad, 64)
+    if not etherpad.startswith(settings.ETHERPAD_PREFIX):
+        logger.error('Invalid etherpad address {}'.format(str(etherpad)))
+        raise MyValidationError(RetCode.STATUS_MEETING_INVALID_ETHERPAD)
+    # 7.check community
+    if community != settings.COMMUNITY.lower():
+        logger.error('The field community must be the same as configure')
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    # 8.check agenda
+    check_field(summary, 4096)
+    check_invalid_content(summary)
+    # 9.check record:
+    if record not in ["cloud", ""]:
+        logger.error('The invalid cloud:{}'.format(str(record)))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    # 10.check_emaillist
+    if emaillist:
+        check_email_list(emaillist)
+    validated_data = {
+        'platform': platform,
+        'host_dict': host_dict,
+        'date': date,
+        'start': start,
+        'end': end,
+        'topic': topic,
+        'sponsor': sponsor,
+        'group_name': group_name,
+        'etherpad': etherpad,
+        'communinty': community,
+        'emaillist': emaillist,
+        'summary': summary,
+        'record': record,
+        'user_id': request.user.id,
+        'group_id': group_id
+    }
+    return validated_data
 
 
 def check_activity_params(data, online, offline):
@@ -104,7 +230,14 @@ def check_activity_params(data, online, offline):
     start = data.get('start')
     end = data.get('end')
     schedules = data.get('schedules')
-    # todo 1.没有校验的参数有：synopsis， address, detail_address, longitude, latitude, schedules
+    # 1.check title
+    check_field(title, 50)
+    check_invalid_content(title)
+    # 2.check activity_type
+    if activity_type not in [offline, online]:
+        logger.error('Invalid activity type: {}'.format(activity_type))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    # 3.check date
     try:
         if date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
             logger.error('The start date {} should be earlier than tomorrow'.format(str(date)))
@@ -114,18 +247,27 @@ def check_activity_params(data, online, offline):
     except ValueError:
         logger.error('Invalid datetime params {}'.format(date))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
-    if not title:
-        logger.error('Activity title could not be empty')
-        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
-    if activity_type not in [offline, online]:
-        logger.error('Invalid activity type: {}'.format(activity_type))
-        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    # 4.check poster
     if poster not in range(1, 5):
         logger.error('Invalid poster: {}'.format(poster))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    # 5.check register_url
     if not register_url.startswith('https://'):
         logger.error('Invalid register url: {}'.format(register_url))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    # 6.check synopsis
+    if synopsis:
+        check_field(synopsis, 4096)
+    # 7.check adress in offline
+    if activity_type == offline:
+        check_invalid_content(longitude)
+        check_invalid_content(latitude)
+        check_invalid_content(address)
+        check_invalid_content(detail_address)
+    # 8.check schedules
+    schedules_str = json.dumps(schedules)
+    check_field(schedules_str, 8192)
+    check_invalid_content(schedules_str)
     validated_data = {
         'title': title,
         'date': date,

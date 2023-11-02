@@ -32,7 +32,7 @@ from app_meeting_server.utils.operation_log import LoggerContext, OperationLogMo
 from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid
 from app_meeting_server.utils.ret_api import MyValidationError
 from app_meeting_server.utils.check_params import check_email_list, check_duration, check_group_id_and_user_ids, \
-    check_user_ids, check_activity_params
+    check_user_ids, check_activity_params, check_meetings_params
 from app_meeting_server.utils.ret_code import RetCode
 
 logger = logging.getLogger('log')
@@ -632,65 +632,6 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
     authentication_classes = (CustomAuthentication,)
     permission_classes = (MaintainerPermission,)
 
-    def validate(self, request):
-        now_time = datetime.datetime.now()
-        data = request.data
-        platform = data.get('platform', 'zoom')
-        date = data.get('date')
-        start = data.get('start')
-        end = data.get('end')
-        topic = data.get('topic')
-        sponsor = data.get('sponsor')
-        group_name = data.get('group_name')
-        community = data.get('community', 'openeuler')
-        emaillist = data.get('emaillist', '')
-        summary = data.get('agenda')
-        record = data.get('record')
-        etherpad = data.get('etherpad')
-        if not isinstance(platform, str):
-            logger.error("Field platform/{} must be string type".format(platform))
-            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
-        else:
-            host_dict = settings.MEETING_HOSTS.get(platform.lower())
-            if not host_dict or not isinstance(host_dict, dict):
-                logger.error("Could not match any meeting host")
-                raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
-        try:
-            check_duration(start, end, date, now_time)
-        except ValueError:
-            logger.error('Invalid start time or end time')
-            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
-        if not Group.objects.filter(group_name=group_name):
-            logger.error('Invalid group name: {}'.format(group_name))
-            raise MyValidationError(RetCode.STATUS_SIG_GROUP_NOT_EXIST)
-        if not etherpad.startswith(settings.ETHERPAD_PREFIX):
-            logger.error('Invalid etherpad address {}'.format(str(etherpad)))
-            raise MyValidationError(RetCode.STATUS_MEETING_INVALID_ETHERPAD)
-        if community != settings.COMMUNITY.lower():
-            logger.error('The field community must be the same as configure')
-            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
-        # todo 1.没有判断的参数有：sponsor, summary, record
-        if emaillist:
-            check_email_list(emaillist)
-        validated_data = {
-            'platform': platform,
-            'host_dict': host_dict,
-            'date': date,
-            'start': start,
-            'end': end,
-            'topic': topic,
-            'sponsor': sponsor,
-            'group_name': group_name,
-            'etherpad': etherpad,
-            'communinty': community,
-            'emaillist': emaillist,
-            'summary': summary,
-            'record': record,
-            'user_id': request.user.id,
-            'group_id': Group.objects.get(group_name=group_name).id
-        }
-        return validated_data
-
     def post(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
                            OperationLogType.OP_TYPE_CREATE,
@@ -702,7 +643,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
 
     def create(self, request, *args, **kwargs):
         t1 = time.time()
-        data = self.validate(request)
+        data = check_meetings_params(request, Group)
         platform = data.get('platform')
         host_dict = data.get('host_dict')
         date = data.get('date')
@@ -712,19 +653,19 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         sponsor = data.get('sponsor')
         group_name = data.get('group_name')
         community = data.get('community')
-        emaillist = data.get('emaillist', '')
+        emaillist = data.get('emaillist')
         summary = data.get('summary')
         user_id = data.get('user_id')
         group_id = data.get('group_id')
         record = data.get('record')
         etherpad = data.get('etherpad')
+        # 1.查询待创建的会议与现有的预定会议是否冲突
         start_search = datetime.datetime.strftime(
             (datetime.datetime.strptime(start, '%H:%M') - datetime.timedelta(minutes=30)),
             '%H:%M')
         end_search = datetime.datetime.strftime(
             (datetime.datetime.strptime(end, '%H:%M') + datetime.timedelta(minutes=30)),
             '%H:%M')
-        # 查询待创建的会议与现有的预定会议是否冲突
         host_ids = list(host_dict.keys())
         meetings = Meeting.objects.filter(is_delete=0, date=date, end__gt=start_search, start__lt=end_search,
                                           mplatform=platform).values()
@@ -734,7 +675,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         if len(available_host_id) == 0:
             logger.warning('No available host:{} yet'.format(platform))
             raise MyValidationError(RetCode.STATUS_MEETING_NO_AVAILABLE_HOST)
-        # 从available_host_id中随机生成一个host_id,并在host_dict中取出
+        # 2.从available_host_id中随机生成一个host_id,并在host_dict中取出
         host_id = secrets.choice(available_host_id)
         host = host_dict[host_id]
         logger.info('host_id:{}'.format(host_id))
@@ -748,8 +689,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         join_url = content['join_url']
         host_id = content['host_id']
         timezone = content['timezone'] if 'timezone' in content else 'Asia/Shanghai'
-
-        # 数据库生成数据
+        # 3.数据库生成数据
         Meeting.objects.create(
             mid=mid,
             topic=topic,
@@ -772,8 +712,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         )
         logger.info('{} has created a {} meeting which mid is {}.'.format(sponsor, platform, mid))
         logger.info('meeting info: {},{}-{},{}'.format(date, start, end, topic))
-
-        # 发送email
+        # 4.发送email
         m = {
             'mid': mid,
             'topic': topic,
@@ -789,8 +728,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         }
         p1 = Process(target=sendmail, args=(m, record))
         p1.start()
-
-        # 如果开启录制功能，则在Video表中创建一条数据
+        # 5.如果开启录制功能，则在Video表中创建一条数据
         if record == 'cloud':
             Video.objects.create(
                 mid=mid,
@@ -800,7 +738,6 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
                 agenda=data['agenda'] if 'agenda' in data else ''
             )
             logger.info('meeting {} was created with auto recording.'.format(mid))
-
         access = refresh_access(self.request.user)
         resp = {'code': 201, 'message': 'Created successfully', 'access': access}
         meeting = Meeting.objects.get(mid=mid)
@@ -1017,7 +954,7 @@ class ActivityView(GenericAPIView, CreateModelMixin):
                 register_url=register_url
             )
         # 线上活动
-        if activity_type == online:
+        elif activity_type == online:
             start = data.get('start')
             end = data.get('end')
             Activity.objects.create(
@@ -1276,7 +1213,7 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
                 register_url=register_url
             )
         # 线上活动
-        if activity_type == online:
+        elif activity_type == online:
             start = data.get('start')
             end = data.get('end')
             Activity.objects.create(
@@ -1391,7 +1328,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
                 poster=poster,
                 register_url=register_url
             )
-        if activity_type == online:
+        elif activity_type == online:
             start = data.get('start')
             end = data.get('end')
             Activity.objects.filter(id=activity_id, user_id=user_id).update(
@@ -1415,65 +1352,6 @@ class DraftPublishView(GenericAPIView, UpdateModelMixin):
     queryset = Activity.objects.filter(is_delete=0, status=1)
     authentication_classes = (CustomAuthentication,)
     permission_classes = (SponsorPermission,)
-
-    def validate(self, request):
-        now_time = datetime.datetime.now()
-        err_msgs = []
-        activity_id = self.kwargs.get('pk')
-        user_id = self.request.user.id
-        data = self.request.data
-        title = data.get('title')
-        date = data.get('date')
-        activity_type = data.get('activity_type')
-        synopsis = data.get('synopsis')
-        poster = data.get('poster')
-        register_url = data.get('register_url')
-        address = data.get('address')
-        detail_address = data.get('detail_address')
-        longitude = data.get('longitude')
-        latitude = data.get('latitude')
-        start = data.get('start')
-        end = data.get('end')
-        schedules = data.get('schedules')
-        if not Activity.objects.filter(id=activity_id, user_id=user_id, status=1):
-            err_msgs.append('Invalid activity id')
-        try:
-            if date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
-                err_msgs.append('The start date should be earlier than tomorrow')
-            if activity_type == online:
-                err_msg = check_duration(start, end, date, now_time)
-                if err_msg:
-                    err_msgs.extend(err_msg)
-        except ValueError:
-            err_msgs.append('Invalid datetime params')
-        if not title:
-            err_msgs.append('Activity title could not be empty')
-        if activity_type not in [offline, online]:
-            err_msgs.append('Invalid activity type')
-        if poster not in range(1, 5):
-            err_msgs.append('Invalid poster')
-        if not register_url.startswith('https://'):
-            err_msgs.append('Invalid register url')
-        if err_msgs:
-            logger.error('[ActivityView] Fail to validate when creating activity, the error messages are {}'.format(
-                ','.join(err_msgs)))
-            return False, None, err_msgs
-        validated_data = {
-            'title': title,
-            'date': date,
-            'activity_type': activity_type,
-            'synopsis': synopsis,
-            'poster': poster,
-            'register_url': register_url,
-            'address': address,
-            'detail_address': detail_address,
-            'longitude': longitude,
-            'latitude': latitude,
-            'start': start,
-            'end': end,
-            'schedules': schedules
-        }
-        return True, validated_data, err_msgs
 
     def put(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
@@ -1515,7 +1393,7 @@ class DraftPublishView(GenericAPIView, UpdateModelMixin):
                 poster=poster,
                 status=2
             )
-        if activity_type == online:
+        elif activity_type == online:
             start = data.get('start')
             end = data.get('end')
             Activity.objects.filter(id=activity_id, user_id=user_id).update(

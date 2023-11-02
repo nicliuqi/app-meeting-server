@@ -44,6 +44,8 @@ class RetCode(RetCodeBase):
     STATUS_START_LT_END = -10
     STATUS_START_GT_NOW = -11
     STATUS_START_LT_LIMIT = -12
+    STATUS_START_VALID_URL = -13
+    STATUS_START_VALID_XSS = -14
 
     STATUS_FACILITY_BIT_MASK = 16
     STATUS_FACILITY_USER = 1 << STATUS_FACILITY_BIT_MASK
@@ -85,6 +87,8 @@ class RetCode(RetCodeBase):
         STATUS_START_LT_END: "The start time should not be later than the end time",
         STATUS_START_GT_NOW: "The start time should not be later than the current time",
         STATUS_START_LT_LIMIT: "The start time is at most 60 days later than the current time",
+        STATUS_START_VALID_URL: "Please do not enter URL links",
+        STATUS_START_VALID_XSS: "Please do not enter XSS tags",
 
         # user
         STATUS_USER_HAS_SIGNED_POLICY: "The user has signed privacy policy agreement already.",
@@ -96,7 +100,7 @@ class RetCode(RetCodeBase):
 
         # meetings
         STATUS_MEETING_EMAIL_LIST_OVER_LIMIT: "The length of email_list is gt 600",
-        STATUS_MEETING_EMAIL_OVER_LIMIT: "The length of email is gt 30",
+        STATUS_MEETING_EMAIL_OVER_LIMIT: "The length of email is gt 50",
         STATUS_MEETING_INVALID_EMAIL: "Invalid email address",
         STATUS_MEETING_INVALID_ETHERPAD: "Invalid etherpad",
         STATUS_MEETING_FAILED_CREATE: "Failed to create meeting",
@@ -122,6 +126,8 @@ class RetCode(RetCodeBase):
         STATUS_START_LT_END: "开始时间应小于结束时间",
         STATUS_START_GT_NOW: "开始时间应大于当前时间",
         STATUS_START_LT_LIMIT: "建议预定60天之内的会议或者活动",
+        STATUS_START_VALID_URL: "请勿输入URL链接，XSS标签等内容",
+        STATUS_START_VALID_XSS: "请勿输入XSS标签等内容",
 
         # user
         STATUS_USER_HAS_SIGNED_POLICY: "用户已签署隐私政策协议",
