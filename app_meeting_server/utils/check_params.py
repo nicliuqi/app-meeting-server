@@ -276,8 +276,10 @@ def check_activity_params(data, online, offline):
         check_field(synopsis, 4096)
     # 7.check adress in offline
     if activity_type == offline:
-        check_invalid_content(longitude)
-        check_invalid_content(latitude)
+        if not isinstance(longitude, float):
+            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+        if not isinstance(latitude, float):
+            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
         check_invalid_content(address)
         check_invalid_content(detail_address)
     # 8.check schedules
