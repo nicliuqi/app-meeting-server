@@ -202,8 +202,9 @@ def check_meetings_params(request, group_model):
         logger.error('The field community must be the same as configure')
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     # 8.check agenda
-    check_field(summary, 4096)
-    check_invalid_content(summary)
+    if summary:
+        check_field(summary, 4096)
+        check_invalid_content(summary)
     # 9.check record:
     if record not in ["cloud", ""]:
         logger.error('The invalid cloud:{}'.format(str(record)))
