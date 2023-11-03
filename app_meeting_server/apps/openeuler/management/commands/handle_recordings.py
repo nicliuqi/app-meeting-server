@@ -23,7 +23,7 @@ logger = logging.getLogger('log')
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        os.chdir("/work/app-meeting-server/deploy/production/")
+        os.chdir("/home/meetingserver/app-meeting-server/deploy/production/")
         meeting_ids = Video.objects.all().values_list('mid', flat=True)
         past_meetings = Meeting.objects.filter(is_delete=0).filter(
             Q(date__gt=str(datetime.datetime.now() - datetime.timedelta(days=7))) &

@@ -12,7 +12,7 @@ logger = logging.getLogger('log')
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        os.chdir("/work/app-meeting-server/deploy/production/")
+        os.chdir("/home/meetingserver/app-meeting-server/deploy/production/")
         credential = get_credential()
         user = get_user(settings.BILI_UID, credential)
         bvs = get_all_bvids(user)  # 所有过审视频的bvid集合

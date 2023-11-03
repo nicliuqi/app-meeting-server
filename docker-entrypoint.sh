@@ -2,9 +2,9 @@
 set -e
 
 # Check if we are in the correct directory before running commands.
-if [[ ! $(pwd) == '/work/app-meeting-server' ]]; then
-	echo "Running in the wrong directory...switching to /work/app-meeting-server"
-	cd /work/app-meeting-server
+if [[ ! $(pwd) == '/home/meetingserver/app-meeting-server' ]]; then
+	echo "Running in the wrong directory...switching to..."
+	cd /home/meetingserver/app-meeting-server
 fi
 
 
