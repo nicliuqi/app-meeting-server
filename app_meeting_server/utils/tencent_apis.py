@@ -5,8 +5,9 @@ import json
 import logging
 import requests
 import time
-import random
 from django.conf import settings
+
+from app_meeting_server.utils.common import make_nonce
 
 logger = logging.getLogger('log')
 
@@ -18,7 +19,7 @@ def get_signature(method, uri, body):
     secretKey = settings.TX_MEETING_SECRETKEY
     secretId = settings.TX_MEETING_SECRETID
     timestamp = str(int(time.time()))
-    nonce = str(int(random.randint(0, 1000000)))
+    nonce = make_nonce()
     headers = {
         "X-TC-Key": secretId,
         "X-TC-Nonce": nonce,

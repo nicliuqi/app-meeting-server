@@ -7,10 +7,9 @@ import datetime
 import json
 import logging
 import html
-import re
 from django.db import models
 from django.conf import settings
-from app_meeting_server.utils.regular_match import match_email
+from app_meeting_server.utils.regular_match import match_email, match_url
 from app_meeting_server.utils.ret_api import MyValidationError
 from app_meeting_server.utils.ret_code import RetCode
 
@@ -26,7 +25,7 @@ def check_invalid_content(content):
         logger.error("check xss:{}".format(content))
         raise MyValidationError(RetCode.STATUS_START_VALID_XSS)
     # 2.check url
-    reg = re.findall('https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', content)
+    reg = match_url(content)
     if reg:
         logger.error("check invalid url:{}".format(",".join(reg)))
         raise MyValidationError(RetCode.STATUS_START_VALID_URL)

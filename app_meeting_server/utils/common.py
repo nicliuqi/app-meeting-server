@@ -3,6 +3,8 @@
 # @Author  : Tom_zc
 # @FileName: common.py
 # @Software: PyCharm
+import secrets
+import string
 import uuid
 import tempfile
 import os
@@ -65,3 +67,7 @@ def save_temp_img(content):
     tmp_file = os.path.join(tmpdir, 'tmp.jpeg')
     write_content(tmp_file, content, 'wb')
     return tmp_file
+
+
+def make_nonce():
+    return ''.join(secrets.choice(string.digits) for _ in range(6))

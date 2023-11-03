@@ -150,7 +150,7 @@ class Command(BaseCommand):
                 if r.status_code == 200:
                     owner['gitee_id'] = maintainer
                     owner['avatar_url'] = r.json()['avatar_url']
-                    owner['home_page'] = 'https://gitee.com/{}'.format(maintainer)
+                    owner['home_page'] = 'https://{}/{}'.format(settings.CODE_PLATFORM_URL, maintainer)
                     owner['sigs'] = owners_sigs[maintainer]
                     if r.json()['email']:
                         owner['email'] = r.json()['email']
