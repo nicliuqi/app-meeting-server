@@ -41,8 +41,7 @@ ENV LANG=en_US.UTF-8
 RUN chown -R ${user}:${group} /home/meetingserver/
 USER ${uid}:${gid}
 
-RUN history -c && echo "set +o history" >> /home/meetingserver/.bashrc  && echo "umask 027" >> /home/meetingserver/.bashrc
-RUN source /home/meetingserver/.bashrc
+RUN history -c && echo "set +o history" >> /home/meetingserver/.bashrc  && echo "umask 027" >> /home/meetingserver/.bashrc && source /home/meetingserver/.bashrc
 ENTRYPOINT ["/home/meetingserver/app-meeting-server/docker-entrypoint.sh"]
 CMD ["uwsgi", "--ini", "/home/meetingserver/app-meeting-server/deploy/production/uwsgi.ini"]
 EXPOSE 8080
