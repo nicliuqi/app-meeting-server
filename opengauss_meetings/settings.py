@@ -146,7 +146,7 @@ WSGI_APPLICATION = 'opengauss_meetings.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'opengauss_meetings',
+        'NAME': DEFAULT_CONF.get('DB_NAME'),
         'USER': DEFAULT_CONF.get('DB_USER'),
         'PASSWORD': DEFAULT_CONF.get('DB_PASSWORD'),
         'HOST': DEFAULT_CONF.get('DB_HOST'),
