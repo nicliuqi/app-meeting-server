@@ -8,7 +8,8 @@ ARG uid=1000
 ARG gid=1000
 
 # 1.copy
-RUN mkdir -p /home/meetingserver/app-meeting-server
+RUN groupadd -g ${gid} ${group}
+RUN useradd -u ${uid} -g ${group} -d /home/meetingserver/ -s /sbin/nologin -m ${user}
 WORKDIR /home/meetingserver/app-meeting-server
 COPY ./app_meeting_server /home/meetingserver/app-meeting-server/app_meeting_server
 COPY ./manage.py /home/meetingserver/app-meeting-server
@@ -19,7 +20,7 @@ COPY ./requirements.txt /home/meetingserver/app-meeting-server
 
 # 2.install
 RUN yum install -y wget git openssl openssl-devel tzdata python3-devel mariadb-devel python3-pip libXext libjpeg xorg-x11-fonts-75dpi xorg-x11-fonts-Type1 gcc
-RUN cd /home/meetingserver/app-meeting-server && pip3 install -r requirements.txt && rm -rf /home/meetingserver/app-meeting-server/requirements.txt
+RUN pip3 install -r /home/meetingserver/app-meeting-server/requirements.txt && rm -rf /home/meetingserver/app-meeting-server/requirements.txt
 RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox-0.12.6-1.centos8.x86_64.rpm && \
     rpm -i wkhtmltox-0.12.6-1.centos8.x86_64.rpm && \
     rm -f wkhtmltox-0.12.6-1.centos8.x86_64.rpm
@@ -37,8 +38,6 @@ RUN chmod 750 /home/meetingserver/app-meeting-server/logs
 
 # 4.Run server
 ENV LANG=en_US.UTF-8
-RUN groupadd -g ${gid} ${group}
-RUN useradd -u ${uid} -g ${group} -d /home/meetingserver/ -s /sbin/nologin -m ${user}
 RUN chown -R ${user}:${group} /home/meetingserver/
 USER ${uid}:${gid}
 
