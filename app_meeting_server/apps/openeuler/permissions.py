@@ -13,7 +13,7 @@ class MaintainerPermission(permissions.IsAuthenticated):
             return False
         if not request.user.level:
             return False
-        if request.user.level >= self.level:
+        if request.user.level == self.level:
             if User.objects.get(id=request.user.id, level=request.user.level):
                 return True
             else:
@@ -35,7 +35,7 @@ class SponsorPermission(permissions.IsAuthenticated):
             return False
         if not request.user.activity_level:
             return False
-        if request.user.activity_level >= self.activity_level:
+        if request.user.activity_level == self.activity_level:
             if User.objects.get(id=request.user.id, activity_level=request.user.activity_level):
                 return True
             else:
@@ -49,7 +49,7 @@ class SponsorPermission(permissions.IsAuthenticated):
 
 class AdminPermission(MaintainerPermission):
     """管理员权限"""
-    message = '需要管理员权限！！！'
+    message = '需要会议管理员权限！！！'
     level = 3
 
 

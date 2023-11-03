@@ -152,13 +152,11 @@ class LoginSerializer(serializers.ModelSerializer):
                 raise MyValidationError(RetCode.STATUS_USER_GET_OPENID_FAILED)
             openid = r['openid']
             encrypt_openid_str = encrypt_openid(openid)
-            nickname = res['userInfo']['nickName'] if 'nickName' in res['userInfo'] else ''
             avatar = res['userInfo']['avatarUrl'] if 'avatarUrl' in res['userInfo'] else ''
             user = User.objects.filter(openid=encrypt_openid_str).first()
             # if user not exist, and need to create
             if not user:
-                if nickname == '微信用户':
-                    nickname = get_uuid()
+                nickname = get_uuid()
                 user = User.objects.create(
                     nickname=nickname,
                     avatar=avatar,
