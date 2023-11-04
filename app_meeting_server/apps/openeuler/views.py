@@ -12,18 +12,20 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import ListModelMixin, CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, \
     UpdateModelMixin
 
+from app_meeting_server.utils.my_pagination import MyPagination
 from openeuler.models import User, Group, Meeting, GroupUser, Collect, Video, Record, \
     Activity, ActivityCollect
-from openeuler.permissions import MaintainerPermission, AdminPermission, \
+from app_meeting_server.utils.permissions import MaintainerPermission, AdminPermission, \
     ActivityAdminPermission, SponsorPermission, QueryPermission
 from openeuler.serializers import LoginSerializer, GroupsSerializer, MeetingSerializer, \
     UsersSerializer, UserSerializer, GroupUserAddSerializer, UsersInGroupSerializer, \
     UserGroupSerializer, MeetingListSerializer, GroupUserDelSerializer, UserInfoSerializer, \
-    MeetingsDataSerializer, AllMeetingsSerializer, CollectSerializer, SponsorSerializer, ActivitySerializer, ActivitiesSerializer, ActivityDraftUpdateSerializer, ActivityUpdateSerializer, \
+    MeetingsDataSerializer, AllMeetingsSerializer, CollectSerializer, SponsorSerializer, ActivitySerializer, \
+    ActivitiesSerializer, ActivityDraftUpdateSerializer, ActivityUpdateSerializer, \
     ActivityCollectSerializer, ActivityRetrieveSerializer
 from rest_framework.response import Response
 from multiprocessing import Process
-from openeuler.send_email import sendmail
+from openeuler.utils.send_email import sendmail
 from rest_framework import permissions
 from openeuler.utils import gene_wx_code, drivers, send_cancel_email
 from app_meeting_server.utils.auth import CustomAuthentication
@@ -31,13 +33,23 @@ from app_meeting_server.utils import wx_apis
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType
 from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid
 from app_meeting_server.utils.ret_api import MyValidationError
-from app_meeting_server.utils.check_params import check_email_list, check_duration, check_group_id_and_user_ids, \
+from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
     check_user_ids, check_activity_params, check_meetings_params
 from app_meeting_server.utils.ret_code import RetCode
 
 logger = logging.getLogger('log')
 offline = 1
 online = 2
+
+
+# ------------------------------common view------------------------------
+class PingView(GenericAPIView):
+    def get(self, request, *args):
+        ret = {
+            'code': 200,
+            'msg': 'the status is ok'
+        }
+        return JsonResponse(ret)
 
 
 # ------------------------------user view------------------------------
@@ -338,7 +350,8 @@ class SponsorAddView(GenericAPIView, CreateModelMixin):
         new_user_ids = check_user_ids(user_ids)
         match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0).count()
         if len(new_user_ids) != match_queryset:
-            logger.error("The input ids: {}, parse result {} not eq query result {}".format(user_ids, new_user_ids, match_queryset))
+            logger.error("The input ids: {}, parse result {} not eq query result {}".format(user_ids, new_user_ids,
+                                                                                            match_queryset))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0).update(activity_level=2)
         access = refresh_access(self.request.user)
@@ -365,7 +378,8 @@ class SponsorDelView(GenericAPIView, CreateModelMixin):
         new_user_ids = check_user_ids(user_ids)
         match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=2).count()
         if match_queryset != len(new_user_ids):
-            logger.error("The input ids: {}, parse result {} not eq query result {}".format(user_ids, new_user_ids, match_queryset))
+            logger.error("The input ids: {}, parse result {} not eq query result {}".format(user_ids, new_user_ids,
+                                                                                            match_queryset))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         User.objects.filter(id__in=new_user_ids, activity_level=2).update(activity_level=1)
         access = refresh_access(self.request.user)
@@ -446,6 +460,7 @@ class MeetingsRecentlyView(GenericAPIView, ListModelMixin):
     """查询最近的会议"""
     serializer_class = MeetingListSerializer
     queryset = Meeting.objects.filter(is_delete=0)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         self.queryset = self.queryset.filter(date__gte=datetime.datetime.now().strftime('%Y-%m-%d')). \
@@ -484,7 +499,8 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
         if Meeting.objects.filter(mid=mid, is_delete=0).count() == 0:
             logger.error('That meeting :{} is not exist'.format(mid))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        elif not (Meeting.objects.filter(mid=mid, user_id=user_id).count() != 0 or User.objects.filter(id=user_id, level=3).count() != 0):
+        elif not (Meeting.objects.filter(mid=mid, user_id=user_id).count() != 0 or User.objects.filter(id=user_id,
+                                                                                                       level=3).count() != 0):
             logger.error('User {} has no access to delete meeting {}'.format(user_id, mid))
             raise MyValidationError(RetCode.STATUS_USER_HAS_NO_PERMISSIONS)
         # 删除会议
@@ -498,7 +514,8 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
         logger.info('{} has canceled the meeting which mid was {}'.format(request.user.gitee_name, mid))
 
         # 发送删除通知邮件
-        send_cancel_email.sendmail(mid)
+        # todo do a test
+        # send_cancel_email.sendmail(mid)
 
         # 发送会议取消通知
         collections = Collect.objects.filter(meeting_id=meeting_id)
@@ -726,8 +743,9 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
             'etherpad': etherpad,
             'agenda': summary
         }
-        p1 = Process(target=sendmail, args=(m, record))
-        p1.start()
+        # todo do a test
+        # p1 = Process(target=sendmail, args=(m, record))
+        # p1.start()
         # 5.如果开启录制功能，则在Video表中创建一条数据
         if record == 'cloud':
             Video.objects.create(

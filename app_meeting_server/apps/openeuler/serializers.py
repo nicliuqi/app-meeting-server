@@ -11,6 +11,7 @@ from app_meeting_server.utils.wx_apis import get_openid
 from app_meeting_server.utils.ret_api import MyValidationError
 from openeuler.models import Collect, Group, User, Meeting, GroupUser, Record, Activity, ActivityCollect
 from django.db import transaction
+from django.conf import settings
 
 logger = logging.getLogger('log')
 
@@ -152,19 +153,17 @@ class LoginSerializer(serializers.ModelSerializer):
                 raise MyValidationError(RetCode.STATUS_USER_GET_OPENID_FAILED)
             openid = r['openid']
             encrypt_openid_str = encrypt_openid(openid)
-            avatar = res['userInfo']['avatarUrl'] if 'avatarUrl' in res['userInfo'] else ''
             user = User.objects.filter(openid=encrypt_openid_str).first()
             # if user not exist, and need to create
             if not user:
                 nickname = get_uuid()
+                avatar = settings.WX_AVATAR_URL
                 user = User.objects.create(
                     nickname=nickname,
                     avatar=avatar,
                     openid=encrypt_openid_str)
             else:
-                User.objects.filter(openid=encrypt_openid_str).update(
-                    avatar=avatar,
-                    is_delete=0)
+                User.objects.filter(openid=encrypt_openid_str).update(is_delete=0)
             return user
         except Exception as e:
             logger.error("e:{}, traceback:{}".format(e, traceback.format_exc()))

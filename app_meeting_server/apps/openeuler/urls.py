@@ -8,9 +8,11 @@ from openeuler.views import LoginView, GroupsView, MeetingView, MeetingsView, Us
     ActivityUpdateView, ActivityDraftView, ActivitiesDraftView, SponsorActivityDraftView, DraftUpdateView, \
     DraftPublishView, SponsorActivitiesPublishingView, ActivityCollectView, ActivityCollectDelView, \
     MyActivityCollectionsView, CountActivitiesView, MyCountsView, MeetingsRecentlyView, ActivitiesDataView, \
-    AgreePrivacyPolicyView, RevokeAgreementView, LogoutView, LogoffView
+    AgreePrivacyPolicyView, RevokeAgreementView, LogoutView, LogoffView, PingView
 
 urlpatterns = [
+    # common
+    path('ping/', PingView.as_view()),                                 # ping
 
     # user
     path('login/', LoginView.as_view()),                                # 登陆
