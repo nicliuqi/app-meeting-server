@@ -1,7 +1,5 @@
 FROM openeuler/openeuler:22.03
 
-MAINTAINER TommyLike<tommylikehu@gmail.com>
-
 ARG user=meetingserver
 ARG group=meetingserver
 ARG uid=1000
