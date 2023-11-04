@@ -47,11 +47,11 @@ def check_date(date_str):
     date_list = date_str.split(":")
     hours_int = int(date_list[0])
     minute_int = int(date_list[1])
-    if hours_int < 8 or hours_int > 23:
-        logger.error("hours {} must in 8-23".format(str(hours_int)))
+    if hours_int < 8 or hours_int > 22:
+        logger.error("hours {} must in 8-22".format(str(hours_int)))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
-    if minute_int < 0 or minute_int > 60:
-        logger.error("minute {} must in 0:60".format(str(hours_int)))
+    if minute_int < 0 or minute_int > 59:
+        logger.error("minute {} must in 0:59".format(str(hours_int)))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
 
@@ -202,7 +202,7 @@ def check_meetings_params(request, group_model):
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     # 8.check agenda
     if summary:
-        check_field(summary, 4096)
+        check_field(summary, 100)
         check_invalid_content(summary)
     # 9.check record:
     if record not in ["cloud", ""]:
