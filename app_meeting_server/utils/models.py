@@ -65,7 +65,7 @@ class BaseUser(MyAbstractBaseUser):
     nickname = models.CharField(verbose_name='昵称', max_length=40, null=True, blank=True)
     avatar = models.CharField(verbose_name='用户头像', max_length=255, null=True, blank=True)
     openid = models.CharField(verbose_name='openid', max_length=128, unique=True, null=True, blank=True)
-    level = models.SmallIntegerField(verbose_name='权限级别', choices=((1, '普通用户'), (2, '授权用户'), (3, '管理员')),
+    level = models.SmallIntegerField(verbose_name='会议权限', choices=((1, '普通用户'), (2, '授权用户'), (3, '管理员')),
                                      default=1)
     activity_level = models.SmallIntegerField(verbose_name='活动权限', choices=((1, '普通用户'), (2, '活动发起人'), (3, '管理员')),
                                               default=1)

@@ -32,6 +32,7 @@ urlpatterns = [
     path('userinfo/<int:pk>/', UserInfoView.as_view()),                 # 查询本机用户的level和gitee_name
     path('user/<int:pk>/', UserView.as_view()),                         # 更新gitee_name
     path('usergroup/<int:pk>/', UserGroupView.as_view()),               # 查询该成员的组名以及etherpad
+    path('mycounts/', MyCountsView.as_view()),                          # 我的各类计数
 
     # meeting
     path('meetings/', MeetingsView.as_view()),                          # 新建会议
@@ -69,7 +70,6 @@ urlpatterns = [
     path('collectactivitydel/<int:pk>/', ActivityCollectDelView.as_view()),           # 取消收藏活动
     path('collectactivities/', MyActivityCollectionsView.as_view()),                  # 我收藏的活动列表
     path('countactivities/', CountActivitiesView.as_view()),                          # 各类活动计数
-    path('mycounts/', MyCountsView.as_view()),                                        # 我的各类计数
     path('activitiesdata/', ActivitiesDataView.as_view()),                            # 官网网页活动日历
     path('activities/', ActivitiesView.as_view()),                                    # 官网网页活动列表
     path('activity/<int:pk>/', ActivityRetrieveView.as_view()),                       # 官网网页查询单个活动

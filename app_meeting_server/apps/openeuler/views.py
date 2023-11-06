@@ -15,8 +15,8 @@ from rest_framework.mixins import ListModelMixin, CreateModelMixin, RetrieveMode
 from app_meeting_server.utils.my_pagination import MyPagination
 from openeuler.models import User, Group, Meeting, GroupUser, Collect, Video, Record, \
     Activity, ActivityCollect
-from app_meeting_server.utils.permissions import MaintainerPermission, AdminPermission, \
-    ActivityAdminPermission, SponsorPermission, QueryPermission
+from app_meeting_server.utils.permissions import MaintainerPermission, MeetigsAdminPermission, \
+    ActivityAdminPermission, SponsorPermission, QueryPermission, AdminPermission, MaintainerAndAdminPermission
 from openeuler.serializers import LoginSerializer, GroupsSerializer, MeetingSerializer, \
     UsersSerializer, UserSerializer, GroupUserAddSerializer, UsersInGroupSerializer, \
     UserGroupSerializer, MeetingListSerializer, GroupUserDelSerializer, UserInfoSerializer, \
@@ -187,6 +187,8 @@ class GroupsView(GenericAPIView, ListModelMixin):
     queryset = Group.objects.all().order_by('group_name')
     filter_backends = [SearchFilter]
     search_fields = ['group_name']
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (MeetigsAdminPermission,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -199,7 +201,7 @@ class UsersIncludeView(GenericAPIView, ListModelMixin):
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (AdminPermission,)
+    permission_classes = (MeetigsAdminPermission,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -218,7 +220,7 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (AdminPermission,)
+    permission_classes = (MeetigsAdminPermission,)
 
     def get(self, request, *args, **kwargs):
         if Group.objects.filter(id=self.kwargs.get('pk')).count() == 0:
@@ -238,7 +240,7 @@ class GroupUserAddView(GenericAPIView, CreateModelMixin):
     serializer_class = GroupUserAddSerializer
     queryset = GroupUser.objects.all()
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (AdminPermission,)
+    permission_classes = (MeetigsAdminPermission,)
 
     def post(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
@@ -269,7 +271,7 @@ class GroupUserDelView(GenericAPIView, CreateModelMixin):
     serializer_class = GroupUserDelSerializer
     queryset = GroupUser.objects.all()
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (AdminPermission,)
+    permission_classes = (MeetigsAdminPermission,)
 
     def post(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
@@ -422,6 +424,8 @@ class UserGroupView(GenericAPIView, ListModelMixin):
     """查询该用户的SIG组以及该组的etherpad"""
     serializer_class = UserGroupSerializer
     queryset = GroupUser.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -429,6 +433,50 @@ class UserGroupView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         usergroup = GroupUser.objects.filter(user_id=self.kwargs['pk']).all()
         return usergroup
+
+
+class MyCountsView(GenericAPIView, ListModelMixin):
+    """我的各类计数"""
+    queryset = Activity.objects.all()
+    permission_classes = (permissions.IsAuthenticated,)
+    authentication_classes = (CustomAuthentication,)
+
+    def get(self, request, *args, **kwargs):
+        user_id = self.request.user.id
+        user = User.objects.get(id=user_id)
+        level = user.level
+        activity_level = user.activity_level
+
+        # shared
+        collected_meetings_count = len(Meeting.objects.filter(is_delete=0, id__in=(
+            Collect.objects.filter(user_id=user_id).values_list('meeting_id', flat=True))).values())
+        collected_activities_count = len(Activity.objects.filter(is_delete=0, id__in=(
+            ActivityCollect.objects.filter(user_id=user_id).values_list('activity_id', flat=True))).values())
+        res = {'collected_meetings_count': collected_meetings_count,
+               'collected_activities_count': collected_activities_count}
+        # permission limited
+        if level == 2:
+            created_meetings_count = len(Meeting.objects.filter(is_delete=0, user_id=user_id).values())
+            res['created_meetings_count'] = created_meetings_count
+        if level == 3:
+            created_meetings_count = len(Meeting.objects.filter(is_delete=0).values())
+            res['created_meetings_count'] = created_meetings_count
+        if activity_level == 2:
+            published_activities_count = len(
+                Activity.objects.filter(is_delete=0, status__gt=2, user_id=user_id).values())
+            drafts_count = len(Activity.objects.filter(is_delete=0, status=1, user_id=user_id).values())
+            publishing_activities_count = len(Activity.objects.filter(is_delete=0, status=2, user_id=user_id).values())
+            res['published_activities_count'] = published_activities_count
+            res['drafts_count'] = drafts_count
+            res['publishing_activities_count'] = publishing_activities_count
+        if activity_level == 3:
+            published_activities_count = len(Activity.objects.filter(is_delete=0, status__gt=2).values())
+            drafts_count = len(Activity.objects.filter(is_delete=0, status=1, user_id=user_id).values())
+            publishing_activities_count = len(Activity.objects.filter(is_delete=0, status=2).values())
+            res['published_activities_count'] = published_activities_count
+            res['drafts_count'] = drafts_count
+            res['publishing_activities_count'] = publishing_activities_count
+        return JsonResponse(res)
 
 
 # ------------------------------meeting view------------------------------
@@ -482,7 +530,7 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
     serializer_class = MeetingSerializer
     queryset = Meeting.objects.all()
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (MaintainerPermission,)
+    permission_classes = (MaintainerAndAdminPermission,)
 
     def delete(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
@@ -702,6 +750,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
             logger.error("Failed to create meeting, and code is {}".format(str(status)))
             raise MyValidationError(RetCode.STATUS_MEETING_FAILED_CREATE)
         mid = content['mid']
+        mmid = content.get("mmid")
         start_url = content.get('start_url')
         join_url = content['join_url']
         host_id = content['host_id']
@@ -709,6 +758,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         # 3.数据库生成数据
         Meeting.objects.create(
             mid=mid,
+            mmid=mmid,
             topic=topic,
             community=community,
             sponsor=sponsor,
@@ -1558,50 +1608,6 @@ class CountActivitiesView(GenericAPIView, ListModelMixin):
                'registering_activities_count': registering_activities_count,
                'going_activities_count': going_activities_count,
                'completed_activities_count': completed_activities_count}
-        return JsonResponse(res)
-
-
-class MyCountsView(GenericAPIView, ListModelMixin):
-    """我的各类计数"""
-    queryset = Activity.objects.all()
-    permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (CustomAuthentication,)
-
-    def get(self, request, *args, **kwargs):
-        user_id = self.request.user.id
-        user = User.objects.get(id=user_id)
-        level = user.level
-        activity_level = user.activity_level
-
-        # shared
-        collected_meetings_count = len(Meeting.objects.filter(is_delete=0, id__in=(
-            Collect.objects.filter(user_id=user_id).values_list('meeting_id', flat=True))).values())
-        collected_activities_count = len(Activity.objects.filter(is_delete=0, id__in=(
-            ActivityCollect.objects.filter(user_id=user_id).values_list('activity_id', flat=True))).values())
-        res = {'collected_meetings_count': collected_meetings_count,
-               'collected_activities_count': collected_activities_count}
-        # permission limited
-        if level == 2:
-            created_meetings_count = len(Meeting.objects.filter(is_delete=0, user_id=user_id).values())
-            res['created_meetings_count'] = created_meetings_count
-        if level == 3:
-            created_meetings_count = len(Meeting.objects.filter(is_delete=0).values())
-            res['created_meetings_count'] = created_meetings_count
-        if activity_level == 2:
-            published_activities_count = len(
-                Activity.objects.filter(is_delete=0, status__gt=2, user_id=user_id).values())
-            drafts_count = len(Activity.objects.filter(is_delete=0, status=1, user_id=user_id).values())
-            publishing_activities_count = len(Activity.objects.filter(is_delete=0, status=2, user_id=user_id).values())
-            res['published_activities_count'] = published_activities_count
-            res['drafts_count'] = drafts_count
-            res['publishing_activities_count'] = publishing_activities_count
-        if activity_level == 3:
-            published_activities_count = len(Activity.objects.filter(is_delete=0, status__gt=2).values())
-            drafts_count = len(Activity.objects.filter(is_delete=0, status=1, user_id=user_id).values())
-            publishing_activities_count = len(Activity.objects.filter(is_delete=0, status=2).values())
-            res['published_activities_count'] = published_activities_count
-            res['drafts_count'] = drafts_count
-            res['publishing_activities_count'] = publishing_activities_count
         return JsonResponse(res)
 
 

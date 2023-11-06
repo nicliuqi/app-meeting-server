@@ -49,8 +49,8 @@ class SponsorPermission(permissions.IsAuthenticated):
         return self.has_permission(request, view)
 
 
-class AdminPermission(MaintainerPermission):
-    """管理员权限"""
+class MeetigsAdminPermission(MaintainerPermission):
+    """会议管理员权限"""
     message = '需要会议管理员权限！！！'
     level = 3
 
@@ -59,6 +59,53 @@ class ActivityAdminPermission(SponsorPermission):
     """活动管理员权限"""
     message = '需要活动管理员权限！！！'
     activity_level = 3
+
+
+class MaintainerAndAdminPermission(permissions.IsAuthenticated):
+    message = '需要Maintainer或者会议管理员权限！！！'
+    level = 2
+
+    def has_permission(self, request, view):
+        if request.user.is_anonymous:
+            return False
+        if not request.user.level:
+            return False
+        if request.user.level >= self.level:
+            if User.objects.get(id=request.user.id, level=request.user.level):
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request, view)
+
+
+class AdminPermission(permissions.IsAuthenticated):
+    """需要会议管理员权限或者活动管理者权限！！！"""
+    message = "需要会议管理员权限或者活动管理者权限！！！"
+    level = 3
+    activity_level = 3
+
+    def has_permission(self, request, view):  # 对于列表的访问权限
+        if request.user.is_anonymous:
+            return False
+        elif request.user.level == self.level:
+            if User.objects.get(id=request.user.id, level=request.user.level):
+                return True
+            else:
+                return False
+        elif request.user.activity_level == self.activity_level:
+            if User.objects.get(id=request.user.id, activity_level=request.user.activity_level):
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request, view)
 
 
 class QueryPermission(permissions.BasePermission):
