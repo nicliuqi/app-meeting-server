@@ -74,12 +74,6 @@ class GroupsSerializer(ModelSerializer):
         fields = ['id', 'group_name']
 
 
-class GroupSerializer(ModelSerializer):
-    class Meta:
-        model = Group
-        fields = '__all__'
-
-
 class UsersSerializer(ModelSerializer):
     class Meta:
         model = User

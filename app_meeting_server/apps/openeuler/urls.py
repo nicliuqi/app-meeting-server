@@ -8,7 +8,7 @@ from openeuler.views import LoginView, GroupsView, MeetingView, MeetingsView, Us
     ActivityUpdateView, ActivityDraftView, ActivitiesDraftView, SponsorActivityDraftView, DraftUpdateView, \
     DraftPublishView, SponsorActivitiesPublishingView, ActivityCollectView, ActivityCollectDelView, \
     MyActivityCollectionsView, CountActivitiesView, MyCountsView, MeetingsRecentlyView, ActivitiesDataView, \
-    AgreePrivacyPolicyView, RevokeAgreementView, LogoutView, LogoffView, PingView
+    AgreePrivacyPolicyView, RevokeAgreementView, LogoutView, LogoffView, PingView, MeetingsGroupView
 
 urlpatterns = [
     # common
@@ -37,6 +37,7 @@ urlpatterns = [
     # meeting
     path('meetings/', MeetingsView.as_view()),                          # 新建会议
     path('meetings_weekly/', MeetingsWeeklyView.as_view()),             # 查询前后一周会议详情
+    path('meetings_group/', MeetingsGroupView.as_view()),               # 查询前后一周会议的组名
     path('meetings_daily/', MeetingsDailyView.as_view()),               # 查询当日会议详情
     path('meetings_recently/', MeetingsRecentlyView.as_view()),         # 查询近期的会议
     path('meeting/<int:mid>/', MeetingDelView.as_view()),               # 删除会议

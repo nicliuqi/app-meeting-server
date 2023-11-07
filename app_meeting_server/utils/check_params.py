@@ -42,7 +42,11 @@ def check_field(field, field_bit):
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
 
-def check_date(date_str):
+def check_date(date_str, is_meetings=True, is_activity=False):
+    """
+        date_str is 08:00   08 in 08-11 00 in 00-60 and
+        meetings minute is in [0,15,30,45] and activity is in [0,5,10,15,20,25,30,35,40,45,50,55]
+    """
     # date_str is 08:00   08 in 08-11 00 in 00-60
     date_list = date_str.split(":")
     hours_int = int(date_list[0])
@@ -53,6 +57,14 @@ def check_date(date_str):
     if minute_int < 0 or minute_int > 59:
         logger.error("minute {} must in 0:59".format(str(hours_int)))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    if is_meetings:
+        if minute_int not in [0, 15, 30, 45]:
+            logger.error("minute {} must in [0, 15, 30, 45]".format(str(minute_int)))
+            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    elif is_activity:
+        if minute_int not in [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]:
+            logger.error("minute {} must in [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]".format(str(minute_int)))
+            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
 
 def check_schedules(schedules_list):

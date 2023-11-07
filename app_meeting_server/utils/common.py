@@ -5,9 +5,13 @@
 # @Software: PyCharm
 import secrets
 import string
+import subprocess
+import time
 import uuid
 import tempfile
 import os
+import logging
+import traceback
 from contextlib import suppress
 from datetime import datetime
 from django.contrib.auth import get_user_model
@@ -17,6 +21,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from app_meeting_server.utils import crypto_gcm
 from app_meeting_server.utils.file_stream import write_content
+
+logger = logging.getLogger('log')
 
 
 def get_cur_date():
@@ -71,3 +77,27 @@ def save_temp_img(content):
 
 def make_nonce():
     return ''.join(secrets.choice(string.digits) for _ in range(6))
+
+
+def execute_cmd3(cmd, timeout=30, err_log=True):
+    """execute cmd3"""
+    try:
+        logger.info("execute_cmd3 call cmd: {}".format(cmd))
+        p = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+        t_wait_seconds = 0
+        while True:
+            if p.poll() is not None:
+                break
+            if timeout >= 0 and t_wait_seconds >= (timeout * 100):
+                p.terminate()
+                return -1, "", "execute_cmd3 exceeded time {} seconds in executing: {}".format(timeout, cmd)
+            time.sleep(0.01)
+            t_wait_seconds += 1
+        out, err = p.communicate()
+        ret = p.returncode
+        if ret != 0 and err_log:
+            logger.error("execute_cmd3 cmd {} return {}, std output: {}, err output: {}.".format(cmd, ret, out, err))
+        return ret, out, err
+    except Exception as e:
+        return -1, "", "execute_cmd3 exceeded raise, e={}, trace={}".format(e.args[0], traceback.format_exc())
+

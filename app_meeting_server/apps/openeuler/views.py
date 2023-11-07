@@ -202,6 +202,7 @@ class UsersIncludeView(GenericAPIView, ListModelMixin):
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
     permission_classes = (MeetigsAdminPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -221,6 +222,7 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
     permission_classes = (MeetigsAdminPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         if Group.objects.filter(id=self.kwargs.get('pk')).count() == 0:
@@ -314,6 +316,7 @@ class SponsorsView(GenericAPIView, ListModelMixin):
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -327,6 +330,7 @@ class NonSponsorView(GenericAPIView, ListModelMixin):
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -486,11 +490,24 @@ class MeetingsWeeklyView(GenericAPIView, ListModelMixin):
     queryset = Meeting.objects.filter(is_delete=0)
     filter_backends = [SearchFilter]
     search_fields = ['topic', 'group_name']
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         self.queryset = self.queryset.filter((Q(
             date__gte=str(datetime.datetime.now() - datetime.timedelta(days=7))[:10]) & Q(
             date__lte=str(datetime.datetime.now() + datetime.timedelta(days=7))[:10]))).order_by('-date', 'start')
+        return self.list(request, *args, **kwargs)
+
+
+class MeetingsGroupView(GenericAPIView, ListModelMixin):
+    serializer_class = GroupsSerializer
+    queryset = Group.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        meeting_ids = Meeting.objects.filter(is_delete=0).filter((Q(
+            date__gte=str(datetime.datetime.now() - datetime.timedelta(days=7))[:10]) & Q(
+            date__lte=str(datetime.datetime.now() + datetime.timedelta(days=7))[:10]))).values_list("group_id", flat=True)
+        self.queryset = self.queryset.filter(id__in=meeting_ids).order_by('group_name')
         return self.list(request, *args, **kwargs)
 
 
@@ -821,6 +838,7 @@ class MyMeetingsView(GenericAPIView, ListModelMixin):
     queryset = Meeting.objects.all().filter(is_delete=0)
     permission_classes = (permissions.IsAuthenticated,)
     authentication_classes = (CustomAuthentication,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -840,6 +858,7 @@ class AllMeetingsView(GenericAPIView, ListModelMixin):
     filter_backends = [SearchFilter]
     search_fields = ['is_delete', 'group_name', 'sponsor', 'date', 'start', 'end']
     permission_classes = (QueryPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -959,6 +978,7 @@ class DraftsView(GenericAPIView, ListModelMixin):
     queryset = Activity.objects.filter(is_delete=0, status=2)
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -1048,6 +1068,7 @@ class ActivitiesView(GenericAPIView, ListModelMixin):
     queryset = Activity.objects.filter(is_delete=0, status__gt=2).order_by('-date', 'id')
     filter_backends = [SearchFilter]
     search_fields = ['title']
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         activity_status = self.request.GET.get('activity')
@@ -1085,6 +1106,7 @@ class RecentActivitiesView(GenericAPIView, ListModelMixin):
     """最近的活动列表"""
     serializer_class = ActivitiesSerializer
     queryset = Activity.objects.filter(is_delete=0)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         self.queryset = self.queryset.filter(status__gt=2, date__gt=datetime.datetime.now().strftime('%Y-%m-%d')). \
@@ -1098,6 +1120,7 @@ class SponsorActivitiesView(GenericAPIView, ListModelMixin):
     queryset = Activity.objects.all()
     authentication_classes = (CustomAuthentication,)
     permission_classes = (SponsorPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -1306,6 +1329,7 @@ class ActivitiesDraftView(GenericAPIView, ListModelMixin):
     queryset = Activity.objects.all()
     authentication_classes = (CustomAuthentication,)
     permission_classes = (SponsorPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -1485,6 +1509,7 @@ class SponsorActivitiesPublishingView(GenericAPIView, ListModelMixin):
     queryset = Activity.objects.all()
     authentication_classes = (CustomAuthentication,)
     permission_classes = (SponsorPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -1566,6 +1591,7 @@ class MyActivityCollectionsView(GenericAPIView, ListModelMixin):
     queryset = Activity.objects.all()
     permission_classes = (permissions.IsAuthenticated,)
     authentication_classes = (CustomAuthentication,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)

@@ -1,6 +1,6 @@
 import datetime
 import math
-from random import random
+import secrets
 from django.conf import settings
 from multiprocessing import Process
 from django.db.models import Q
@@ -624,7 +624,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
             logger.info('no available host')
             raise MyValidationError(RetCode.STATUS_MEETING_DATE_CONFLICT)
         # 从available_host_id中随机生成一个host_id,并在host_dict中取出
-        host_id = random.choice(available_host_id)
+        host_id = secrets.choice(available_host_id)
         logger.info('host_id: {}'.format(host_id))
         status, resp = drivers.createMeeting(platform, date, start, end, topic, host_id, record)
         if status == 200:
