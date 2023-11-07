@@ -11,7 +11,7 @@ from collections import OrderedDict
 
 class MyPagination(pagination.PageNumberPagination):
     page_size = 10
-    max_page_size = 20
+    max_page_size = 50
     page_size_query_param = "size"
 
     def _calc_get_page_number(self, request):
