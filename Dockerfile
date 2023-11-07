@@ -25,7 +25,7 @@ RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkh
 
 
 # 3.clean
-RUN yum remove -y gcc python3-pip procps-ng
+RUN yum remove -y gcc python3-pip procps-ng python3-setuptools
 RUN rm -rf /usr/bin/kill
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN chmod -R 550 /home/meetingserver/app-meeting-server/

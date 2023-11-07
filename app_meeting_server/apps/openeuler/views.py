@@ -515,6 +515,7 @@ class MeetingsDailyView(GenericAPIView, ListModelMixin):
     """查询本日的所有会议"""
     serializer_class = MeetingListSerializer
     queryset = Meeting.objects.filter(is_delete=0)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         self.queryset = self.queryset.filter(date=str(datetime.datetime.now())[:10]).order_by('start')
