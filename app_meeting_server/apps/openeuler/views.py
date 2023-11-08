@@ -493,6 +493,9 @@ class MeetingsWeeklyView(GenericAPIView, ListModelMixin):
     pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
+        group_name = self.request.GET.get('group_name')
+        if group_name:
+            self.queryset = self.queryset.filter(group__name=group_name)
         self.queryset = self.queryset.filter((Q(
             date__gte=str(datetime.datetime.now() - datetime.timedelta(days=7))[:10]) & Q(
             date__lte=str(datetime.datetime.now() + datetime.timedelta(days=7))[:10]))).order_by('-date', 'start')
@@ -943,6 +946,7 @@ class MyCollectionsView(GenericAPIView, ListModelMixin):
     queryset = Meeting.objects.all()
     permission_classes = (permissions.IsAuthenticated,)
     authentication_classes = (CustomAuthentication,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
