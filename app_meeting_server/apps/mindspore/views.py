@@ -537,7 +537,7 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
                 logger.error("Could not match any meeting host")
                 raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
         try:
-            check_duration(start, end, date, now_time)
+            check_duration(start, end, date, now_time, is_meetings=True)
         except ValueError:
             logger.error('Invalid start time or end time')
             raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)

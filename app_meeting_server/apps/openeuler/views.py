@@ -34,7 +34,7 @@ from app_meeting_server.utils.operation_log import LoggerContext, OperationLogMo
 from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid
 from app_meeting_server.utils.ret_api import MyValidationError
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
-    check_user_ids, check_activity_params, check_meetings_params
+    check_user_ids, check_activity_params, check_meetings_params, check_schedules_string
 from app_meeting_server.utils.ret_code import RetCode
 
 logger = logging.getLogger('log')
@@ -210,7 +210,7 @@ class UsersIncludeView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         groupusers = GroupUser.objects.filter(group_id=self.kwargs['pk']).all()
         ids = [x.user_id for x in groupusers]
-        user = User.objects.filter(id__in=ids, is_delete=0)
+        user = User.objects.filter(id__in=ids, is_delete=0).order_by('nickname')
         return user
 
 
@@ -233,7 +233,7 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         groupusers = GroupUser.objects.filter(group_id=self.kwargs['pk']).all()
         ids = [x.user_id for x in groupusers]
-        user = User.objects.filter().exclude(id__in=ids)
+        user = User.objects.filter().exclude(id__in=ids).order_by('nickname')
         return user
 
 
@@ -311,7 +311,7 @@ class UserInfoView(GenericAPIView, RetrieveModelMixin):
 class SponsorsView(GenericAPIView, ListModelMixin):
     """活动发起人列表"""
     serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=2, is_delete=0)
+    queryset = User.objects.filter(activity_level=2, is_delete=0).order_by("nickname")
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
@@ -325,7 +325,7 @@ class SponsorsView(GenericAPIView, ListModelMixin):
 class NonSponsorView(GenericAPIView, ListModelMixin):
     """非活动发起人列表"""
     serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=1, is_delete=0)
+    queryset = User.objects.filter(activity_level=1, is_delete=0).order_by("nickname")
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
@@ -858,7 +858,7 @@ class MyMeetingsView(GenericAPIView, ListModelMixin):
 class AllMeetingsView(GenericAPIView, ListModelMixin):
     """列出所有会议"""
     serializer_class = AllMeetingsSerializer
-    queryset = Meeting.objects.all()
+    queryset = Meeting.objects.all().order_by('-date', 'start')
     filter_backends = [SearchFilter]
     search_fields = ['is_delete', 'group_name', 'sponsor', 'date', 'start', 'end']
     permission_classes = (QueryPermission,)
@@ -980,7 +980,7 @@ class ParticipantsView(GenericAPIView, RetrieveModelMixin):
 class DraftsView(GenericAPIView, ListModelMixin):
     """审核列表"""
     serializer_class = ActivitiesSerializer
-    queryset = Activity.objects.filter(is_delete=0, status=2)
+    queryset = Activity.objects.filter(is_delete=0, status=2).order_by('-date', 'id')
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
     pagination_class = MyPagination
@@ -1131,7 +1131,7 @@ class SponsorActivitiesView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        queryset = Activity.objects.filter(is_delete=0, status__gt=2, user_id=self.request.user.id)
+        queryset = Activity.objects.filter(is_delete=0, status__gt=2, user_id=self.request.user.id).order_by('-date', 'id')
         return queryset
 
 
@@ -1161,6 +1161,8 @@ class ActivityUpdateView(GenericAPIView, UpdateModelMixin):
             return ret
 
     def update(self, request, *args, **kwargs):
+        schedules = request.data.get("schedules")
+        check_schedules_string(schedules)
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
@@ -1177,10 +1179,9 @@ class ActivityUpdateView(GenericAPIView, UpdateModelMixin):
 
     def get_queryset(self):
         user_id = self.request.user.id
-        activity_level = User.objects.get(id=user_id).activity_level
-        queryset = Activity.objects.filter(is_delete=0, status__in=[3, 4], user_id=self.request.user.id)
-        if activity_level == 3:
-            queryset = Activity.objects.filter(is_delete=0, status__in=[3, 4])
+        queryset = Activity.objects.filter(is_delete=0, status__in=[3, 4], user_id=user_id)
+        if queryset.count() == 0:
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         return queryset
 
 

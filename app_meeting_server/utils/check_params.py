@@ -9,14 +9,14 @@ import logging
 import html
 from django.db import models
 from django.conf import settings
-from app_meeting_server.utils.regular_match import match_email, match_url
+from app_meeting_server.utils.regular_match import match_email, match_url, match_crlf
 from app_meeting_server.utils.ret_api import MyValidationError
 from app_meeting_server.utils.ret_code import RetCode
 
 logger = logging.getLogger('log')
 
 
-def check_invalid_content(content):
+def check_invalid_content(content, check_crlf=True):
     # check xss and url, and \r\n
     # 1.check xss
     content = content.strip()
@@ -29,11 +29,12 @@ def check_invalid_content(content):
     if reg:
         logger.error("check invalid url:{}".format(",".join(reg)))
         raise MyValidationError(RetCode.STATUS_START_VALID_URL)
-    # 3.check \r\n and replace it
-    content = content.replace("\r", '')
-    content = content.replace("\n", '')
-    content = content.replace("\r\n", '')
-    return content
+    # 3.check \r\n
+    if check_crlf:
+        reg = match_crlf(content)
+        if reg:
+            logger.error("check crlf url:{}".format(",".join(reg)))
+            raise MyValidationError(RetCode.STATUS_START_VALID_CRLF)
 
 
 def check_field(field, field_bit):
@@ -42,7 +43,7 @@ def check_field(field, field_bit):
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
 
-def check_date(date_str, is_meetings=True, is_activity=False):
+def check_date(date_str, is_meetings=False, is_activity=False):
     """
         date_str is 08:00   08 in 08-11 00 in 00-60 and
         meetings minute is in [0,15,30,45] and activity is in [0,5,10,15,20,25,30,35,40,45,50,55]
@@ -71,8 +72,8 @@ def check_schedules(schedules_list):
     for schedules in schedules_list:
         start = schedules["start"]
         end = schedules["end"]
-        check_date(start)
-        check_date(end)
+        check_date(start, is_activity=True)
+        check_date(end, is_activity=True)
         topic = schedules["topic"]
         check_invalid_content(topic)
         for speakers in schedules["speakerList"]:
@@ -98,10 +99,10 @@ def check_email_list(email_list_str):
             raise MyValidationError(RetCode.STATUS_MEETING_INVALID_EMAIL)
 
 
-def check_duration(start, end, date, now_time):
+def check_duration(start, end, date, now_time, is_meetings=False, is_activity=False):
     err_msg = list()
-    check_date(start)
-    check_date(end)
+    check_date(start, is_meetings=is_meetings, is_activity=is_activity)
+    check_date(end, is_meetings=is_meetings, is_activity=is_activity)
     start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
     end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
     if start_time <= now_time:
@@ -194,7 +195,7 @@ def check_meetings_params(request, group_model):
     check_invalid_content(sponsor)
     # 4.check start,end,date
     try:
-        check_duration(start, end, date, now_time)
+        check_duration(start, end, date, now_time, is_meetings=True)
     except ValueError:
         logger.error('Invalid start time or end time')
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
@@ -271,7 +272,7 @@ def check_activity_params(data, online, offline):
             logger.error('The start date {} should be earlier than tomorrow'.format(str(date)))
             raise MyValidationError(RetCode.STATUS_ACTIVITY_DATA_GT_NOW)
         if activity_type == online:
-            check_duration(start, end, date, now_time)
+            check_duration(start, end, date, now_time, is_activity=True)
     except ValueError:
         logger.error('Invalid datetime params {}'.format(date))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
@@ -385,3 +386,12 @@ def check_more_activity_params(data):
         'poster': poster
     }
     return validated_data
+
+
+def check_schedules_string(content):
+    try:
+        schedules_obj = json.loads(content)
+        check_schedules(schedules_obj)
+    except Exception as e:
+        logger.error("[check_schedules_string] {}".format(e))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)

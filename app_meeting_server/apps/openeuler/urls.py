@@ -52,23 +52,23 @@ urlpatterns = [
     path('sigmeetingsdata/<str:gn>/', SigMeetingsDataView.as_view()),   # 官网网页SIG会议数据
 
     # activity
+    path('activity/', ActivityView.as_view()),                                        # 1.创建活动并申请发布
+    path('activitydraft/', ActivityDraftView.as_view()),                              # 2.创建活动草案
+    path('draftupdate/<int:pk>/', DraftUpdateView.as_view()),                         # 3.修改草案
+    path('draftpublish/<int:pk>/', DraftPublishView.as_view()),                       # 4.修改活动草案并申请发布活动
+    path('sponsoractivitydraft/<int:pk>/', SponsorActivityDraftView.as_view()),       # 5.查询、删除活动草案
+    path('activitypublish/<int:pk>/', ActivityPublishView.as_view()),                 # 6.通过审核
+    path('activityreject/<int:pk>/', ActivityRejectView.as_view()),                   # 7.驳回申请
+    path('activitydel/<int:pk>/', ActivityDelView.as_view()),                         # 8.删除活动
+    path('activityupdate/<int:pk>/', ActivityUpdateView.as_view()),                   # 9.修改活动
+    path('collectactivity/', ActivityCollectView().as_view()),                        # 10.收藏活动
+    path('collectactivitydel/<int:pk>/', ActivityCollectDelView.as_view()),           # 11.取消收藏活动
     path('drafts/', DraftsView.as_view()),                                            # 审核列表
     path('draft/<int:pk>/', DraftView.as_view()),                                     # 待发布详情
-    path('activitypublish/<int:pk>/', ActivityPublishView.as_view()),                 # 通过审核
-    path('activityreject/<int:pk>/', ActivityRejectView.as_view()),                   # 驳回申请
-    path('activitydel/<int:pk>/', ActivityDelView.as_view()),                         # 删除活动
-    path('activity/', ActivityView.as_view()),                                        # 创建活动并申请发布
     path('recentactivities/', RecentActivitiesView.as_view()),                        # 最近的活动
     path('sponsoractivities/', SponsorActivitiesView.as_view()),                      # 活动发起人的活动列表
-    path('activityupdate/<int:pk>/', ActivityUpdateView.as_view()),                   # 修改活动
-    path('activitydraft/', ActivityDraftView.as_view()),                              # 创建活动草案
     path('activitiesdraft/', ActivitiesDraftView.as_view()),                          # 活动发起人的活动草案列表
-    path('sponsoractivitydraft/<int:pk>/', SponsorActivityDraftView.as_view()),       # 查询、删除活动草案
-    path('draftupdate/<int:pk>/', DraftUpdateView.as_view()),                         # 修改草案
-    path('draftpublish/<int:pk>/', DraftPublishView.as_view()),                       # 草案申请发布活动
     path('sponsoractivitiespublishing/', SponsorActivitiesPublishingView.as_view()),  # 发布中(个人)的活动
-    path('collectactivity/', ActivityCollectView().as_view()),                        # 收藏活动
-    path('collectactivitydel/<int:pk>/', ActivityCollectDelView.as_view()),           # 取消收藏活动
     path('collectactivities/', MyActivityCollectionsView.as_view()),                  # 我收藏的活动列表
     path('countactivities/', CountActivitiesView.as_view()),                          # 各类活动计数
     path('activitiesdata/', ActivitiesDataView.as_view()),                            # 官网网页活动日历

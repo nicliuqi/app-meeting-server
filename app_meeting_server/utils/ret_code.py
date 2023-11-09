@@ -46,6 +46,7 @@ class RetCode(RetCodeBase):
     STATUS_START_LT_LIMIT = -12
     STATUS_START_VALID_URL = -13
     STATUS_START_VALID_XSS = -14
+    STATUS_START_VALID_CRLF = -15
 
     STATUS_FACILITY_BIT_MASK = 16
     STATUS_FACILITY_USER = 1 << STATUS_FACILITY_BIT_MASK
@@ -89,6 +90,7 @@ class RetCode(RetCodeBase):
         STATUS_START_LT_LIMIT: "The start time is at most 60 days later than the current time",
         STATUS_START_VALID_URL: "Please do not enter URL links",
         STATUS_START_VALID_XSS: "Please do not enter XSS tags",
+        STATUS_START_VALID_CRLF: "Please do not enter \r\n tags",
 
         # user
         STATUS_USER_HAS_SIGNED_POLICY: "The user has signed privacy policy agreement already.",
@@ -128,6 +130,7 @@ class RetCode(RetCodeBase):
         STATUS_START_LT_LIMIT: "建议预定60天之内的会议或者活动",
         STATUS_START_VALID_URL: "请勿输入URL链接，XSS标签等内容",
         STATUS_START_VALID_XSS: "请勿输入XSS标签等内容",
+        STATUS_START_VALID_CRLF: "请勿输入\r\n等内容",
 
         # user
         STATUS_USER_HAS_SIGNED_POLICY: "用户已签署隐私政策协议",
