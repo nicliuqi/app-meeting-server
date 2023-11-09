@@ -44,9 +44,12 @@ class GiteeAuthView(GenericAPIView, ListModelMixin):
 class LoginView(GenericAPIView):
     def post(self, request, *args, **kwargs):
         code = self.request.data.get('code')
+        language = self.request.data.get('language')
         client_id = settings.GITEE_OAUTH_CLIENT_ID
         client_secret = settings.GITEE_OAUTH_CLIENT_SECRET
         redirect_uri = settings.GITEE_OAUTH_REDIRECT
+        if language in ['zh', 'en']:
+            redirect_uri = redirect_uri + '/{}/'.format(language)
         r = requests.post('{}?grant_type=authorization_code&code={}&client_id={}&redirect_uri={}&client_secret={}'.
                           format(settings.GITEE_OAUTH_URL, code, client_id, redirect_uri, client_secret))
         if r.status_code != 200:
