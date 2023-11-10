@@ -3,7 +3,7 @@
 # @Author  : Tom_zc
 # @FileName: ret_api.py
 # @Software: PyCharm
-
+from django.http import JsonResponse
 from django.utils.encoding import force_str
 from rest_framework import status
 from rest_framework.exceptions import ErrorDetail, APIException
@@ -25,3 +25,10 @@ class MyValidationError(APIException):
             code = self.default_code
         text = force_str(detail)
         self.detail = ErrorDetail(text, code)
+
+
+def ret_json(code=200, msg="success", data=None):
+    if isinstance(data, dict):
+        return JsonResponse({'code': code, 'msg': msg, "data": data})
+    else:
+        return JsonResponse({'code': code, 'msg': msg, "data": data}, safe=False)

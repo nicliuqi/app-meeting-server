@@ -43,13 +43,27 @@ def check_field(field, field_bit):
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
 
-def check_date(date_str, is_meetings=False, is_activity=False):
+def check_type(type_str):
+    if type_str not in ["all", "meetings", "activity"]:
+        logger.error("check invalid type:{}".format(type_str))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+
+
+def check_date(date_str):
+    try:
+        return datetime.datetime.strftime(date_str, '%Y-%m-%d')
+    except Exception as e:
+        logger.error("invalid date:{}, and e:{}".format(date_str, str(e)))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+
+
+def check_time(time_str, is_meetings=False, is_activity=False):
     """
-        date_str is 08:00   08 in 08-11 00 in 00-60 and
+        time_str is 08:00   08 in 08-11 00 in 00-60 and
         meetings minute is in [0,15,30,45] and activity is in [0,5,10,15,20,25,30,35,40,45,50,55]
     """
-    # date_str is 08:00   08 in 08-11 00 in 00-60
-    date_list = date_str.split(":")
+    # time_str is 08:00   08 in 08-11 00 in 00-60
+    date_list = time_str.split(":")
     hours_int = int(date_list[0])
     minute_int = int(date_list[1])
     if hours_int < 8 or hours_int > 22:
@@ -72,8 +86,8 @@ def check_schedules(schedules_list):
     for schedules in schedules_list:
         start = schedules["start"]
         end = schedules["end"]
-        check_date(start, is_activity=True)
-        check_date(end, is_activity=True)
+        check_time(start, is_activity=True)
+        check_time(end, is_activity=True)
         topic = schedules["topic"]
         check_invalid_content(topic)
         for speakers in schedules["speakerList"]:
@@ -101,8 +115,8 @@ def check_email_list(email_list_str):
 
 def check_duration(start, end, date, now_time, is_meetings=False, is_activity=False):
     err_msg = list()
-    check_date(start, is_meetings=is_meetings, is_activity=is_activity)
-    check_date(end, is_meetings=is_meetings, is_activity=is_activity)
+    check_time(start, is_meetings=is_meetings, is_activity=is_activity)
+    check_time(end, is_meetings=is_meetings, is_activity=is_activity)
     start_time = datetime.datetime.strptime(' '.join([date, start]), '%Y-%m-%d %H:%M')
     end_time = datetime.datetime.strptime(' '.join([date, end]), '%Y-%m-%d %H:%M')
     if start_time <= now_time:

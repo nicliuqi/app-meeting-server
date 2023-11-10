@@ -32,9 +32,9 @@ from app_meeting_server.utils.auth import CustomAuthentication
 from app_meeting_server.utils import wx_apis
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType
 from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid, make_signature
-from app_meeting_server.utils.ret_api import MyValidationError
+from app_meeting_server.utils.ret_api import MyValidationError, ret_json
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
-    check_user_ids, check_activity_params, check_meetings_params, check_schedules_string
+    check_user_ids, check_activity_params, check_meetings_params, check_schedules_string, check_date, check_type
 from app_meeting_server.utils.ret_code import RetCode
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -1695,3 +1695,95 @@ class ActivitiesDataView(GenericAPIView, ListModelMixin):
                 }
             )
         return Response({'tableData': table_data})
+
+
+class MeetingActivityDateView(GenericAPIView, ListModelMixin):
+    _meeting_queryset = Meeting.objects.filter(is_delete=0)
+    _activity_queryset = Activity.objects.filter(status__in=[3, 4, 5], is_delete=0)
+    _all_queryset = [_meeting_queryset, _activity_queryset]
+
+    def get(self, request, *args, **kwargs):
+        all_date = list()
+        for queryset in self._all_queryset:
+            date_list = queryset.filter(
+                date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
+                date__lte=(datetime.datetime.now() + datetime.timedelta(days=30)).strftime(
+                    '%Y-%m-%d')).distinct().order_by('-date', 'id').values_list(
+                "date", flat=True)
+            all_date.extend(date_list)
+        all_date = sorted(list(set(all_date)))
+        return ret_json(data=all_date)
+
+
+class MeetingActivityDataView(GenericAPIView, ListModelMixin):
+    _meeting_queryset = Meeting.objects.filter(is_delete=0)
+    _activity_queryset = Activity.objects.filter(status__in=[3, 4, 5], is_delete=0)
+
+    def get_meetings(self, query_date):
+        queryset = self._meeting_queryset.filter(date=query_date).order_by('-date', 'id').values()
+        records = Record.objects.filter(platform="bilibili", url__isnull=False).values()
+        record_dict = dict()
+        for record in records:
+            if record['platform'] == 'bilibili' and record['url']:
+                record_dict[record['mid']] = record['url']
+        list_data = [{
+            'id': meeting['id'],
+            'group_name': meeting['group_name'],
+            'startTime': meeting['start'],
+            'endTime': meeting['end'],
+            'duration_time': meeting['start'] + '-' + meeting['end'],
+            'name': meeting['topic'],
+            'creator': meeting['sponsor'],
+            'detail': meeting['agenda'],
+            'join_url': meeting['join_url'],
+            'meeting_id': meeting['mid'],
+            'etherpad': meeting['etherpad'],
+            'platform': meeting['mplatform'],
+            'video_url': record_dict.get(meeting['mid'], '')
+        } for meeting in queryset]
+        return list_data
+
+    def get_activity(self, query_date):
+        queryset = self._activity_queryset.filter(date=query_date).order_by('-date', 'id').values()
+        list_data = [{
+            'id': activity.id,
+            'title': activity.title,
+            'start_date': activity.date,
+            'end_date': activity.date,
+            'activity_type': activity.activity_type,
+            'address': activity.address,
+            'detail_address': activity.detail_address,
+            'longitude': activity.longitude,
+            'latitude': activity.latitude,
+            'synopsis': activity.synopsis,
+            'sign_url': activity.sign_url,
+            'replay_url': activity.replay_url,
+            'register_url': activity.register_url,
+            'poster': activity.poster,
+            'wx_code': activity.wx_code,
+            'schedules': json.loads(activity.schedules)
+        } for activity in queryset]
+        return list_data
+
+    def get(self, request, *args, **kwargs):
+        query_date_str = request.GET.get("date")
+        query_type_str = request.GET.get("type")
+        query_date = check_date(query_date_str)
+        check_type(query_type_str)
+        ret_list = list()
+        if query_type_str == "all":
+            meetings = self.get_meetings(query_date)
+            ret_list.extend(meetings)
+            activitys = self.get_activity(query_date)
+            ret_list.extend(activitys)
+        elif query_type_str == "meetings":
+            meetings = self.get_meetings(query_date)
+            ret_list.extend(meetings)
+        elif query_type_str == "activity":
+            activitys = self.get_activity(query_date)
+            ret_list.extend(activitys)
+        ret_dict = {
+            'date': query_date,
+            'timeData': ret_list
+        }
+        return ret_json(data=ret_dict)
