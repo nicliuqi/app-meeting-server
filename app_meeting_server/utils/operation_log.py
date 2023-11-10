@@ -10,6 +10,9 @@ from logging import getLogger
 from functools import wraps
 from rest_framework.response import Response
 from django.http import JsonResponse
+from django.contrib.auth import get_user_model
+
+from app_meeting_server.utils.permissions import MeetigsAdminPermission, ActivityAdminPermission
 
 logger = getLogger("django")
 
@@ -73,6 +76,7 @@ class OperationLogType(OperationBase):
     OP_TYPE_LOGOFF = 8
     OP_TYPE_COLLECT = 9
     OP_TYPE_CANCEL_COLLECT = 10
+    OP_TYPE_REFRESH = 11
 
     CN_OPERATION = {
         OP_TYPE_LOGIN: "登录",
@@ -86,6 +90,7 @@ class OperationLogType(OperationBase):
         OP_TYPE_DOWNLOAD: "下载",
         OP_TYPE_COLLECT: "收藏",
         OP_TYPE_CANCEL_COLLECT: "取消收藏",
+        OP_TYPE_REFRESH: "刷新",
     }
 
     EN_OPERATION = {
@@ -100,6 +105,7 @@ class OperationLogType(OperationBase):
         OP_TYPE_DOWNLOAD: "download",
         OP_TYPE_COLLECT: "collect",
         OP_TYPE_CANCEL_COLLECT: "cancel collect",
+        OP_TYPE_REFRESH: "refresh",
     }
 
 
@@ -135,6 +141,7 @@ class OperationLogDesc(OperationBase):
     OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE = OP_DESC_USER_BASE_CODE + 8
     OP_DESC_USER_AGREEMENT_CODE = OP_DESC_USER_BASE_CODE + 9
     OP_DESC_USER_REVOKEAGREEMENT_CODE = OP_DESC_USER_BASE_CODE + 10
+    OP_DESC_USER_REFRESH_CODE = OP_DESC_USER_BASE_CODE + 11
 
     OP_DESC_MEETING_BASE_CODE = 1000
     OP_DESC_MEETING_CREATE_CODE = OP_DESC_MEETING_BASE_CODE + 1
@@ -173,6 +180,7 @@ class OperationLogDesc(OperationBase):
         OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE: "用户（%s）从活动发起人中移除。",
         OP_DESC_USER_AGREEMENT_CODE: "用户（%s）同意隐私声明。",
         OP_DESC_USER_REVOKEAGREEMENT_CODE: "用户（%s）撤销隐私声明。",
+        OP_DESC_USER_REFRESH_CODE: "用户（%s）刷新token。",
 
         # meeting
         OP_DESC_MEETING_CREATE_CODE: "创建会议（%s）。",
@@ -213,6 +221,7 @@ class OperationLogDesc(OperationBase):
         OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE: "The user(%s) was removed from activity sponsor.",
         OP_DESC_USER_AGREEMENT_CODE: "The user(%s) agree to privacy statement.",
         OP_DESC_USER_REVOKEAGREEMENT_CODE: "The user(%s) revokes privacy statement.",
+        OP_DESC_USER_REFRESH_CODE: "The user(%s) refresh token.",
 
         # meeting
         OP_DESC_MEETING_CREATE_CODE: "Create meeting(%s).",
@@ -243,8 +252,16 @@ class OperationLogDesc(OperationBase):
 
 
 def console_log(request, log_module, log_desc, log_type, log_vars, resp=None):
-    ip = request.META.get("HTTP_X_FORWARDED_FOR") or request.META.get("REMOTE_ADDR")
-    user_id = "anonymous" if not request.user.id else str(request.user.id)
+    ip = "unknown"
+    user_id = "anonymous"
+    if request.user.id:
+        user_model = get_user_model()
+        user = user_model.objects.filter(id=request.user.id).first()
+        if not user:
+            logger.error("user {} not exist".format(request.user.id))
+        elif user.leve == MeetigsAdminPermission.level or user.activity_level == ActivityAdminPermission.activity_level:
+            ip = request.META.get("HTTP_X_FORWARDED_FOR") or request.META.get("REMOTE_ADDR")
+            user_id = request.user.id
     result = OperationLogResult.OP_RESULT_FAILED
     if isinstance(resp, Response) and str(resp.status_code).startswith("20"):
         result = OperationLogResult.OP_RESULT_SUCCEED

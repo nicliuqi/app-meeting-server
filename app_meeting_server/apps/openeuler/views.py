@@ -31,11 +31,12 @@ from openeuler.utils import gene_wx_code, drivers, send_cancel_email
 from app_meeting_server.utils.auth import CustomAuthentication
 from app_meeting_server.utils import wx_apis
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType
-from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid
+from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid, make_signature
 from app_meeting_server.utils.ret_api import MyValidationError
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
     check_user_ids, check_activity_params, check_meetings_params, check_schedules_string
 from app_meeting_server.utils.ret_code import RetCode
+from rest_framework_simplejwt.views import TokenRefreshView
 
 logger = logging.getLogger('log')
 offline = 1
@@ -53,10 +54,9 @@ class PingView(GenericAPIView):
 
 
 # ------------------------------user view------------------------------
-class LoginView(GenericAPIView, CreateModelMixin, ListModelMixin):
+class LoginView(GenericAPIView, CreateModelMixin):
     """用户注册与授权登陆"""
     serializer_class = LoginSerializer
-    queryset = User.objects.all()
 
     def post(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
@@ -68,8 +68,21 @@ class LoginView(GenericAPIView, CreateModelMixin, ListModelMixin):
             log_context.result = ret
             return ret
 
-    def perform_create(self, serializer):
-        serializer.save()
+
+class RefreshView(TokenRefreshView):
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_REFRESH,
+                           OperationLogDesc.OP_DESC_USER_REFRESH_CODE) as log_context:
+            user_id = request.user.id
+            log_context.log_vars = [user_id]
+            ret = super(RefreshView, self).post(request, *args, **kwargs)
+            token = ret.data.get("refresh")
+            token_signature = make_signature(token)
+            User.objects.filter(id=user_id).update(signature=token_signature)
+            log_context.result = ret
+            return ret
 
 
 class LogoutView(GenericAPIView):
@@ -509,7 +522,8 @@ class MeetingsGroupView(GenericAPIView, ListModelMixin):
     def get(self, request, *args, **kwargs):
         meeting_ids = Meeting.objects.filter(is_delete=0).filter((Q(
             date__gte=str(datetime.datetime.now() - datetime.timedelta(days=7))[:10]) & Q(
-            date__lte=str(datetime.datetime.now() + datetime.timedelta(days=7))[:10]))).values_list("group_id", flat=True)
+            date__lte=str(datetime.datetime.now() + datetime.timedelta(days=7))[:10]))).values_list("group_id",
+                                                                                                    flat=True)
         self.queryset = self.queryset.filter(id__in=meeting_ids).order_by('group_name')
         return self.list(request, *args, **kwargs)
 
@@ -757,7 +771,6 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
                                           mplatform=platform).values()
         unavailable_host_ids = [meeting['host_id'] for meeting in meetings]
         available_host_id = list(set(host_ids) - set(unavailable_host_ids))
-        logger.info('avilable_host_id:{}'.format(available_host_id))
         if len(available_host_id) == 0:
             logger.warning('No available host:{} yet'.format(platform))
             raise MyValidationError(RetCode.STATUS_MEETING_NO_AVAILABLE_HOST)
@@ -765,7 +778,6 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         host_id = secrets.choice(available_host_id)
         host = host_dict[host_id]
         logger.info('host_id:{}'.format(host_id))
-        logger.info('host:{}'.format(host))
         status, content = drivers.createMeeting(platform, date, start, end, topic, host, record)
         if status not in [200, 201]:
             logger.error("Failed to create meeting, and code is {}".format(str(status)))
@@ -1131,7 +1143,8 @@ class SponsorActivitiesView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        queryset = Activity.objects.filter(is_delete=0, status__gt=2, user_id=self.request.user.id).order_by('-date', 'id')
+        queryset = Activity.objects.filter(is_delete=0, status__gt=2, user_id=self.request.user.id).order_by('-date',
+                                                                                                             'id')
         return queryset
 
 

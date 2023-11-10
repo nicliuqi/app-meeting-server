@@ -8,7 +8,7 @@ from openeuler.views import LoginView, GroupsView, MeetingView, MeetingsView, Us
     ActivityUpdateView, ActivityDraftView, ActivitiesDraftView, SponsorActivityDraftView, DraftUpdateView, \
     DraftPublishView, SponsorActivitiesPublishingView, ActivityCollectView, ActivityCollectDelView, \
     MyActivityCollectionsView, CountActivitiesView, MyCountsView, MeetingsRecentlyView, ActivitiesDataView, \
-    AgreePrivacyPolicyView, RevokeAgreementView, LogoutView, LogoffView, PingView, MeetingsGroupView
+    AgreePrivacyPolicyView, RevokeAgreementView, LogoutView, LogoffView, PingView, MeetingsGroupView, RefreshView
 
 urlpatterns = [
     # common
@@ -16,6 +16,7 @@ urlpatterns = [
 
     # user
     path('login/', LoginView.as_view()),                                # 登陆
+    path('refresh/', RefreshView.as_view()),                            # 刷新token
     path('logout/', LogoutView.as_view()),                              # 登出账号
     path('logoff/', LogoffView.as_view()),                              # 注销账号
     path('agree/', AgreePrivacyPolicyView.as_view()),                   # 同意更新隐私政策

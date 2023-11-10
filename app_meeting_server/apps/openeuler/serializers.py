@@ -2,6 +2,7 @@ import logging
 import traceback
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from app_meeting_server.utils.check_params import check_group_id, check_user_ids
@@ -165,17 +166,16 @@ class LoginSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        refresh = RefreshToken.for_user(instance)
-        access = str(refresh.access_token)
-        encrypt_access = make_signature(access)
+        refresh = TokenObtainPairSerializer.get_token(instance)
+        data['refresh'] = str(refresh)
+        data['access'] = str(refresh.access_token)
         data['user_id'] = instance.id
-        data['access'] = access
         data['level'] = instance.level
         data['gitee_name'] = instance.gitee_name
         data['nickname'] = instance.nickname
         data['activity_level'] = instance.activity_level
         data['agree_privacy_policy'] = instance.agree_privacy_policy
-        User.objects.filter(id=instance.id).update(signature=encrypt_access)
+        User.objects.filter(id=instance.id).update(signature=str(refresh))
         return data
 
 

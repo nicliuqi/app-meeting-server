@@ -216,7 +216,7 @@ def check_meetings_params(request, group_model):
     # 8.check agenda
     if summary:
         check_field(summary, 100)
-        check_invalid_content(summary)
+        check_invalid_content(summary, check_crlf=False)
     # 9.check record:
     if record not in ["cloud", ""]:
         logger.error('The invalid cloud:{}'.format(str(record)))
@@ -287,7 +287,7 @@ def check_activity_params(data, online, offline):
     # 6.check synopsis
     if synopsis:
         check_field(synopsis, 4096)
-        check_invalid_content(synopsis)
+        check_invalid_content(synopsis, check_crlf=False)
     # 7.check adress in offline
     if activity_type == offline:
         if not isinstance(longitude, float):
