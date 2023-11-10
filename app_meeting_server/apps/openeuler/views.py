@@ -6,7 +6,6 @@ import time
 from django.conf import settings
 from django.db.models import Q
 from django.http import JsonResponse
-from rest_framework import status
 from rest_framework.filters import SearchFilter
 from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import ListModelMixin, CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, \
@@ -31,8 +30,8 @@ from openeuler.utils import gene_wx_code, drivers, send_cancel_email
 from app_meeting_server.utils.auth import CustomAuthentication
 from app_meeting_server.utils import wx_apis
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType
-from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid, make_signature
-from app_meeting_server.utils.ret_api import MyValidationError, ret_json
+from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid, save_token, clear_token
+from app_meeting_server.utils.ret_api import MyValidationError, ret_json, ret_access_json
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
     check_user_ids, check_activity_params, check_meetings_params, check_schedules_string, check_date, check_type
 from app_meeting_server.utils.ret_code import RetCode
@@ -45,12 +44,10 @@ online = 2
 
 # ------------------------------common view------------------------------
 class PingView(GenericAPIView):
+    """心跳"""
+
     def get(self, request, *args):
-        ret = {
-            'code': 200,
-            'msg': 'the status is ok'
-        }
-        return JsonResponse(ret)
+        return ret_json(code=200, msg='the status is ok')
 
 
 # ------------------------------user view------------------------------
@@ -70,6 +67,7 @@ class LoginView(GenericAPIView, CreateModelMixin):
 
 
 class RefreshView(TokenRefreshView):
+    """用户刷新token"""
 
     def post(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
@@ -78,9 +76,9 @@ class RefreshView(TokenRefreshView):
             user_id = request.user.id
             log_context.log_vars = [user_id]
             ret = super(RefreshView, self).post(request, *args, **kwargs)
-            token = ret.data.get("refresh")
-            token_signature = make_signature(token)
-            User.objects.filter(id=user_id).update(signature=token_signature)
+            access_token = ret.data.get("access")
+            refresh_token = ret.data.get("refresh")
+            save_token(access_token, refresh_token, request.user)
             log_context.result = ret
             return ret
 
@@ -95,18 +93,11 @@ class LogoutView(GenericAPIView):
                            OperationLogType.OP_TYPE_LOGOUT,
                            OperationLogDesc.OP_DESC_USER_LOGOFF_CODE) as log_context:
             log_context.log_vars = [request.user.id]
-            ret = self.create(request, *args, **kwargs)
+            clear_token(request.user)
+            ret = ret_json(msg="User logged out")
+            logger.info('User {} logged out'.format(request.user.id))
             log_context.result = ret
             return ret
-
-    def create(self, request, *args, **kwargs):
-        refresh_access(self.request.user)
-        resp = JsonResponse({
-            'code': 201,
-            'msg': 'User logged out'
-        })
-        logger.info('User {} logged out'.format(self.request.user.id))
-        return resp
 
 
 class LogoffView(GenericAPIView):
@@ -124,17 +115,14 @@ class LogoffView(GenericAPIView):
             return ret
 
     def create(self, request, *args, **kwargs):
-        user_id = self.request.user.id
+        user_id = request.user.id
         cur_date = get_cur_date()
         expired_date = cur_date + datetime.timedelta(days=settings.LOGOFF_EXPIRED)
         User.objects.filter(id=user_id).update(is_delete=1, logoff_time=expired_date)
-        refresh_access(self.request.user)
-        resp = JsonResponse({
-            'code': 201,
-            'msg': 'User logged off'
-        })
+        clear_token(request.user)
+        ret = ret_json(msg="User logged off")
         logger.info('User {} logged off'.format(user_id))
-        return resp
+        return ret
 
 
 class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
@@ -160,12 +148,7 @@ class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
         User.objects.filter(id=self.request.user.id).update(agree_privacy_policy=True,
                                                             agree_privacy_policy_time=now_time,
                                                             agree_privacy_policy_version=settings.PRIVACY_POLICY_VERSION)
-        access = refresh_access(self.request.user)
-        resp = JsonResponse({
-            'code': 201,
-            'msg': 'Updated',
-            'access': access
-        })
+        resp = ret_access_json(request.user, msg="Agree to privacy statement")
         return resp
 
 
@@ -186,11 +169,8 @@ class RevokeAgreementView(GenericAPIView):
     def create(self, request, *args, **kwargs):
         now_time = datetime.datetime.now()
         User.objects.filter(id=self.request.user.id).update(revoke_agreement_time=now_time)
-        refresh_access(self.request.user)
-        resp = JsonResponse({
-            'code': 201,
-            'msg': 'Revoke agreement of privacy policy'
-        })
+        clear_token(request.user)
+        resp = ret_json(msg="Revoke agreement of privacy policy")
         return resp
 
 
@@ -221,8 +201,8 @@ class UsersIncludeView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        groupusers = GroupUser.objects.filter(group_id=self.kwargs['pk']).all()
-        ids = [x.user_id for x in groupusers]
+        group_users = GroupUser.objects.filter(group_id=self.kwargs['pk']).all()
+        ids = [x.user_id for x in group_users]
         user = User.objects.filter(id__in=ids, is_delete=0).order_by('nickname')
         return user
 
@@ -244,8 +224,8 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        groupusers = GroupUser.objects.filter(group_id=self.kwargs['pk']).all()
-        ids = [x.user_id for x in groupusers]
+        group_users = GroupUser.objects.filter(group_id=self.kwargs['pk']).all()
+        ids = [x.user_id for x in group_users]
         user = User.objects.filter().exclude(id__in=ids).order_by('nickname')
         return user
 
@@ -267,18 +247,9 @@ class GroupUserAddView(GenericAPIView, CreateModelMixin):
             return ret
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        access = refresh_access(self.request.user)
-        data = serializer.data
-        data['access'] = access
-        response = Response()
-        response.data = data
-        response.status = status.HTTP_201_CREATED
-        response.headers = headers
-        return response
+        ret = super(GroupUserAddView, self).create(request, *args, **kwargs)
+        ret.data["access"] = refresh_access(request.user)
+        return ret
 
 
 class GroupUserDelView(GenericAPIView, CreateModelMixin):
@@ -302,8 +273,7 @@ class GroupUserDelView(GenericAPIView, CreateModelMixin):
         user_ids = request.data.get('ids')
         new_group_id, new_list_ids = check_group_id_and_user_ids(group_id, user_ids, GroupUser, Group)
         GroupUser.objects.filter(group_id=new_group_id, user_id__in=new_list_ids).delete()
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 204, 'msg': 'successfully deleted', 'access': access})
+        return ret_access_json(request.user)
 
 
 class UserInfoView(GenericAPIView, RetrieveModelMixin):
@@ -373,8 +343,7 @@ class SponsorAddView(GenericAPIView, CreateModelMixin):
                                                                                             match_queryset))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0).update(activity_level=2)
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': 'Added successfully', 'access': access})
+        return ret_access_json(request.user)
 
 
 class SponsorDelView(GenericAPIView, CreateModelMixin):
@@ -401,8 +370,7 @@ class SponsorDelView(GenericAPIView, CreateModelMixin):
                                                                                             match_queryset))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         User.objects.filter(id__in=new_user_ids, activity_level=2).update(activity_level=1)
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 204, 'msg': 'successfully deleted', 'access': access})
+        return ret_access_json(request.user)
 
 
 class UserView(GenericAPIView, UpdateModelMixin):
@@ -422,19 +390,9 @@ class UserView(GenericAPIView, UpdateModelMixin):
             return ret
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        if getattr(instance, '_prefetched_objects_cache', None):
-            instance._prefetched_objects_cache = {}
-        access = refresh_access(self.request.user)
-        data = serializer.data
-        data['access'] = access
-        response = Response()
-        response.data = data
-        return response
+        ret = super(UserView, self).update(request, *args, **kwargs)
+        ret.data["access"] = refresh_access(request.user)
+        return ret
 
 
 class UserGroupView(GenericAPIView, ListModelMixin):
@@ -448,8 +406,8 @@ class UserGroupView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        usergroup = GroupUser.objects.filter(user_id=self.kwargs['pk']).all()
-        return usergroup
+        user_group = GroupUser.objects.filter(user_id=self.kwargs['pk']).all()
+        return user_group
 
 
 class MyCountsView(GenericAPIView, ListModelMixin):
@@ -586,6 +544,7 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
                                                                                                        level=3).count() != 0):
             logger.error('User {} has no access to delete meeting {}'.format(user_id, mid))
             raise MyValidationError(RetCode.STATUS_USER_HAS_NO_PERMISSIONS)
+
         # 删除会议
         drivers.cancelMeeting(mid)
 
@@ -628,54 +587,7 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
                         logger.info('meeting {} cancel message sent to {}.'.format(mid, nickname))
                 # 删除收藏
                 collection.delete()
-        access = refresh_access(self.request.user)
-        return JsonResponse({"code": 204, "message": "Delete successfully.", "access": access})
-
-
-class MeetingsDataView(GenericAPIView, ListModelMixin):
-    """网页日历数据"""
-    serializer_class = MeetingsDataSerializer
-    queryset = Meeting.objects.filter(is_delete=0).order_by('start')
-
-    def get(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(
-            date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
-            date__lte=(datetime.datetime.now() + datetime.timedelta(days=30)).strftime('%Y-%m-%d')).values()
-        table_data = []
-        date_list = []
-        for query in queryset:
-            date_list.append(query.get('date'))
-        date_list = sorted(list(set(date_list)))
-        records = Record.objects.all().values()
-        record_dict = {}
-        for record in records:
-            if record['platform'] == 'bilibili' and record['url']:
-                record_dict[record['mid']] = record['url']
-        for date in date_list:
-            time_data = []
-            for meeting in queryset:
-                if meeting['date'] != date:
-                    continue
-                time_data.append({
-                    'id': meeting['id'],
-                    'group_name': meeting['group_name'],
-                    'startTime': meeting['start'],
-                    'endTime': meeting['end'],
-                    'duration_time': meeting['start'] + '-' + meeting['end'],
-                    'name': meeting['topic'],
-                    'creator': meeting['sponsor'],
-                    'detail': meeting['agenda'],
-                    'join_url': meeting['join_url'],
-                    'meeting_id': meeting['mid'],
-                    'etherpad': meeting['etherpad'],
-                    'platform': meeting['mplatform'],
-                    'video_url': record_dict.get(meeting['mid'], '')
-                })
-            table_data.append({
-                'date': date,
-                'timeData': time_data
-            })
-        return Response({'tableData': table_data})
+        return ret_access_json(request.user)
 
 
 class SigMeetingsDataView(GenericAPIView, ListModelMixin):
@@ -688,12 +600,13 @@ class SigMeetingsDataView(GenericAPIView, ListModelMixin):
         queryset = self.filter_queryset(self.get_queryset()).filter(group_name=group_name).filter((Q(
             date__gte=str(datetime.datetime.now() - datetime.timedelta(days=180))[:10]) & Q(
             date__lte=str(datetime.datetime.now() + datetime.timedelta(days=30))[:10]))).values()
+        queryset = MyPagination().paginate_queryset(queryset, request)
         table_data = []
         date_list = []
         for query in queryset:
             date_list.append(query.get('date'))
         date_list = sorted(list(set(date_list)))
-        records = Record.objects.all().values()
+        records = Record.objects.filter(platform='bilibili', url__isnull=False).values()
         record_dict = {}
         for record in records:
             if record['platform'] == 'bilibili' and record['url']:
@@ -839,13 +752,11 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
                 agenda=data['agenda'] if 'agenda' in data else ''
             )
             logger.info('meeting {} was created with auto recording.'.format(mid))
-        access = refresh_access(self.request.user)
-        resp = {'code': 201, 'message': 'Created successfully', 'access': access}
         meeting = Meeting.objects.get(mid=mid)
-        resp['id'] = meeting.id
         t3 = time.time()
         print('total waste: {}'.format(t3 - t1))
-        return JsonResponse(resp)
+        resp = ret_access_json(request.user, id=meeting.id)
+        return resp
 
 
 class MyMeetingsView(GenericAPIView, ListModelMixin):
@@ -908,9 +819,8 @@ class CollectView(GenericAPIView, ListModelMixin, CreateModelMixin):
             collection_id = user_collect.id
         else:
             collection_id = collect_users.first().id
-        access = refresh_access(self.request.user)
-        resp = {'code': 201, 'msg': 'collect successfully', 'collection_id': collection_id, 'access': access}
-        return JsonResponse(resp)
+        resp = ret_access_json(request.user, collection_id=collection_id)
+        return resp
 
     def get_queryset(self):
         queryset = Collect.objects.filter(user_id=self.request.user.id)
@@ -939,13 +849,9 @@ class CollectDelView(GenericAPIView, DestroyModelMixin):
         if not Collect.objects.filter(id=collection_id, user_id=user_id):
             logger.error('User {} had not collected collection id {}'.format(user_id, collection_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        access = refresh_access(self.request.user)
-        response = Response()
-        response.data = {'access': access}
-        response.status = status.HTTP_204_NO_CONTENT
-        return response
+        resp = super(CollectDelView, self).destroy(request, *args, **kwargs)
+        resp.data["access"] = refresh_access(request.user)
+        return resp
 
     def get_queryset(self):
         queryset = Collect.objects.filter(user_id=self.request.user.id)
@@ -1075,8 +981,7 @@ class ActivityView(GenericAPIView, CreateModelMixin):
                 status=2,
                 register_url=register_url
             )
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': 'The event application was published successfully', 'access': access})
+        return ret_access_json(request.user)
 
 
 class ActivitiesView(GenericAPIView, ListModelMixin):
@@ -1176,19 +1081,9 @@ class ActivityUpdateView(GenericAPIView, UpdateModelMixin):
     def update(self, request, *args, **kwargs):
         schedules = request.data.get("schedules")
         check_schedules_string(schedules)
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        if getattr(instance, '_prefetched_objects_cache', None):
-            instance._prefetched_objects_cache = {}
-        access = refresh_access(self.request.user)
-        data = serializer.data
-        data['access'] = access
-        response = Response()
-        response.data = data
-        return response
+        resp = super(ActivityUpdateView, self).update(request, *args, **kwargs)
+        resp.data["access"] = refresh_access(request.user)
+        return resp
 
     def get_queryset(self):
         user_id = self.request.user.id
@@ -1223,8 +1118,7 @@ class ActivityPublishView(GenericAPIView, UpdateModelMixin):
         logger.info('Generate event page QR code: {}'.format(img_url))
         Activity.objects.filter(id=activity_id, status=2).update(status=3, wx_code=img_url)
         logger.info('The activity has been reviewed and published')
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': 'The event has been reviewed and published', 'access': access})
+        return ret_access_json(request.user)
 
 
 class ActivityRejectView(GenericAPIView, UpdateModelMixin):
@@ -1248,8 +1142,7 @@ class ActivityRejectView(GenericAPIView, UpdateModelMixin):
             logger.error("Invalid activity id:{}".format(activity_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         Activity.objects.filter(id=activity_id, status=2).update(status=1)
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': 'Event application has been rejected', 'access': access})
+        return ret_access_json(request.user)
 
 
 class ActivityDelView(GenericAPIView, UpdateModelMixin):
@@ -1273,8 +1166,7 @@ class ActivityDelView(GenericAPIView, UpdateModelMixin):
             logger.error("Invalid activity id:{}".format(activity_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         Activity.objects.filter(id=activity_id).update(is_delete=1)
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 204, 'msg': 'Activity deleted successfully', 'access': access})
+        return ret_access_json(request.user)
 
 
 class ActivityDraftView(GenericAPIView, CreateModelMixin):
@@ -1338,8 +1230,7 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
                 user_id=user_id,
                 register_url=register_url
             )
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': 'Activity draft created successfully', 'access': access})
+        return ret_access_json(request.user)
 
 
 class ActivitiesDraftView(GenericAPIView, ListModelMixin):
@@ -1378,13 +1269,9 @@ class SponsorActivityDraftView(GenericAPIView, RetrieveModelMixin, DestroyModelM
             return ret
 
     def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        access = refresh_access(self.request.user)
-        response = Response()
-        response.data = {'access': access}
-        response.status = status.HTTP_204_NO_CONTENT
-        return response
+        resp = super(SponsorActivityDraftView, self).destroy(request, *args, **kwargs)
+        resp.data["access"] = refresh_access(request.user)
+        return resp
 
     def get_queryset(self):
         queryset = Activity.objects.filter(is_delete=0, status=1, user_id=self.request.user.id).order_by('-date', 'id')
@@ -1453,8 +1340,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
                 poster=poster,
                 register_url=register_url
             )
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': 'Edit and save draft event', 'access': access})
+        return ret_access_json(request.user)
 
 
 class DraftPublishView(GenericAPIView, UpdateModelMixin):
@@ -1518,8 +1404,7 @@ class DraftPublishView(GenericAPIView, UpdateModelMixin):
                 poster=poster,
                 status=2
             )
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': 'Apply for a publishing event', 'access': access})
+        return ret_access_json(request.user)
 
 
 class SponsorActivitiesPublishingView(GenericAPIView, ListModelMixin):
@@ -1565,8 +1450,7 @@ class ActivityCollectView(GenericAPIView, CreateModelMixin):
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         if ActivityCollect.objects.filter(activity_id=activity_id, user_id=user_id).count() == 0:
             ActivityCollect.objects.create(activity_id=activity_id, user_id=user_id)
-        access = refresh_access(self.request.user)
-        return JsonResponse({'code': 201, 'msg': 'Collection activity', 'access': access})
+        return ret_access_json(request.user)
 
 
 class ActivityCollectDelView(GenericAPIView, DestroyModelMixin):
@@ -1591,13 +1475,9 @@ class ActivityCollectDelView(GenericAPIView, DestroyModelMixin):
         if not ActivityCollect.objects.filter(id=collection_id, user_id=user_id):
             logger.error('User {} had not collected collection id {}'.format(user_id, collection_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        access = refresh_access(self.request.user)
-        response = Response()
-        response.data = {'access': access}
-        response.status = status.HTTP_204_NO_CONTENT
-        return response
+        resp = super(ActivityCollectDelView, self).destroy(request, *args, **kwargs)
+        resp.data["access"] = refresh_access(request.user)
+        return resp
 
     def get_queryset(self):
         queryset = ActivityCollect.objects.filter(user_id=self.request.user.id)
@@ -1654,47 +1534,6 @@ class CountActivitiesView(GenericAPIView, ListModelMixin):
                'going_activities_count': going_activities_count,
                'completed_activities_count': completed_activities_count}
         return JsonResponse(res)
-
-
-class ActivitiesDataView(GenericAPIView, ListModelMixin):
-    """活动日历数据"""
-    queryset = Activity.objects.filter(is_delete=0, status__in=[3, 4, 5])
-
-    def get(self, request, *args, **kwargs):
-        self.queryset = self.queryset.filter(
-            date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
-            date__lte=(datetime.datetime.now() + datetime.timedelta(days=180)).strftime('%Y-%m-%d'))
-        queryset = self.filter_queryset(self.get_queryset()).values()
-        table_data = []
-        date_list = []
-        for query in queryset:
-            date_list.append(query.get('date'))
-        date_list = sorted(list(set(date_list)))
-        for date in date_list:
-            table_data.append(
-                {
-                    'start_date': date,
-                    'timeData': [{
-                        'id': activity.id,
-                        'title': activity.title,
-                        'start_date': activity.date,
-                        'end_date': activity.date,
-                        'activity_type': activity.activity_type,
-                        'address': activity.address,
-                        'detail_address': activity.detail_address,
-                        'longitude': activity.longitude,
-                        'latitude': activity.latitude,
-                        'synopsis': activity.synopsis,
-                        'sign_url': activity.sign_url,
-                        'replay_url': activity.replay_url,
-                        'register_url': activity.register_url,
-                        'poster': activity.poster,
-                        'wx_code': activity.wx_code,
-                        'schedules': json.loads(activity.schedules)
-                    } for activity in Activity.objects.filter(is_delete=0, date=date)]
-                }
-            )
-        return Response({'tableData': table_data})
 
 
 class MeetingActivityDateView(GenericAPIView, ListModelMixin):
@@ -1774,14 +1613,14 @@ class MeetingActivityDataView(GenericAPIView, ListModelMixin):
         if query_type_str == "all":
             meetings = self.get_meetings(query_date)
             ret_list.extend(meetings)
-            activitys = self.get_activity(query_date)
-            ret_list.extend(activitys)
+            activity = self.get_activity(query_date)
+            ret_list.extend(activity)
         elif query_type_str == "meetings":
             meetings = self.get_meetings(query_date)
             ret_list.extend(meetings)
         elif query_type_str == "activity":
-            activitys = self.get_activity(query_date)
-            ret_list.extend(activitys)
+            activity = self.get_activity(query_date)
+            ret_list.extend(activity)
         ret_dict = {
             'date': query_date,
             'timeData': ret_list

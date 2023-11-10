@@ -2,11 +2,9 @@ import logging
 import traceback
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from app_meeting_server.utils.check_params import check_group_id, check_user_ids
-from app_meeting_server.utils.common import get_uuid, make_signature, encrypt_openid
+from app_meeting_server.utils.common import get_uuid, encrypt_openid, refresh_token_and_refresh_token
 from app_meeting_server.utils.ret_code import RetCode
 from app_meeting_server.utils.wx_apis import get_openid
 from app_meeting_server.utils.ret_api import MyValidationError
@@ -15,6 +13,60 @@ from django.db import transaction
 from django.conf import settings
 
 logger = logging.getLogger('log')
+
+
+class LoginSerializer(serializers.ModelSerializer):
+    code = serializers.CharField(max_length=128, write_only=True)
+    access = serializers.CharField(label='请求密钥', max_length=255, read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['code', 'access']
+        extra_kwargs = {
+            'access': {'read_only': True}
+        }
+
+    def create(self, validated_data):
+        try:
+            res = self.context["request"].data
+            code = res['code']
+            if not code:
+                logger.warning('Login without code.')
+                raise MyValidationError(RetCode.STATUS_USER_GET_CODE_FAILED)
+            r = get_openid(code)
+            if not r.get('openid'):
+                logger.warning('Failed to get openid.')
+                raise MyValidationError(RetCode.STATUS_USER_GET_OPENID_FAILED)
+            openid = r['openid']
+            encrypt_openid_str = encrypt_openid(openid)
+            user = User.objects.filter(openid=encrypt_openid_str).first()
+            # if user not exist, and need to create
+            if not user:
+                nickname = get_uuid()
+                avatar = settings.WX_AVATAR_URL
+                user = User.objects.create(
+                    nickname=nickname,
+                    avatar=avatar,
+                    openid=encrypt_openid_str)
+            else:
+                User.objects.filter(openid=encrypt_openid_str).update(is_delete=0)
+            return user
+        except Exception as e:
+            logger.error("e:{}, traceback:{}".format(e, traceback.format_exc()))
+            raise MyValidationError(RetCode.STATUS_USER_LOGIN_FAILED)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        access_token, refresh_token = refresh_token_and_refresh_token(instance)
+        data['refresh'] = refresh_token
+        data['access'] = access_token
+        data['user_id'] = instance.id
+        data['level'] = instance.level
+        data['gitee_name'] = instance.gitee_name
+        data['nickname'] = instance.nickname
+        data['activity_level'] = instance.activity_level
+        data['agree_privacy_policy'] = instance.agree_privacy_policy
+        return data
 
 
 class GroupUserAddSerializer(ModelSerializer):
@@ -38,20 +90,14 @@ class GroupUserAddSerializer(ModelSerializer):
             result_list = list()
             with transaction.atomic():
                 for user in users:
-                    groupuser = GroupUser.objects.create(group_id=group_id.id, user_id=int(user.id))
+                    group_user = GroupUser.objects.create(group_id=group_id.id, user_id=int(user.id))
                     User.objects.filter(id=int(user.id), level=1).update(level=2)
-                    result_list.append(groupuser)
+                    result_list.append(group_user)
             return result_list
         except Exception as e:
             msg = 'Failed to add maintainers to the group'
             logger.error("msg:{}, err:{}".format(msg, e))
             raise MyValidationError(RetCode.INTERNAL_ERROR)
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data['code'] = 201
-        data['msg'] = 'Success to add maintainers to the group'
-        return data
 
 
 class GroupUserDelSerializer(ModelSerializer):
@@ -122,61 +168,6 @@ class MeetingListSerializer(ModelSerializer):
         video_url = Record.objects.filter(mid=obj.mid, platform='bilibili').values()[0]['url'] if Record.objects.filter(
             mid=obj.mid, platform='bilibili') else ''
         return video_url
-
-
-class LoginSerializer(serializers.ModelSerializer):
-    code = serializers.CharField(max_length=128, write_only=True)
-    access = serializers.CharField(label='请求密钥', max_length=255, read_only=True)
-
-    class Meta:
-        model = User
-        fields = ['code', 'access']
-        extra_kwargs = {
-            'access': {'read_only': True}
-        }
-
-    def create(self, validated_data):
-        try:
-            res = self.context["request"].data
-            code = res['code']
-            if not code:
-                logger.warning('Login without jscode.')
-                raise MyValidationError(RetCode.STATUS_USER_GET_CODE_FAILED)
-            r = get_openid(code)
-            if not r.get('openid'):
-                logger.warning('Failed to get openid.')
-                raise MyValidationError(RetCode.STATUS_USER_GET_OPENID_FAILED)
-            openid = r['openid']
-            encrypt_openid_str = encrypt_openid(openid)
-            user = User.objects.filter(openid=encrypt_openid_str).first()
-            # if user not exist, and need to create
-            if not user:
-                nickname = get_uuid()
-                avatar = settings.WX_AVATAR_URL
-                user = User.objects.create(
-                    nickname=nickname,
-                    avatar=avatar,
-                    openid=encrypt_openid_str)
-            else:
-                User.objects.filter(openid=encrypt_openid_str).update(is_delete=0)
-            return user
-        except Exception as e:
-            logger.error("e:{}, traceback:{}".format(e, traceback.format_exc()))
-            raise MyValidationError(RetCode.STATUS_USER_LOGIN_FAILED)
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        refresh = TokenObtainPairSerializer.get_token(instance)
-        data['refresh'] = str(refresh)
-        data['access'] = str(refresh.access_token)
-        data['user_id'] = instance.id
-        data['level'] = instance.level
-        data['gitee_name'] = instance.gitee_name
-        data['nickname'] = instance.nickname
-        data['activity_level'] = instance.activity_level
-        data['agree_privacy_policy'] = instance.agree_privacy_policy
-        User.objects.filter(id=instance.id).update(signature=str(refresh))
-        return data
 
 
 class UsersInGroupSerializer(ModelSerializer):

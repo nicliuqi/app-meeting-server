@@ -70,6 +70,7 @@ class BaseUser(MyAbstractBaseUser):
     activity_level = models.SmallIntegerField(verbose_name='活动权限', choices=((1, '普通用户'), (2, '活动发起人'), (3, '管理员')),
                                               default=1)
     signature = models.CharField(verbose_name='签名', max_length=255, blank=True, null=True)
+    refresh_signature = models.CharField(verbose_name='刷新签名', max_length=255, blank=True, null=True)
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True, null=True, blank=True)
     last_login = models.DateTimeField(verbose_name='上次登录时间', auto_now=True, null=True, blank=True)
     agree_privacy_policy = models.BooleanField(verbose_name='同意隐私政策', default=False)

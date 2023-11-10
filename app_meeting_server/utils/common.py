@@ -17,7 +17,7 @@ from datetime import datetime
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import PBKDF2PasswordHasher
 from django.conf import settings
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from app_meeting_server.utils import crypto_gcm
 from app_meeting_server.utils.file_stream import write_content
@@ -51,13 +51,38 @@ def make_signature(access_token):
     return pbkdf2_password_hasher.encode(access_token, settings.SIGNATURE_SECRET, iterations=260000)
 
 
+def make_refresh_signature(refresh_token):
+    pbkdf2_password_hasher = PBKDF2PasswordHasher()
+    return pbkdf2_password_hasher.encode(refresh_token, settings.SIGNATURE_SECRET, iterations=260000)
+
+
 def refresh_access(user):
-    refresh = RefreshToken.for_user(user)
-    access = str(refresh.access_token)
-    encrypt_access = make_signature(access)
+    refresh = TokenObtainPairSerializer.get_token(user)
+    access_token = str(refresh.access_token)
+    access_signature = make_signature(access_token)
     user_model = get_user_model()
-    user_model.objects.filter(id=user.id).update(signature=encrypt_access)
-    return access
+    user_model.objects.filter(id=user.id).update(signature=access_signature)
+    return access_token
+
+
+def save_token(access_token, refresh_token, user):
+    access_signature = make_signature(access_token)
+    refresh_signature = make_refresh_signature(refresh_token)
+    user_model = get_user_model()
+    user_model.objects.filter(id=user.id).update(signature=access_signature, refresh_signature=refresh_signature)
+
+
+def refresh_token_and_refresh_token(user):
+    refresh = TokenObtainPairSerializer.get_token(user)
+    access_token = str(refresh.access_token)
+    refresh_token = str(refresh)
+    save_token(access_token, refresh_token, user)
+    return access_token, refresh_token
+
+
+def clear_token(user):
+    user_model = get_user_model()
+    user_model.objects.filter(id=user.id).update(signature="", refresh_signature="")
 
 
 def encrypt_openid(encrypt_openid):
@@ -100,4 +125,3 @@ def execute_cmd3(cmd, timeout=30, err_log=True):
         return ret, out, err
     except Exception as e:
         return -1, "", "execute_cmd3 exceeded raise, e={}, trace={}".format(e.args[0], traceback.format_exc())
-

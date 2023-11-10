@@ -8,6 +8,8 @@ from django.utils.encoding import force_str
 from rest_framework import status
 from rest_framework.exceptions import ErrorDetail, APIException
 from django.utils.translation import gettext_lazy as _
+
+from app_meeting_server.utils.common import refresh_access
 from app_meeting_server.utils.ret_code import RetCode
 
 
@@ -27,8 +29,16 @@ class MyValidationError(APIException):
         self.detail = ErrorDetail(text, code)
 
 
-def ret_json(code=200, msg="success", data=None):
-    if isinstance(data, dict):
-        return JsonResponse({'code': code, 'msg': msg, "data": data})
-    else:
-        return JsonResponse({'code': code, 'msg': msg, "data": data}, safe=False)
+def ret_json(code=200, msg="success", data=None, access=None, **kwargs):
+    ret_dict = {'code': code, 'msg': msg, "data": data}
+    if access:
+        ret_dict["access"] = access
+    ret_dict.update(kwargs)
+    return JsonResponse(ret_dict)
+
+
+def ret_access_json(user, code=200, msg="success", data=None, **kwargs):
+    access = refresh_access(user)
+    ret_dict = {'code': code, 'msg': msg, "data": data, "access": access}
+    ret_dict.update(kwargs)
+    return JsonResponse(ret_dict)

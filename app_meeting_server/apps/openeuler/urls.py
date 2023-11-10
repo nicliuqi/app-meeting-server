@@ -1,14 +1,15 @@
 from django.urls import path
 from openeuler.views import LoginView, GroupsView, MeetingView, MeetingsView, UsersExcludeView, UserView, \
     GroupUserAddView, MeetingDelView, MeetingsWeeklyView, MeetingsDailyView, UsersIncludeView, UserGroupView, \
-    GroupUserDelView, UserInfoView, MeetingsDataView, SigMeetingsDataView, MyMeetingsView, AllMeetingsView, \
+    GroupUserDelView, UserInfoView, SigMeetingsDataView, MyMeetingsView, AllMeetingsView, \
     CollectView, CollectDelView, MyCollectionsView, ParticipantsView, SponsorsView, NonSponsorView, SponsorAddView, \
     SponsorDelView, DraftsView, DraftView, ActivityPublishView, ActivityRejectView, ActivityDelView, \
     ActivityView, ActivitiesView, RecentActivitiesView, SponsorActivitiesView, ActivityRetrieveView, \
     ActivityUpdateView, ActivityDraftView, ActivitiesDraftView, SponsorActivityDraftView, DraftUpdateView, \
     DraftPublishView, SponsorActivitiesPublishingView, ActivityCollectView, ActivityCollectDelView, \
-    MyActivityCollectionsView, CountActivitiesView, MyCountsView, MeetingsRecentlyView, ActivitiesDataView, \
-    AgreePrivacyPolicyView, RevokeAgreementView, LogoutView, LogoffView, PingView, MeetingsGroupView, RefreshView, MeetingActivityDateView, MeetingActivityDataView
+    MyActivityCollectionsView, CountActivitiesView, MyCountsView, MeetingsRecentlyView, \
+    AgreePrivacyPolicyView, RevokeAgreementView, LogoutView, LogoffView, PingView, MeetingsGroupView, \
+    RefreshView, MeetingActivityDateView, MeetingActivityDataView
 
 urlpatterns = [
     # common
@@ -49,7 +50,6 @@ urlpatterns = [
     path('collect/<int:pk>/', CollectDelView.as_view()),                # 取消收藏
     path('collections/', MyCollectionsView.as_view()),                  # 我收藏的会议
     path('participants/<int:mid>/', ParticipantsView.as_view()),        # 查询会议的参会者
-    path('meetingsdata/', MeetingsDataView.as_view()),                  # todo 删除/官网网页会议数据
     path('sigmeetingsdata/<str:gn>/', SigMeetingsDataView.as_view()),   # todo +分页官网网页SIG会议数据
 
     # activity
@@ -72,8 +72,7 @@ urlpatterns = [
     path('sponsoractivitiespublishing/', SponsorActivitiesPublishingView.as_view()),  # 发布中(个人)的活动
     path('collectactivities/', MyActivityCollectionsView.as_view()),                  # 我收藏的活动列表
     path('countactivities/', CountActivitiesView.as_view()),                          # 各类活动计数
-    path('activitiesdata/', ActivitiesDataView.as_view()),                            # todo 删除这个接口不要官网网页活动日历
-    path('activities/', ActivitiesView.as_view()),                                    # todo 官网网页活动列表+分页
+    path('activities/', ActivitiesView.as_view()),                                    # 官网网页活动列表+分页
     path('activity/<int:pk>/', ActivityRetrieveView.as_view()),                       # 官网网页查询单个活动
 
     # 提供给官网的公共接口
