@@ -255,13 +255,9 @@ def console_log(request, log_module, log_desc, log_type, log_vars, resp=None):
     ip = "unknown"
     user_id = "anonymous"
     if request.user.id:
-        user_model = get_user_model()
-        user = user_model.objects.filter(id=request.user.id).first()
-        if not user:
-            logger.error("user {} not exist".format(request.user.id))
-        elif user.leve == MeetigsAdminPermission.level or user.activity_level == ActivityAdminPermission.activity_level:
+        user_id = request.user.id
+        if request.user.level == MeetigsAdminPermission.level or request.user.activity_level == ActivityAdminPermission.activity_level:
             ip = request.META.get("HTTP_X_FORWARDED_FOR") or request.META.get("REMOTE_ADDR")
-            user_id = request.user.id
     result = OperationLogResult.OP_RESULT_FAILED
     if isinstance(resp, Response) and str(resp.status_code).startswith("20"):
         result = OperationLogResult.OP_RESULT_SUCCEED

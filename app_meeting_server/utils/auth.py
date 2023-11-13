@@ -28,8 +28,8 @@ class CustomAuthentication(JWTAuthentication):
         if not user.is_active:
             raise AuthenticationFailed(_('User is inactive'), code='user_inactive')
 
-        # token = make_signature(validated_token)
-        # if User.objects.get(id=user_id).signature != str(token):
-        #     raise InvalidToken(_('Token has expired'))
+        token = make_signature(validated_token)
+        if User.objects.get(id=user_id).signature != str(token):
+            raise InvalidToken(_('Token has expired'))
 
         return user

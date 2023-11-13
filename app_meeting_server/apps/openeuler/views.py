@@ -10,7 +10,8 @@ from rest_framework.filters import SearchFilter
 from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import ListModelMixin, CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, \
     UpdateModelMixin
-
+from rest_framework_simplejwt.exceptions import AuthenticationFailed
+from django.utils.translation import ugettext_lazy as _
 from app_meeting_server.utils.my_pagination import MyPagination
 from openeuler.models import User, Group, Meeting, GroupUser, Collect, Video, Record, \
     Activity, ActivityCollect
@@ -30,7 +31,8 @@ from openeuler.utils import gene_wx_code, drivers, send_cancel_email
 from app_meeting_server.utils.auth import CustomAuthentication
 from app_meeting_server.utils import wx_apis
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType
-from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid, save_token, clear_token
+from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid, clear_token, \
+    make_refresh_signature, refresh_token_and_refresh_token
 from app_meeting_server.utils.ret_api import MyValidationError, ret_json, ret_access_json
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
     check_user_ids, check_activity_params, check_meetings_params, check_schedules_string, check_date, check_type
@@ -73,12 +75,24 @@ class RefreshView(TokenRefreshView):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
                            OperationLogType.OP_TYPE_REFRESH,
                            OperationLogDesc.OP_DESC_USER_REFRESH_CODE) as log_context:
-            user_id = request.user.id
-            log_context.log_vars = [user_id]
-            ret = super(RefreshView, self).post(request, *args, **kwargs)
-            access_token = ret.data.get("access")
-            refresh_token = ret.data.get("refresh")
-            save_token(access_token, refresh_token, request.user)
+            refresh = request.data.get("refresh")
+            if not refresh:
+                logger.error("receive empty refresh")
+                raise AuthenticationFailed(_('lack of refresh'))
+            refresh_signature = make_refresh_signature(refresh)
+            cur_user = User.objects.filter(refresh_signature=refresh_signature).first()
+            if cur_user is None:
+                logger.error("refresh doesnt match")
+                log_context.log_vars = ["anonymous"]
+                raise AuthenticationFailed(_('invalid refresh'))
+            else:
+                log_context.log_vars = [cur_user.id]
+            access_token, refresh_token = refresh_token_and_refresh_token(cur_user)
+            ret_dict = {
+                "refresh": refresh_token,
+                "access": access_token
+            }
+            ret = ret_json(**ret_dict)
             log_context.result = ret
             return ret
 
@@ -247,9 +261,8 @@ class GroupUserAddView(GenericAPIView, CreateModelMixin):
             return ret
 
     def create(self, request, *args, **kwargs):
-        ret = super(GroupUserAddView, self).create(request, *args, **kwargs)
-        ret.data["access"] = refresh_access(request.user)
-        return ret
+        super(GroupUserAddView, self).create(request, *args, **kwargs)
+        return ret_access_json(request.user)
 
 
 class GroupUserDelView(GenericAPIView, CreateModelMixin):
@@ -390,9 +403,8 @@ class UserView(GenericAPIView, UpdateModelMixin):
             return ret
 
     def update(self, request, *args, **kwargs):
-        ret = super(UserView, self).update(request, *args, **kwargs)
-        ret.data["access"] = refresh_access(request.user)
-        return ret
+        super(UserView, self).update(request, *args, **kwargs)
+        return ret_access_json(request.user)
 
 
 class UserGroupView(GenericAPIView, ListModelMixin):
@@ -849,9 +861,8 @@ class CollectDelView(GenericAPIView, DestroyModelMixin):
         if not Collect.objects.filter(id=collection_id, user_id=user_id):
             logger.error('User {} had not collected collection id {}'.format(user_id, collection_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        resp = super(CollectDelView, self).destroy(request, *args, **kwargs)
-        resp.data["access"] = refresh_access(request.user)
-        return resp
+        super(CollectDelView, self).destroy(request, *args, **kwargs)
+        return ret_access_json(request.user)
 
     def get_queryset(self):
         queryset = Collect.objects.filter(user_id=self.request.user.id)
@@ -1081,9 +1092,8 @@ class ActivityUpdateView(GenericAPIView, UpdateModelMixin):
     def update(self, request, *args, **kwargs):
         schedules = request.data.get("schedules")
         check_schedules_string(schedules)
-        resp = super(ActivityUpdateView, self).update(request, *args, **kwargs)
-        resp.data["access"] = refresh_access(request.user)
-        return resp
+        super(ActivityUpdateView, self).update(request, *args, **kwargs)
+        return ret_access_json(request.user)
 
     def get_queryset(self):
         user_id = self.request.user.id
@@ -1269,9 +1279,8 @@ class SponsorActivityDraftView(GenericAPIView, RetrieveModelMixin, DestroyModelM
             return ret
 
     def destroy(self, request, *args, **kwargs):
-        resp = super(SponsorActivityDraftView, self).destroy(request, *args, **kwargs)
-        resp.data["access"] = refresh_access(request.user)
-        return resp
+        super(SponsorActivityDraftView, self).destroy(request, *args, **kwargs)
+        return ret_access_json(request.user)
 
     def get_queryset(self):
         queryset = Activity.objects.filter(is_delete=0, status=1, user_id=self.request.user.id).order_by('-date', 'id')
@@ -1475,9 +1484,8 @@ class ActivityCollectDelView(GenericAPIView, DestroyModelMixin):
         if not ActivityCollect.objects.filter(id=collection_id, user_id=user_id):
             logger.error('User {} had not collected collection id {}'.format(user_id, collection_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        resp = super(ActivityCollectDelView, self).destroy(request, *args, **kwargs)
-        resp.data["access"] = refresh_access(request.user)
-        return resp
+        super(ActivityCollectDelView, self).destroy(request, *args, **kwargs)
+        return ret_access_json(request.user)
 
     def get_queryset(self):
         queryset = ActivityCollect.objects.filter(user_id=self.request.user.id)
