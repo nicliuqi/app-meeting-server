@@ -37,7 +37,8 @@ def send_subscribe_msg():
         time = date + ' ' + start_time
         mid = meeting.mid
         creater_id = meeting.user_id
-        creater_user = User.objects.filter(id=creater_id, is_delete=0).first()
+        creater_user = User.objects.filter(id=creater_id, is_delete=0).\
+            exclude(nickname=settings.ANONYMOUS_NAME).first()
         send_to_list = [creater_user.openid] if creater_user else list()
         collections = Collect.objects.filter(meeting_id=meeting.id)
         collection_users = [collection.user_id for collection in collections]

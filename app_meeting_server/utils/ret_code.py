@@ -60,6 +60,7 @@ class RetCode(RetCodeBase):
     STATUS_USER_LOGIN_FAILED = STATUS_FACILITY_USER + 3
     STATUS_USER_GET_CODE_FAILED = STATUS_FACILITY_USER + 4
     STATUS_USER_GET_OPENID_FAILED = STATUS_FACILITY_USER + 5
+    STATUS_START_ONLY_ONE_ADMIN = STATUS_FACILITY_USER + 6
 
     # sub module: meeting
     STATUS_MEETING_EMAIL_LIST_OVER_LIMIT = STATUS_FACILITY_MEETING + 0
@@ -69,6 +70,7 @@ class RetCode(RetCodeBase):
     STATUS_MEETING_FAILED_CREATE = STATUS_FACILITY_MEETING + 4
     STATUS_MEETING_NO_AVAILABLE_HOST = STATUS_FACILITY_MEETING + 5
     STATUS_MEETING_DATE_CONFLICT = STATUS_FACILITY_MEETING + 6
+    STATUS_MEETING_CANNNOT_BE_DELETE = STATUS_FACILITY_MEETING + 7
 
     # sub module: activity
     STATUS_ACTIVITY_DATA_GT_NOW = STATUS_FACILITY_ACTIVITY + 0
@@ -99,6 +101,7 @@ class RetCode(RetCodeBase):
         STATUS_USER_LOGIN_FAILED: "User login failed",
         STATUS_USER_GET_CODE_FAILED: "Failed to get code",
         STATUS_USER_GET_OPENID_FAILED: "Failed to get openid",
+        STATUS_START_ONLY_ONE_ADMIN: "There is only one administrator and cannot log out.",
 
         # meetings
         STATUS_MEETING_EMAIL_LIST_OVER_LIMIT: "The length of email_list is gt 600",
@@ -108,6 +111,7 @@ class RetCode(RetCodeBase):
         STATUS_MEETING_FAILED_CREATE: "Failed to create meeting",
         STATUS_MEETING_NO_AVAILABLE_HOST: "There is currently no available host, please go to the official website to view scheduled meetings",
         STATUS_MEETING_DATE_CONFLICT: "Time conflict, please adjust the time to schedule the meeting",
+        STATUS_MEETING_CANNNOT_BE_DELETE: "Cannot be deleted 1 day before the meeting",
 
         # activity
         STATUS_ACTIVITY_DATA_GT_NOW: "The start date should be earlier than tomorrow"
@@ -124,7 +128,7 @@ class RetCode(RetCodeBase):
         NAME_NOT_STANDARD: '非法名字',
         RESULT_IS_EMPTY: '结果为空',
         STATUS_PARAMETER_CORRESPONDING_ERROR: '参数响应无效',
-        INFORMATION_CHANGE_ERROR: "信息已更改，请刷新后重试",
+        INFORMATION_CHANGE_ERROR: "信息发生变化，请刷新后重试",
         STATUS_START_LT_END: "开始时间应小于结束时间",
         STATUS_START_GT_NOW: "开始时间应大于当前时间",
         STATUS_START_LT_LIMIT: "建议预定60天之内的会议或者活动",
@@ -139,6 +143,7 @@ class RetCode(RetCodeBase):
         STATUS_USER_LOGIN_FAILED: "用户登录失败",
         STATUS_USER_GET_CODE_FAILED: "获取code失败",
         STATUS_USER_GET_OPENID_FAILED: "获取openid失败",
+        STATUS_START_ONLY_ONE_ADMIN: "管理员当前只有一个,无法注销.",
 
         # meetings
         STATUS_MEETING_EMAIL_LIST_OVER_LIMIT: "邮件地址长度超限",
@@ -148,6 +153,7 @@ class RetCode(RetCodeBase):
         STATUS_MEETING_FAILED_CREATE: "创建会议失败",
         STATUS_MEETING_NO_AVAILABLE_HOST: "目前没有可用的主持人，请前往官网查看预约会议",
         STATUS_MEETING_DATE_CONFLICT: "时间冲突，请调整时间预定会议",
+        STATUS_MEETING_CANNNOT_BE_DELETE: "距离会议开始只有一天，无法删除",
 
         # activity
         STATUS_ACTIVITY_DATA_GT_NOW: "建议发布活动日期应该大于今天"

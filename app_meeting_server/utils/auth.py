@@ -4,6 +4,7 @@ from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidTok
 from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.state import User
 from app_meeting_server.utils.common import make_signature
+from django.conf import settings
 
 
 class CustomAuthentication(JWTAuthentication):
@@ -25,11 +26,14 @@ class CustomAuthentication(JWTAuthentication):
         except User.DoesNotExist:
             raise AuthenticationFailed(_('User not found'), code='user_not_found')
 
-        if not user.is_active:
+        if not user.is_delete == 0:
             raise AuthenticationFailed(_('User is inactive'), code='user_inactive')
 
+        if user.nickname == settings.ANONYMOUS_NAME:
+            raise AuthenticationFailed(_('User is anonymous'), code='user_anonymous')
+
         token = make_signature(validated_token)
-        if User.objects.get(id=user_id).signature != str(token):
+        if user.signature != str(token):
             raise InvalidToken(_('Token has expired'))
 
         return user

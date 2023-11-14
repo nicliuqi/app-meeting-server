@@ -39,7 +39,7 @@ class LoginSerializer(serializers.ModelSerializer):
                 raise MyValidationError(RetCode.STATUS_USER_GET_OPENID_FAILED)
             openid = r['openid']
             encrypt_openid_str = encrypt_openid(openid)
-            user = User.objects.filter(openid=encrypt_openid_str).first()
+            user = User.objects.filter(openid=encrypt_openid_str).exclude(nickname=settings.ANONYMOUS_NAME).first()
             # if user not exist, and need to create
             if not user:
                 nickname = get_uuid()
@@ -64,6 +64,7 @@ class LoginSerializer(serializers.ModelSerializer):
         data['level'] = instance.level
         data['gitee_name'] = instance.gitee_name
         data['nickname'] = instance.nickname
+        data['avatar'] = instance.avatar
         data['activity_level'] = instance.activity_level
         data['agree_privacy_policy'] = instance.agree_privacy_policy
         return data
@@ -84,7 +85,8 @@ class GroupUserAddSerializer(ModelSerializer):
         return check_user_ids(value)
 
     def create(self, validated_data):
-        users = User.objects.filter(id__in=validated_data['ids'], is_delete=0)
+        users = User.objects.filter(id__in=validated_data['ids'], is_delete=0).\
+            exclude(nickname=settings.ANONYMOUS_NAME)
         group_id = Group.objects.filter(id=validated_data['group_id']).first()
         try:
             result_list = list()
@@ -107,12 +109,6 @@ class GroupUserDelSerializer(ModelSerializer):
     class Meta:
         model = GroupUser
         fields = ['group_id', 'ids']
-
-    def validate_group_id(self, value):
-        return check_group_id(Group, value)
-
-    def validate_ids(self, value):
-        return check_user_ids(value)
 
 
 class GroupsSerializer(ModelSerializer):

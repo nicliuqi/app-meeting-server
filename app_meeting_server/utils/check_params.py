@@ -9,11 +9,72 @@ import logging
 import html
 from django.db import models
 from django.conf import settings
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import AuthenticationFailed
+from django.utils.translation import ugettext_lazy as _
+from app_meeting_server.utils.common import make_refresh_signature
 from app_meeting_server.utils.regular_match import match_email, match_url, match_crlf
 from app_meeting_server.utils.ret_api import MyValidationError
 from app_meeting_server.utils.ret_code import RetCode
+from django.contrib.auth import get_user_model
 
 logger = logging.getLogger('log')
+
+
+def check_none(value):
+    if not value:
+        logger.error("invalid:{}".format(value))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+
+
+def check_int(value):
+    try:
+        return int(value)
+    except Exception as e:
+        logger.error("invalid int:{}, and e:{}".format(value, e))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+
+
+def check_float(value):
+    try:
+        return float(value)
+    except Exception as e:
+        logger.error("invalid float:{}, and e:{}".format(value, e))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+
+
+def check_itude(value):
+    try:
+        value = str(value)
+        value_list = value.split(".")
+        if len(value_list) > 2:
+            raise Exception("multiple decimal points")
+        elif len(value_list) == 2 and len(str(value_list[1])) > 5:
+            raise Exception("decimal_places max is 2 bit")
+        elif len(value) > 9:
+            raise Exception("length over 9 bit")
+        return float(value)
+    except Exception as e:
+        logger.error("invalid float:{}, and e:{}".format(value, e))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+
+
+def check_refresh_token(refresh):
+    if not refresh:
+        logger.error("receive empty refresh")
+        raise AuthenticationFailed(_('lack of refresh'))
+    try:
+        RefreshToken(refresh, verify=True)
+    except Exception as e:
+        logger.error("invalid refresh_token:{}".format(e))
+        raise AuthenticationFailed(_("Token is invalid or expired"))
+    refresh_signature = make_refresh_signature(refresh)
+    user_model = get_user_model()
+    cur_user = user_model.objects.filter(refresh_signature=refresh_signature).first()
+    if cur_user is None:
+        logger.error("refresh doesnt match")
+        raise AuthenticationFailed(_('invalid refresh'))
+    return cur_user
 
 
 def check_invalid_content(content, check_crlf=True):
@@ -51,7 +112,7 @@ def check_type(type_str):
 
 def check_date(date_str):
     try:
-        return datetime.datetime.strftime(date_str, '%Y-%m-%d')
+        return datetime.datetime.strptime(date_str, '%Y-%m-%d')
     except Exception as e:
         logger.error("invalid date:{}, and e:{}".format(date_str, str(e)))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
@@ -134,13 +195,13 @@ def check_duration(start, end, date, now_time, is_meetings=False, is_activity=Fa
 def check_group_id(group_model, value):
     if not issubclass(group_model, models.Model):
         raise MyValidationError(RetCode.INTERNAL_ERROR)
-    if group_model.objects.filter(id=value).count() == 0:
-        raise MyValidationError(RetCode.STATUS_SIG_GROUP_NOT_EXIST)
     try:
         value = int(value)
     except Exception as e:
         logger.error("[check_group_id]:{}".format(e))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    if group_model.objects.filter(id=value).count() == 0:
+        raise MyValidationError(RetCode.STATUS_SIG_GROUP_NOT_EXIST)
     return value
 
 
@@ -235,7 +296,7 @@ def check_meetings_params(request, group_model):
     if record not in ["cloud", ""]:
         logger.error('The invalid cloud:{}'.format(str(record)))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
-    # 10.check_emaillist
+    # 10.check_email_list
     if emaillist:
         check_email_list(emaillist)
     validated_data = {
@@ -248,7 +309,7 @@ def check_meetings_params(request, group_model):
         'sponsor': sponsor,
         'group_name': group_name,
         'etherpad': etherpad,
-        'communinty': community,
+        'community': community,
         'emaillist': emaillist,
         'summary': summary,
         'record': record,
@@ -302,12 +363,10 @@ def check_activity_params(data, online, offline):
     if synopsis:
         check_field(synopsis, 4096)
         check_invalid_content(synopsis, check_crlf=False)
-    # 7.check adress in offline
+    # 7.check address in offline
     if activity_type == offline:
-        if not isinstance(longitude, float):
-            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
-        if not isinstance(latitude, float):
-            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+        longitude = check_itude(longitude)
+        latitude = check_itude(latitude)
         check_field(address, 100)
         check_invalid_content(address)
         check_field(detail_address, 100)

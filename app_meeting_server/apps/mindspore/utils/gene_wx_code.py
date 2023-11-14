@@ -1,4 +1,6 @@
 import logging
+import os
+import shutil
 import sys
 from django.conf import settings
 from obs import ObsClient
@@ -27,7 +29,15 @@ def upload_to_obs(tmp_file, activity_id):
 
 
 def run(activity_id):
-    content = wx_apis.gene_code_img(activity_id)
-    tmp_file = save_temp_img(content)
-    img_url = upload_to_obs(tmp_file, activity_id)
-    return img_url
+    dir_name = None
+    try:
+        content = wx_apis.gene_code_img(activity_id)
+        dir_name, tmp_file = save_temp_img(content)
+        img_url = upload_to_obs(tmp_file, activity_id)
+        return img_url
+    except Exception as e:
+        logger.error("gene code failed. and err:{}".format(e))
+        raise e
+    finally:
+        if dir_name and os.path.exists(dir_name):
+            shutil.rmtree(dir_name)

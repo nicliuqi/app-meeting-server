@@ -6,9 +6,6 @@ ARG uid=1000
 ARG gid=1000
 
 # 1.copy
-RUN groupadd -g ${gid} ${group}
-RUN useradd -u ${uid} -g ${group} -d /home/meetingserver/ -s /sbin/nologin -m ${user}
-WORKDIR /home/meetingserver/app-meeting-server
 COPY --chown=meetingserver ./app_meeting_server /home/meetingserver/app-meeting-server/app_meeting_server
 COPY --chown=meetingserver ./manage.py /home/meetingserver/app-meeting-server
 COPY --chown=meetingserver ./docker-entrypoint.sh /home/meetingserver/app-meeting-server
@@ -17,14 +14,15 @@ COPY --chown=meetingserver ./deploy/fonts/simsun.ttc /usr/share/fonts
 COPY --chown=meetingserver ./requirements.txt /home/meetingserver/app-meeting-server
 
 # 2.install
-RUN yum install -y wget git openssl openssl-devel tzdata python3-devel mariadb-devel python3-pip libXext libjpeg xorg-x11-fonts-75dpi xorg-x11-fonts-Type1 gcc
+RUN yum install -y shadow wget git openssl openssl-devel tzdata python3-devel mariadb-devel python3-pip libXext libjpeg xorg-x11-fonts-75dpi xorg-x11-fonts-Type1 gcc
 RUN pip3 install -r /home/meetingserver/app-meeting-server/requirements.txt && rm -rf /home/meetingserver/app-meeting-server/requirements.txt
 RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox-0.12.6-1.centos8.x86_64.rpm && \
     rpm -i wkhtmltox-0.12.6-1.centos8.x86_64.rpm && \
     rm -f wkhtmltox-0.12.6-1.centos8.x86_64.rpm
 
-
 # 3.clean
+RUN groupadd -g ${gid} ${group}
+RUN useradd -u ${uid} -g ${group} -d /home/meetingserver/ -s /sbin/nologin -m ${user}
 RUN yum remove -y gcc python3-pip python3-setuptools procps-ng
 RUN rm -rf /usr/bin/kill
 RUN ln -s /usr/bin/python3 /usr/bin/python
@@ -39,6 +37,7 @@ RUN echo 'set +o history' >> /root/.bashrc
 RUN rm -rf /tmp/*
 
 # 4.Run server
+WORKDIR /home/meetingserver/app-meeting-server
 ENV LANG=en_US.UTF-8
 RUN chown -R ${user}:${group} /home/meetingserver/
 USER ${uid}:${gid}

@@ -3,6 +3,7 @@
 # @Author  : Tom_zc
 # @FileName: operation_log.py
 # @Software: PyCharm
+import datetime
 import json
 
 from django.conf import settings
@@ -10,7 +11,6 @@ from logging import getLogger
 from functools import wraps
 from rest_framework.response import Response
 from django.http import JsonResponse
-from django.contrib.auth import get_user_model
 
 from app_meeting_server.utils.permissions import MeetigsAdminPermission, ActivityAdminPermission
 
@@ -134,13 +134,13 @@ class OperationLogDesc(OperationBase):
     OP_DESC_USER_LOGIN_CODE = OP_DESC_USER_BASE_CODE + 1
     OP_DESC_USER_LOGOUT_CODE = OP_DESC_USER_BASE_CODE + 2
     OP_DESC_USER_LOGOFF_CODE = OP_DESC_USER_BASE_CODE + 3
-    OP_DESC_USER_MODIIFY_CODE = OP_DESC_USER_BASE_CODE + 4
+    OP_DESC_USER_MODIFY_CODE = OP_DESC_USER_BASE_CODE + 4
     OP_DESC_USER_ADD_GROUP_CODE = OP_DESC_USER_BASE_CODE + 5
     OP_DESC_USER_REMOVE_GROUP_CODE = OP_DESC_USER_BASE_CODE + 6
     OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE = OP_DESC_USER_BASE_CODE + 7
     OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE = OP_DESC_USER_BASE_CODE + 8
     OP_DESC_USER_AGREEMENT_CODE = OP_DESC_USER_BASE_CODE + 9
-    OP_DESC_USER_REVOKEAGREEMENT_CODE = OP_DESC_USER_BASE_CODE + 10
+    OP_DESC_USER_REVOKE_AGREEMENT_CODE = OP_DESC_USER_BASE_CODE + 10
     OP_DESC_USER_REFRESH_CODE = OP_DESC_USER_BASE_CODE + 11
 
     OP_DESC_MEETING_BASE_CODE = 1000
@@ -173,13 +173,13 @@ class OperationLogDesc(OperationBase):
         OP_DESC_USER_LOGIN_CODE: "用户（%s）登录。",
         OP_DESC_USER_LOGOUT_CODE: "用户（%s）登出。",
         OP_DESC_USER_LOGOFF_CODE: "用户（%s）注销。",
-        OP_DESC_USER_MODIIFY_CODE: "用户（%s）修改用户（%s）信息。",
+        OP_DESC_USER_MODIFY_CODE: "用户（%s）修改用户（%s）信息。",
         OP_DESC_USER_ADD_GROUP_CODE: "用户（%s）被添加到SIG组（%s）。",
         OP_DESC_USER_REMOVE_GROUP_CODE: "用户（%s）从SIG组（%s）中移除。",
         OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE: "用户（%s）被添加为活动发起人。",
         OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE: "用户（%s）从活动发起人中移除。",
         OP_DESC_USER_AGREEMENT_CODE: "用户（%s）同意隐私声明。",
-        OP_DESC_USER_REVOKEAGREEMENT_CODE: "用户（%s）撤销隐私声明。",
+        OP_DESC_USER_REVOKE_AGREEMENT_CODE: "用户（%s）撤销隐私声明。",
         OP_DESC_USER_REFRESH_CODE: "用户（%s）刷新token。",
 
         # meeting
@@ -214,13 +214,13 @@ class OperationLogDesc(OperationBase):
         OP_DESC_USER_LOGIN_CODE: "The user(%s) login.",
         OP_DESC_USER_LOGOUT_CODE: "The user(%s) logout.",
         OP_DESC_USER_LOGOFF_CODE: "The user(%s) logoff.",
-        OP_DESC_USER_MODIIFY_CODE: "The user(%s) modify the user(%s) info.",
+        OP_DESC_USER_MODIFY_CODE: "The user(%s) modify the user(%s) info.",
         OP_DESC_USER_ADD_GROUP_CODE: "The user(%s) is added to SIG group(%s).",
         OP_DESC_USER_REMOVE_GROUP_CODE: "The user(%s) is removed from SIG group(%s).",
         OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE: "The user(%s) was added as activity sponsor.",
         OP_DESC_USER_REMOVE_ACTIVITY_SPONSOR_CODE: "The user(%s) was removed from activity sponsor.",
         OP_DESC_USER_AGREEMENT_CODE: "The user(%s) agree to privacy statement.",
-        OP_DESC_USER_REVOKEAGREEMENT_CODE: "The user(%s) revokes privacy statement.",
+        OP_DESC_USER_REVOKE_AGREEMENT_CODE: "The user(%s) revokes privacy statement.",
         OP_DESC_USER_REFRESH_CODE: "The user(%s) refresh token.",
 
         # meeting
@@ -292,7 +292,27 @@ class LoggerContext:
         console_log(self.request, self.log_module, self.log_desc, self.log_type, self.log_vars, self.result)
 
 
-def loggerwrapper(log_module, log_desc, log_type=None, log_vars=None):
+class PolicyLoggerContext:
+    def __init__(self, version, app_version, date, result, is_agreen=True):
+        self.version = version
+        self.app_version = app_version
+        self.date = date
+        self.result = result
+        self.is_agreen = is_agreen
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.is_agreen:
+            operation = "agreen to policy"
+        else:
+            operation = "revoke to policy"
+        logger.info("user {} about policy version({}) and app version({}) and time({}), result is:{}".format(
+            operation, self.version, self.app_version, str(self.date), self.result))
+
+
+def logger_wrapper(log_module, log_desc, log_type=None, log_vars=None):
     def wrapper(fn):
         @wraps(fn)
         def inner(view, request, *args, **kwargs):

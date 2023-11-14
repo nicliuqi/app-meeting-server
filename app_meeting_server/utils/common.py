@@ -53,7 +53,7 @@ def make_signature(access_token):
 
 def make_refresh_signature(refresh_token):
     pbkdf2_password_hasher = PBKDF2PasswordHasher()
-    return pbkdf2_password_hasher.encode(refresh_token, settings.SIGNATURE_SECRET, iterations=260000)
+    return pbkdf2_password_hasher.encode(refresh_token, settings.REFRESH_SIGNATURE_SECRET, iterations=260000)
 
 
 def refresh_access(user):
@@ -93,11 +93,22 @@ def decrypt_openid(decrypt_openid):
     return crypto_gcm.aes_gcm_decrypt(decrypt_openid, settings.AES_GCM_SECRET)
 
 
-def save_temp_img(content):
+def gen_new_temp_dir():
     tmpdir = tempfile.gettempdir()
-    tmp_file = os.path.join(tmpdir, 'tmp.jpeg')
+    while True:
+        uuid_str = str(uuid.uuid4())
+        new_uuid_str = uuid_str.replace("-", "")
+        dir_name = os.path.join(tmpdir, new_uuid_str)
+        if not os.path.exists(dir_name):
+            return dir_name
+        time.sleep(1)
+
+
+def save_temp_img(content):
+    dir_name = gen_new_temp_dir()
+    tmp_file = os.path.join(dir_name, 'tmp.jpeg')
     write_content(tmp_file, content, 'wb')
-    return tmp_file
+    return dir_name, tmp_file
 
 
 def make_nonce():

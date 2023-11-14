@@ -4,14 +4,13 @@ import json
 import secrets
 import time
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
 from rest_framework.filters import SearchFilter
 from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import ListModelMixin, CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, \
     UpdateModelMixin
-from rest_framework_simplejwt.exceptions import AuthenticationFailed
-from django.utils.translation import ugettext_lazy as _
 from app_meeting_server.utils.my_pagination import MyPagination
 from openeuler.models import User, Group, Meeting, GroupUser, Collect, Video, Record, \
     Activity, ActivityCollect
@@ -30,12 +29,13 @@ from rest_framework import permissions
 from openeuler.utils import gene_wx_code, drivers, send_cancel_email
 from app_meeting_server.utils.auth import CustomAuthentication
 from app_meeting_server.utils import wx_apis
-from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, OperationLogType
-from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid, clear_token, \
-    make_refresh_signature, refresh_token_and_refresh_token
+from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, \
+    OperationLogType, PolicyLoggerContext
+from app_meeting_server.utils.common import get_cur_date, decrypt_openid, clear_token, refresh_token_and_refresh_token
 from app_meeting_server.utils.ret_api import MyValidationError, ret_json, ret_access_json
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
-    check_user_ids, check_activity_params, check_meetings_params, check_schedules_string, check_date, check_type
+    check_user_ids, check_activity_params, check_meetings_params, check_schedules_string, check_date, check_type, \
+    check_refresh_token, check_int
 from app_meeting_server.utils.ret_code import RetCode
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -78,16 +78,8 @@ class RefreshView(TokenRefreshView):
                            OperationLogDesc.OP_DESC_USER_REFRESH_CODE) as log_context:
             log_context.log_vars = ["anonymous"]
             refresh = request.data.get("refresh")
-            if not refresh:
-                logger.error("receive empty refresh")
-                raise AuthenticationFailed(_('lack of refresh'))
-            refresh_signature = make_refresh_signature(refresh)
-            cur_user = User.objects.filter(refresh_signature=refresh_signature).first()
-            if cur_user is None:
-                logger.error("refresh doesnt match")
-                raise AuthenticationFailed(_('invalid refresh'))
-            else:
-                log_context.log_vars = [cur_user.id]
+            cur_user = check_refresh_token(refresh)
+            log_context.log_vars = [cur_user.id]
             access_token, refresh_token = refresh_token_and_refresh_token(cur_user)
             ret_dict = {
                 "refresh": refresh_token,
@@ -131,6 +123,8 @@ class LogoffView(GenericAPIView):
 
     def create(self, request, *args, **kwargs):
         user_id = request.user.id
+        if request.user.level == 3 or request.user.activity_level == 3:
+            raise MyValidationError(RetCode.STATUS_START_ONLY_ONE_ADMIN)
         cur_date = get_cur_date()
         expired_date = cur_date + datetime.timedelta(days=settings.LOGOFF_EXPIRED)
         User.objects.filter(id=user_id).update(is_delete=1, logoff_time=expired_date)
@@ -155,14 +149,19 @@ class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
             return ret
 
     def update(self, request, *args, **kwargs):
-        now_time = datetime.datetime.now()
-        if User.objects.get(id=self.request.user.id).agree_privacy_policy:
-            msg = 'The user {} has signed privacy policy agreement already.'.format(self.request.user.id)
-            logger.error(msg)
-            raise MyValidationError(RetCode.STATUS_USER_HAS_SIGNED_POLICY)
-        User.objects.filter(id=self.request.user.id).update(agree_privacy_policy=True,
-                                                            agree_privacy_policy_time=now_time,
-                                                            agree_privacy_policy_version=settings.PRIVACY_POLICY_VERSION)
+        policy_version = settings.PRIVACY_POLICY_VERSION
+        app_policy_version = settings.settings.PRIVACY_APP_POLICY_VERSION
+        cur_date = get_cur_date()
+        with PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False) as policy_log_context:
+            if User.objects.get(id=self.request.user.id).agree_privacy_policy:
+                msg = 'The user {} has signed privacy policy agreement already.'.format(self.request.user.id)
+                logger.error(msg)
+                raise MyValidationError(RetCode.STATUS_USER_HAS_SIGNED_POLICY)
+            User.objects.filter(id=self.request.user.id).update(agree_privacy_policy=True,
+                                                                agree_privacy_policy_time=cur_date,
+                                                                agree_privacy_policy_version=policy_version,
+                                                                agree_privacy_app_policy_version=app_policy_version)
+            policy_log_context.result = True
         resp = ret_access_json(request.user, msg="Agree to privacy statement")
         return resp
 
@@ -175,15 +174,27 @@ class RevokeAgreementView(GenericAPIView):
     def post(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
                            OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_REVOKEAGREEMENT_CODE) as log_context:
+                           OperationLogDesc.OP_DESC_USER_REVOKE_AGREEMENT_CODE) as log_context:
             log_context.log_vars = [request.user.id]
             ret = self.create(request, *args, **kwargs)
             log_context.result = ret
             return ret
 
     def create(self, request, *args, **kwargs):
-        now_time = datetime.datetime.now()
-        User.objects.filter(id=self.request.user.id).update(revoke_agreement_time=now_time)
+        policy_version = settings.PRIVACY_POLICY_VERSION
+        app_policy_version = settings.settings.PRIVACY_APP_POLICY_VERSION
+        cur_date = get_cur_date()
+        anonymous_name = settings.ANONYMOUS_NAME
+        user_id = request.user.id
+        with PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False,
+                                 is_agreen=False) as policy_log_context:
+            with transaction.atomic():
+                User.objects.filter(id=user_id).update(revoke_agreement_time=cur_date,
+                                                       openid=anonymous_name,
+                                                       gitee_name=anonymous_name,
+                                                       nickname=anonymous_name)
+                Meeting.objects.filter(user__id=user_id).update(emaillist=None)
+                policy_log_context.result = True
         clear_token(request.user)
         resp = ret_json(msg="Revoke agreement of privacy policy")
         return resp
@@ -218,7 +229,8 @@ class UsersIncludeView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         group_users = GroupUser.objects.filter(group_id=self.kwargs['pk']).all()
         ids = [x.user_id for x in group_users]
-        user = User.objects.filter(id__in=ids, is_delete=0).order_by('nickname')
+        user = User.objects.filter(id__in=ids, is_delete=0). \
+            exclude(nickname=settings.ANONYMOUS_NAME).order_by('nickname')
         return user
 
 
@@ -233,15 +245,18 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
     pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
-        if Group.objects.filter(id=self.kwargs.get('pk')).count() == 0:
-            logger.error("The Group {} is not exist".format(self.kwargs.get("pk")))
+        pk = self.kwargs["pk"]
+        if Group.objects.filter(id=pk).count() == 0:
+            logger.error("The Group {} is not exist".format(pk))
             raise MyValidationError(RetCode.STATUS_SIG_GROUP_NOT_EXIST)
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
         group_users = GroupUser.objects.filter(group_id=self.kwargs['pk']).all()
         ids = [x.user_id for x in group_users]
-        user = User.objects.filter().exclude(id__in=ids).order_by('nickname')
+        user = User.objects.filter(is_delete=0). \
+            exclude(nickname=settings.ANONYMOUS_NAME). \
+            exclude(id__in=ids).order_by('nickname')
         return user
 
 
@@ -286,6 +301,11 @@ class GroupUserDelView(GenericAPIView, CreateModelMixin):
         group_id = request.data.get('group_id')
         user_ids = request.data.get('ids')
         new_group_id, new_list_ids = check_group_id_and_user_ids(group_id, user_ids, GroupUser, Group)
+        count_user = User.objects.filter(id__in=new_list_ids).filter(is_delete=0).exclude(
+            nickname=settings.ANONYMOUS_NAME).count()
+        if count_user != len(new_list_ids):
+            logger.info("GroupUserDelView find anonymous or be deleted")
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         GroupUser.objects.filter(group_id=new_group_id, user_id__in=new_list_ids).delete()
         return ret_access_json(request.user)
 
@@ -293,7 +313,7 @@ class GroupUserDelView(GenericAPIView, CreateModelMixin):
 class UserInfoView(GenericAPIView, RetrieveModelMixin):
     """查询本机用户的level和gitee_name"""
     serializer_class = UserInfoSerializer
-    queryset = User.objects.all()
+    queryset = User.objects.filter(is_delete=0).exclude(nickname=settings.ANONYMOUS_NAME)
     permission_classes = (permissions.IsAuthenticated,)
     authentication_classes = (CustomAuthentication,)
 
@@ -308,7 +328,8 @@ class UserInfoView(GenericAPIView, RetrieveModelMixin):
 class SponsorsView(GenericAPIView, ListModelMixin):
     """活动发起人列表"""
     serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=2, is_delete=0).order_by("nickname")
+    queryset = User.objects.filter(activity_level=2, is_delete=0). \
+        exclude(nickname=settings.ANONYMOUS_NAME).order_by("nickname")
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
@@ -322,7 +343,8 @@ class SponsorsView(GenericAPIView, ListModelMixin):
 class NonSponsorView(GenericAPIView, ListModelMixin):
     """非活动发起人列表"""
     serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=1, is_delete=0).order_by("nickname")
+    queryset = User.objects.filter(activity_level=1, is_delete=0). \
+        exclude(nickname=settings.ANONYMOUS_NAME).order_by("nickname")
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
@@ -351,12 +373,14 @@ class SponsorAddView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         user_ids = request.data.get('ids')
         new_user_ids = check_user_ids(user_ids)
-        match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0).count()
+        match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0). \
+            exclude(nickname=settings.ANONYMOUS_NAME).count()
         if len(new_user_ids) != match_queryset:
             logger.error("The input ids: {}, parse result {} not eq query result {}".format(user_ids, new_user_ids,
                                                                                             match_queryset))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0).update(activity_level=2)
+        User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0). \
+            exclude(nickname=settings.ANONYMOUS_NAME).update(activity_level=2)
         return ret_access_json(request.user)
 
 
@@ -378,12 +402,14 @@ class SponsorDelView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         user_ids = request.data.get('ids')
         new_user_ids = check_user_ids(user_ids)
-        match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=2).count()
+        match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=2, is_delete=0). \
+            exclude(nickname=settings.ANONYMOUS_NAME).count()
         if match_queryset != len(new_user_ids):
             logger.error("The input ids: {}, parse result {} not eq query result {}".format(user_ids, new_user_ids,
                                                                                             match_queryset))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        User.objects.filter(id__in=new_user_ids, activity_level=2).update(activity_level=1)
+        User.objects.filter(id__in=new_user_ids, activity_level=2, is_delete=0). \
+            exclude(nickname=settings.ANONYMOUS_NAME).update(activity_level=1)
         return ret_access_json(request.user)
 
 
@@ -397,7 +423,7 @@ class UserView(GenericAPIView, UpdateModelMixin):
     def put(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
                            OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_USER_MODIIFY_CODE) as log_context:
+                           OperationLogDesc.OP_DESC_USER_MODIFY_CODE) as log_context:
             log_context.log_vars = [request.user.id, request.user.id]
             ret = self.update(request, *args, **kwargs)
             log_context.result = ret
@@ -431,36 +457,38 @@ class MyCountsView(GenericAPIView, ListModelMixin):
 
     def get(self, request, *args, **kwargs):
         user_id = self.request.user.id
-        user = User.objects.get(id=user_id)
-        level = user.level
-        activity_level = user.activity_level
+        level = self.request.user.level
+        activity_level = self.request.user.activity_level
 
         # shared
-        collected_meetings_count = len(Meeting.objects.filter(is_delete=0, id__in=(
-            Collect.objects.filter(user_id=user_id).values_list('meeting_id', flat=True))).values())
-        collected_activities_count = len(Activity.objects.filter(is_delete=0, id__in=(
-            ActivityCollect.objects.filter(user_id=user_id).values_list('activity_id', flat=True))).values())
-        res = {'collected_meetings_count': collected_meetings_count,
-               'collected_activities_count': collected_activities_count}
+        collected_meetings_count = Meeting.objects.filter(is_delete=0, id__in=(Collect.objects.filter(user_id=user_id).
+                                                                               values_list('meeting_id',
+                                                                                           flat=True))).count()
+        collected_activities_count = Activity.objects.filter(is_delete=0,
+                                                             id__in=(ActivityCollect.objects.filter(user_id=user_id).
+                                                                     values_list('activity_id', flat=True))).count()
+        res = {
+            'collected_meetings_count': collected_meetings_count,
+            'collected_activities_count': collected_activities_count
+        }
         # permission limited
         if level == 2:
-            created_meetings_count = len(Meeting.objects.filter(is_delete=0, user_id=user_id).values())
+            created_meetings_count = Meeting.objects.filter(is_delete=0, user_id=user_id).count()
             res['created_meetings_count'] = created_meetings_count
-        if level == 3:
-            created_meetings_count = len(Meeting.objects.filter(is_delete=0).values())
+        elif level == 3:
+            created_meetings_count = Meeting.objects.filter(is_delete=0).count()
             res['created_meetings_count'] = created_meetings_count
         if activity_level == 2:
-            published_activities_count = len(
-                Activity.objects.filter(is_delete=0, status__gt=2, user_id=user_id).values())
-            drafts_count = len(Activity.objects.filter(is_delete=0, status=1, user_id=user_id).values())
-            publishing_activities_count = len(Activity.objects.filter(is_delete=0, status=2, user_id=user_id).values())
+            published_activities_count = Activity.objects.filter(is_delete=0, status__gt=2, user_id=user_id).count()
+            drafts_count = Activity.objects.filter(is_delete=0, status=1, user_id=user_id).count()
+            publishing_activities_count = Activity.objects.filter(is_delete=0, status=2, user_id=user_id).count()
             res['published_activities_count'] = published_activities_count
             res['drafts_count'] = drafts_count
             res['publishing_activities_count'] = publishing_activities_count
-        if activity_level == 3:
-            published_activities_count = len(Activity.objects.filter(is_delete=0, status__gt=2).values())
-            drafts_count = len(Activity.objects.filter(is_delete=0, status=1, user_id=user_id).values())
-            publishing_activities_count = len(Activity.objects.filter(is_delete=0, status=2).values())
+        elif activity_level == 3:
+            published_activities_count = Activity.objects.filter(is_delete=0, status__gt=2).count()
+            drafts_count = Activity.objects.filter(is_delete=0, status=1, user_id=user_id).count()
+            publishing_activities_count = Activity.objects.filter(is_delete=0, status=2).count()
             res['published_activities_count'] = published_activities_count
             res['drafts_count'] = drafts_count
             res['publishing_activities_count'] = publishing_activities_count
@@ -473,13 +501,13 @@ class MeetingsWeeklyView(GenericAPIView, ListModelMixin):
     serializer_class = MeetingListSerializer
     queryset = Meeting.objects.filter(is_delete=0)
     filter_backends = [SearchFilter]
-    search_fields = ['topic', 'group_name']
+    search_fields = ['topic']
     pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         group_name = self.request.GET.get('group_name')
         if group_name:
-            self.queryset = self.queryset.filter(group__name=group_name)
+            self.queryset = self.queryset.filter(group__group_name=group_name)
         self.queryset = self.queryset.filter((Q(
             date__gte=str(datetime.datetime.now() - datetime.timedelta(days=7))[:10]) & Q(
             date__lte=str(datetime.datetime.now() + datetime.timedelta(days=7))[:10]))).order_by('-date', 'start')
@@ -558,11 +586,17 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
             logger.error('User {} has no access to delete meeting {}'.format(user_id, mid))
             raise MyValidationError(RetCode.STATUS_USER_HAS_NO_PERMISSIONS)
 
+        meeting = Meeting.objects.get(mid=mid)
+        cur_date = get_cur_date()
+        start_date_str = "{} {}".format(meeting.date, meeting.start)
+        start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d %H:%M")
+        if int((start_date - cur_date).total_seconds()) > 24 * 60 * 60:
+            raise MyValidationError(RetCode.STATUS_MEETING_CANNNOT_BE_DELETE)
+
         # 删除会议
         drivers.cancelMeeting(mid)
 
         # 会议作软删除
-        meeting = Meeting.objects.get(mid=mid)
         Meeting.objects.filter(mid=mid).update(is_delete=1)
         meeting_id = meeting.id
         mid = meeting.mid
@@ -613,7 +647,8 @@ class SigMeetingsDataView(GenericAPIView, ListModelMixin):
         queryset = self.filter_queryset(self.get_queryset()).filter(group_name=group_name).filter((Q(
             date__gte=str(datetime.datetime.now() - datetime.timedelta(days=180))[:10]) & Q(
             date__lte=str(datetime.datetime.now() + datetime.timedelta(days=30))[:10]))).values()
-        queryset = MyPagination().paginate_queryset(queryset, request)
+        my_paginate = MyPagination()
+        queryset = my_paginate.paginate_queryset(queryset, request)
         table_data = []
         date_list = []
         for query in queryset:
@@ -648,7 +683,7 @@ class SigMeetingsDataView(GenericAPIView, ListModelMixin):
                 'date': date,
                 'timeData': time_data
             })
-        return Response({'tableData': table_data})
+        return my_paginate.get_paginated_response(table_data)
 
 
 class MeetingsView(GenericAPIView, CreateModelMixin):
@@ -1098,7 +1133,7 @@ class ActivityUpdateView(GenericAPIView, UpdateModelMixin):
 
     def get_queryset(self):
         user_id = self.request.user.id
-        queryset = Activity.objects.filter(is_delete=0, status__in=[3, 4], user_id=user_id)
+        queryset = Activity.objects.filter(is_delete=0, status__in=[3, 4], user_id=user_id, id=self.kwargs["pk"])
         if queryset.count() == 0:
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         return queryset
@@ -1451,10 +1486,8 @@ class ActivityCollectView(GenericAPIView, CreateModelMixin):
 
     def create(self, request, *args, **kwargs):
         activity_id = request.data.get('activity')
+        activity_id = check_int(activity_id)
         user_id = request.user.id
-        if not isinstance(activity_id, int):
-            logger.error('Invalid activity id: {}'.format(activity_id))
-            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         if not Activity.objects.filter(id=activity_id, status__in=[3, 4, 5], is_delete=0):
             logger.error('Activity {} is not exist'.format(activity_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
@@ -1489,7 +1522,7 @@ class ActivityCollectDelView(GenericAPIView, DestroyModelMixin):
         return ret_access_json(request.user)
 
     def get_queryset(self):
-        queryset = ActivityCollect.objects.filter(user_id=self.request.user.id)
+        queryset = ActivityCollect.objects.filter(user_id=self.request.user.id, id=self.kwargs['pk'])
         return queryset
 
 
@@ -1548,18 +1581,37 @@ class CountActivitiesView(GenericAPIView, ListModelMixin):
 class MeetingActivityDateView(GenericAPIView, ListModelMixin):
     _meeting_queryset = Meeting.objects.filter(is_delete=0)
     _activity_queryset = Activity.objects.filter(status__in=[3, 4, 5], is_delete=0)
-    _all_queryset = [_meeting_queryset, _activity_queryset]
+
+    def get_meetings(self):
+        date_list = self._meeting_queryset.filter(
+            date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
+            date__lte=(datetime.datetime.now() + datetime.timedelta(days=30)).strftime('%Y-%m-%d')). \
+            distinct().order_by('-date', 'id').values_list("date", flat=True)
+        return date_list
+
+    def get_activity(self):
+        date_list = self._activity_queryset.filter(
+            date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
+            date__lte=(datetime.datetime.now() + datetime.timedelta(days=30)).strftime('%Y-%m-%d')). \
+            distinct().order_by('-date', 'id').values_list("date", flat=True)
+        return date_list
 
     def get(self, request, *args, **kwargs):
-        all_date = list()
-        for queryset in self._all_queryset:
-            date_list = queryset.filter(
-                date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
-                date__lte=(datetime.datetime.now() + datetime.timedelta(days=30)).strftime(
-                    '%Y-%m-%d')).distinct().order_by('-date', 'id').values_list(
-                "date", flat=True)
-            all_date.extend(date_list)
-        all_date = sorted(list(set(all_date)))
+        query_type_str = request.GET.get("type")
+        check_type(query_type_str)
+        ret_list = list()
+        if query_type_str == "all":
+            meetings = self.get_meetings()
+            ret_list.extend(meetings)
+            activity = self.get_activity()
+            ret_list.extend(activity)
+        elif query_type_str == "meetings":
+            meetings = self.get_meetings()
+            ret_list.extend(meetings)
+        elif query_type_str == "activity":
+            activity = self.get_activity()
+            ret_list.extend(activity)
+        all_date = sorted(list(set(ret_list)))
         return ret_json(data=all_date)
 
 
@@ -1594,44 +1646,44 @@ class MeetingActivityDataView(GenericAPIView, ListModelMixin):
     def get_activity(self, query_date):
         queryset = self._activity_queryset.filter(date=query_date).order_by('-date', 'id').values()
         list_data = [{
-            'id': activity.id,
-            'title': activity.title,
-            'start_date': activity.date,
-            'end_date': activity.date,
-            'activity_type': activity.activity_type,
-            'address': activity.address,
-            'detail_address': activity.detail_address,
-            'longitude': activity.longitude,
-            'latitude': activity.latitude,
-            'synopsis': activity.synopsis,
-            'sign_url': activity.sign_url,
-            'replay_url': activity.replay_url,
-            'register_url': activity.register_url,
-            'poster': activity.poster,
-            'wx_code': activity.wx_code,
-            'schedules': json.loads(activity.schedules)
+            'id': activity["id"],
+            'title': activity["title"],
+            'start_date': activity["date"],
+            'end_date': activity["date"],
+            'activity_type': activity["activity_type"],
+            'address': activity["address"],
+            'detail_address': activity["detail_address"],
+            'longitude': activity["longitude"],
+            'latitude': activity["latitude"],
+            'synopsis': activity["synopsis"],
+            'sign_url': activity["sign_url"],
+            'replay_url': activity["replay_url"],
+            'register_url': activity["register_url"],
+            'poster': activity["poster"],
+            'wx_code': activity["wx_code"],
+            'schedules': json.loads(activity["schedules"])
         } for activity in queryset]
         return list_data
 
     def get(self, request, *args, **kwargs):
         query_date_str = request.GET.get("date")
         query_type_str = request.GET.get("type")
-        query_date = check_date(query_date_str)
+        check_date(query_date_str)
         check_type(query_type_str)
         ret_list = list()
         if query_type_str == "all":
-            meetings = self.get_meetings(query_date)
+            meetings = self.get_meetings(query_date_str)
             ret_list.extend(meetings)
-            activity = self.get_activity(query_date)
+            activity = self.get_activity(query_date_str)
             ret_list.extend(activity)
         elif query_type_str == "meetings":
-            meetings = self.get_meetings(query_date)
+            meetings = self.get_meetings(query_date_str)
             ret_list.extend(meetings)
         elif query_type_str == "activity":
-            activity = self.get_activity(query_date)
+            activity = self.get_activity(query_date_str)
             ret_list.extend(activity)
         ret_dict = {
-            'date': query_date,
+            'date': query_date_str,
             'timeData': ret_list
         }
         return ret_json(data=ret_dict)
