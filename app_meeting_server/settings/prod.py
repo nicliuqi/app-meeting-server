@@ -239,7 +239,11 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 STATIC_URL = '/static/'
 
+temp_path = "/tmp/app-meeting-server"
 log_path = os.path.join(os.path.dirname(BASE_DIR), 'logs')
+
+if not os.path.exists(temp_path):
+    os.mkdir(temp_path)
 
 if not os.path.exists(log_path):
     os.mkdir(log_path)

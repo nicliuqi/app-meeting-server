@@ -12,7 +12,7 @@ logger = logging.getLogger('log')
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        os.chdir("/home/meetingserver/app-meeting-server/deploy/production/")
+        os.chdir(settings.temp_path)
         credential = get_credential()
         user = get_user(settings.BILI_UID, credential)
         bvs = get_all_bvids(user)  # 所有过审视频的bvid集合
@@ -20,8 +20,8 @@ class Command(BaseCommand):
         access_key_id = settings.ACCESS_KEY_ID
         secret_access_key = settings.SECRET_ACCESS_KEY
         endpoint = settings.OBS_ENDPOINT
-        bucketName = settings.OBS_BUCKETNAME
-        if not access_key_id or not secret_access_key or not endpoint or not bucketName:
+        bucket_name = settings.OBS_BUCKETNAME
+        if not access_key_id or not secret_access_key or not endpoint or not bucket_name:
             logger.error('losing required arguments for ObsClient')
             sys.exit(1)
         obs_client = ObsClient(access_key_id=access_key_id,
@@ -35,7 +35,7 @@ class Command(BaseCommand):
             url = obs_record.url
             object_key = url.split('/', 3)[-1]
             # 获取对象的metadata
-            metadata = obs_client.getObjectMetadata(bucketName, object_key)
+            metadata = obs_client.getObjectMetadata(bucket_name, object_key)
             metadata_dict = {x: y for x, y in metadata['header']}
             if 'bvid' not in metadata_dict.keys():
                 logger.info('meeting {}: 未上传B站，跳过'.format(mid))

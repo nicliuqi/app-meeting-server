@@ -254,7 +254,7 @@ class OperationLogDesc(OperationBase):
 def console_log(request, log_module, log_desc, log_type, log_vars, resp=None):
     ip = "unknown"
     user_id = "anonymous"
-    if request.user.id:
+    if request.user and request.user.id:
         user_id = request.user.id
         if request.user.level == MeetigsAdminPermission.level or request.user.activity_level == ActivityAdminPermission.activity_level:
             ip = request.META.get("HTTP_X_FORWARDED_FOR") or request.META.get("REMOTE_ADDR")

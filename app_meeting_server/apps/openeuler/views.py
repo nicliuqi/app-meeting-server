@@ -63,6 +63,7 @@ class LoginView(GenericAPIView, CreateModelMixin):
                            OperationLogDesc.OP_DESC_USER_LOGIN_CODE) as log_context:
             log_context.log_vars = ["anonymous"]
             ret = self.create(request, *args, **kwargs)
+            log_context.request.user = User.objects.filter(id=ret.data.get("user_id")).first()
             log_context.log_vars = [str(ret.data.get("user_id"))]
             log_context.result = ret
             return ret
@@ -75,6 +76,7 @@ class RefreshView(TokenRefreshView):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
                            OperationLogType.OP_TYPE_REFRESH,
                            OperationLogDesc.OP_DESC_USER_REFRESH_CODE) as log_context:
+            log_context.log_vars = ["anonymous"]
             refresh = request.data.get("refresh")
             if not refresh:
                 logger.error("receive empty refresh")
@@ -83,7 +85,6 @@ class RefreshView(TokenRefreshView):
             cur_user = User.objects.filter(refresh_signature=refresh_signature).first()
             if cur_user is None:
                 logger.error("refresh doesnt match")
-                log_context.log_vars = ["anonymous"]
                 raise AuthenticationFailed(_('invalid refresh'))
             else:
                 log_context.log_vars = [cur_user.id]
