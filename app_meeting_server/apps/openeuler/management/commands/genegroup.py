@@ -1,208 +1,33 @@
-import requests
-import lxml
-import time
 import logging
-import os
 import sys
 import yaml
-from lxml.etree import HTML
 from openeuler.models import Group
 from django.core.management.base import BaseCommand
 from django.conf import settings
-from django.db import connection
+from obs import ObsClient
 
 
 class Command(BaseCommand):
     logger = logging.getLogger('log')
 
     def handle(self, *args, **options):
-        os.chdir("/home/meetingserver/app-meeting-server/deploy/production/")
-        os.system('test -d community && rm -rf community')
-        os.system('git clone {}'.format(settings.COMMUNITY_REPO_URL))
-        access_token = settings.CI_BOT_TOKEN
-        if not access_token:
-            self.logger.error('missing CI_BOT_TOKEN, exit...')
+        bucket_name = settings.OBS_BUCKETNAME
+        obj_key = settings.SIGS_INFO_OBJECT
+        obs_client = ObsClient(access_key_id=settings.ACCESS_KEY_ID,
+                               secret_access_key=settings.SECRET_ACCESS_KEY,
+                               server='https://%s' % settings.OBS_ENDPOINT)
+        res = obs_client.getObject(bucket_name, obj_key)
+        if res.status != 200:
+            self.logger.error('Fail to get OBS object of sigs info')
             sys.exit(1)
-        t1 = time.time()
-        self.logger.info('Starting to genegroup...')
-        mail_lists = []
-        r = requests.get(settings.MAILLIST_API)
-        if r.status_code == 200:
-            mail_lists = [x['fqdn_listname'] for x in r.json()]
-        sigs = []
-        for i in os.listdir('community/sig'):
-            if i in ['README.md', 'sig-recycle', 'sig-template', 'create_sig_info_template.py']:
-                continue
-            sigs.append({'name': i})
-        sigs_list = []
-        for sig in sigs:
-            sig_name = sig['name']
-            sig_page = '{}/tree/master/sig/{}'.format(settings.COMMUNITY_REPO_URL, sig_name)
-            etherpad = '{}/p/{}-meetings'.format(settings.ETHERPAD_PREFIX, sig_name)
-            if Group.objects.filter(group_name=sig_name):
-                etherpad = Group.objects.get(group_name=sig_name).etherpad
-            sigs_list.append([sig_name, sig_page, etherpad])
-        sigs_list = sorted(sigs_list)
-        t2 = time.time()
-        self.logger.info('Has got sigs_list, wasted time: {}'.format(t2 - t1))
-
-        # 获取所有owner对应sig的字典owners_sigs
-        # 定义owners集合
-        owners = set()
-        owners_sigs = {}
-        maintainer_dict = {}
-        for sig in sigs_list:
-            maintainers = []
-            owner_file = 'community/sig/{}/OWNERS'.format(sig[0])
-            if os.path.exists(owner_file):
-                with open('community/sig/{}/OWNERS'.format(sig[0]), 'r') as f:
-                    user_infos = yaml.safe_load(f.read())['maintainers']
+        content = yaml.safe_load(res.body.response.read())
+        for sig in content:
+            sig_name = sig['group_name']
+            maillist = sig['maillist']
+            etherpad = settings.ETHERPAD_PREFIX + '{}-meetings'.format(sig_name)
+            if not Group.objects.filter(group_name=sig_name):
+                Group.objects.create(group_name=sig_name, maillist=maillist, etherpad=etherpad)
+                self.logger.info('Create group {}'.format(sig_name))
             else:
-                sig_info_file = 'community/sig/{}/sig-info.yaml'.format(sig[0])
-                if not os.path.exists(sig_info_file):
-                    self.logger.error('sig-info.yaml is required when OWNERS file does not exist.')
-                    sys.exit(1)
-                with open(sig_info_file, 'r') as f:
-                    sig_info = yaml.safe_load(f.read())
-                    user_infos = [maintainer['gitee_id'] for maintainer in sig_info['maintainers']]
-            for maintainer in user_infos:
-                maintainers.append(maintainer)
-                owners.add(maintainer)
-            maintainer_dict[sig[0]] = maintainers
-        # 初始化owners_sigs
-        for owner in owners:
-            owners_sigs[owner] = []
-        # 遍历sigs_list,添加在该sig中的owner所对应的sig
-        for sig in sigs_list:
-            for owner in owners:
-                if owner in maintainer_dict[sig[0]]:
-                    owners_sigs[owner].append(sig[0])
-
-        t3 = time.time()
-        self.logger.info('Has got owners_sigs, wasted time: {}'.format(t3 - t2))
-
-        for sig in sigs_list:
-            # 获取邮件列表
-            r = requests.get(sig[1])
-            html = HTML(r.text)
-            if not isinstance(html, lxml.etree._Element):
-                raise RuntimeError("get the html failed")
-            try:
-                maillist = html.xpath('//li[contains(text(), "邮件列表")]/a/@href')[0].rstrip('/').split('/')[-1].\
-                    replace('mailto:', '')
-            except IndexError:
-                try:
-                    maillist = html.xpath('//a[contains(text(), "邮件列表")]/@href')[0].rstrip('/').split('/')[-1].\
-                        replace('mailto:', '')
-                    if '@' not in maillist:
-                        maillist = html.xpath('//a[contains(@href, "@openeuler.org")]/text()')[0]
-                except IndexError:
-                    maillist = 'dev@openeuler.org'
-            if html.xpath('//*[contains(text(), "maillist")]/a'):
-                maillist = html.xpath('//*[contains(text(), "maillist")]/a')[0].text
-            elif html.xpath('//*[contains(text(), "Mail")]/a'):
-                maillist = html.xpath('//*[contains(text(), "Mail")]/a')[0].text
-            if mail_lists and maillist and maillist.endswith('@openeuler.org') and maillist not in mail_lists:
-                maillist = 'dev@openeuler.org'
-            if not maillist:
-                maillist = 'dev@openeuler.org'
-            sig.append(maillist)
-
-            # 获取IRC频道
-            try:
-                irc = html.xpath('//a[contains(text(), "IRC频道")]/@href')[0]
-            except IndexError:
-                try:
-                    irc = html.xpath('//a[contains(text(), "IRC")]/@href')[0]
-                except IndexError:
-                    try:
-                        irc = html.xpath('//*[contains(text(), "IRC")]/text()')[0].split(':')[1].strip().rstrip(')')
-                    except IndexError:
-                        irc = '#openeuler-dev'
-            if '#' not in irc:
-                irc = '#openeuler-dev'
-            sig.append(irc)
-
-            # 获取owners
-            maintainers = []
-            owner_file = 'community/sig/{}/OWNERS'.format(sig[0])
-            if os.path.exists(owner_file):
-                with open('community/sig/{}/OWNERS'.format(sig[0]), 'r') as f:
-                    user_infos = yaml.safe_load(f.read())['maintainers']
-                for maintainer in user_infos:
-                    maintainers.append(maintainer)
-            else:
-                sig_info_file = 'community/sig/{}/sig-info.yaml'.format(sig[0])
-                if not os.path.exists(sig_info_file):
-                    self.logger.error('sig-info.yaml is required when OWNERS file does not exist.')
-                    sys.exit(1)
-                with open(sig_info_file, 'r') as f:
-                    sig_info = yaml.safe_load(f.read())
-                    maintainers = [maintainer['gitee_id'] for maintainer in sig_info['maintainers']]
-            maintainer_dict[sig[0]] = maintainers
-            owners = []
-            for maintainer in maintainers:
-                params = {
-                    'access_token': access_token
-                }
-                r = requests.get('{}/users/{}'.format(settings.GITEE_V5_API_PREFIX, maintainer), params=params)
-                owner = {}
-                if r.status_code == 200:
-                    owner['gitee_id'] = maintainer
-                    owner['avatar_url'] = r.json()['avatar_url']
-                    owner['home_page'] = 'https://{}/{}'.format(settings.CODE_PLATFORM_URL, maintainer)
-                    owner['sigs'] = owners_sigs[maintainer]
-                    if r.json()['email']:
-                        owner['email'] = r.json()['email']
-                    owners.append(owner)
-                if r.status_code == 404:
-                    pass
-            sig.append(owners)
-
-            # 获取description
-            description = None
-            if 'sig-info.yaml' in os.listdir('community/sig/{}'.format(sig[0])):
-                with open('community/sig/{}/sig-info.yaml'.format(sig[0]), 'r') as f:
-                    sig_info = yaml.safe_load(f.read())
-                    if 'description' in sig_info.keys():
-                        description = sig_info['description']
-            sig.append(description)
-            sig[5] = str(sig[5]).replace("'", '"')
-            group_name = sig[0]
-            home_page = sig[1]
-            etherpad = sig[2]
-            maillist = sig[3]
-            irc = sig[4]
-            owners = sig[5]
-            description = sig[6]
-            # 查询数据库，如果sig_name不存在，则创建sig信息；如果sig_name存在,则更新sig信息
-            if not Group.objects.filter(group_name=group_name):
-                Group.objects.create(group_name=group_name, home_page=home_page, maillist=maillist,
-                                     irc=irc, etherpad=etherpad, owners=owners, description=description)
-                self.logger.info("Create sig: {}".format(group_name))
-                self.logger.info(sig)
-            else:
-                Group.objects.filter(group_name=group_name).update(irc=irc, etherpad=etherpad, owners=owners,
-                                                                   description=description)
-                self.logger.info("Update sig: {}".format(group_name))
-                self.logger.info(sig)
-        t4 = time.time()
-        self.logger.info('Has updated database, wasted time: {}'.format(t4 - t3))
-        db_sigs = list(Group.objects.all().values_list('group_name', flat=True))
-        for sig in [x['name'] for x in sigs]:
-            db_sigs.remove(sig)
-        if db_sigs:
-            try:
-                cursor = connection.cursor()
-                self.logger.info('Find useless data in database, use cursor to connect database.')
-                cursor.execute('set foreign_key_checks=0')
-                self.logger.info('Turn off foreign_key_check.')
-                for sig in db_sigs:
-                    Group.objects.filter(group_name=sig).delete()
-                    self.logger.info(
-                        'Sig {} had been removed from database because it does not exist in sig directory.'.format(sig))
-                cursor.execute('set foreign_key_checks=1')
-                self.logger.info('Turn on foreign_key_checks.')
-            except Exception as e:
-                self.logger.error(e)
-        self.logger.info('All done. Wasted time: {}'.format(t4 - t1))
+                Group.objects.filter(group_name=sig_name).update(maillist=maillist, etherpad=etherpad)
+                self.logger.info('Update group {}'.format(sig_name))

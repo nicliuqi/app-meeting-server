@@ -119,7 +119,7 @@ def execute_cmd3(cmd, timeout=30, err_log=True):
     """execute cmd3"""
     try:
         logger.info("execute_cmd3 call cmd: {}".format(cmd))
-        p = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+        p = subprocess.Popen(cmd.split(), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         t_wait_seconds = 0
         while True:
             if p.poll() is not None:
