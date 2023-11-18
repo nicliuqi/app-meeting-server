@@ -61,6 +61,7 @@ class RetCode(RetCodeBase):
     STATUS_USER_GET_CODE_FAILED = STATUS_FACILITY_USER + 4
     STATUS_USER_GET_OPENID_FAILED = STATUS_FACILITY_USER + 5
     STATUS_START_ONLY_ONE_ADMIN = STATUS_FACILITY_USER + 6
+    STATUS_START_POLICY_ONLY_ONE_ADMIN = STATUS_FACILITY_USER + 7
 
     # sub module: meeting
     STATUS_MEETING_EMAIL_LIST_OVER_LIMIT = STATUS_FACILITY_MEETING + 0
@@ -102,6 +103,7 @@ class RetCode(RetCodeBase):
         STATUS_USER_GET_CODE_FAILED: "Failed to get code",
         STATUS_USER_GET_OPENID_FAILED: "Failed to get openid",
         STATUS_START_ONLY_ONE_ADMIN: "There is only one administrator and cannot log out.",
+        STATUS_START_POLICY_ONLY_ONE_ADMIN: "There is only one administrator and cannot revoke agreement policy.",
 
         # meetings
         STATUS_MEETING_EMAIL_LIST_OVER_LIMIT: "The length of email_list is gt 600",
@@ -144,6 +146,7 @@ class RetCode(RetCodeBase):
         STATUS_USER_GET_CODE_FAILED: "获取code失败",
         STATUS_USER_GET_OPENID_FAILED: "获取openid失败",
         STATUS_START_ONLY_ONE_ADMIN: "管理员当前只有一个,无法注销.",
+        STATUS_START_POLICY_ONLY_ONE_ADMIN: "管理员当前只有一个,无法撤销隐私声明.",
 
         # meetings
         STATUS_MEETING_EMAIL_LIST_OVER_LIMIT: "邮件地址长度超限",

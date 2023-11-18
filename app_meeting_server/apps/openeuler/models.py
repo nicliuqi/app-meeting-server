@@ -66,7 +66,7 @@ class Collect(models.Model):
 class Video(models.Model):
     """会议记录表"""
     mid = models.CharField(verbose_name='会议id', max_length=12)
-    topic = models.CharField(verbose_name='会议名称', max_length=50)
+    topic = models.CharField(verbose_name='会议名称', max_length=128)
     community = models.CharField(verbose_name='社区', max_length=40, null=True, blank=True)
     group_name = models.CharField(verbose_name='所属sig组', max_length=50)
     agenda = models.TextField(verbose_name='会议简介', blank=True, null=True)

@@ -99,7 +99,7 @@ def check_invalid_content(content, check_crlf=True):
 
 
 def check_field(field, field_bit):
-    if len(field) == 0 or len(field) > field_bit:
+    if not field or len(field) == 0 or len(field) > field_bit:
         logger.error("check invalid field({}) over bit({})".format(str(field), str(field_bit)))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
@@ -161,7 +161,7 @@ def check_schedules(schedules_list):
 
 def check_email_list(email_list_str):
     # len of email list str gt 1000 and the single email limit 50 and limit 20 email
-    if len(email_list_str) > 1000:
+    if len(email_list_str) > 1020:
         logger.error("The length of email_list is gt 1000")
         raise MyValidationError(RetCode.STATUS_MEETING_EMAIL_LIST_OVER_LIMIT)
     email_list = email_list_str.split(";")
@@ -253,6 +253,8 @@ def check_meetings_params(request, group_model):
     summary = data.get('agenda')
     record = data.get('record')
     etherpad = data.get('etherpad')
+    # 0 check group_id
+    group_id = check_int(group_id)
     # 1.check topic
     check_field(topic, 128)
     check_invalid_content(topic)
@@ -290,7 +292,7 @@ def check_meetings_params(request, group_model):
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     # 8.check agenda
     if summary:
-        check_field(summary, 100)
+        check_field(summary, 4096)
         check_invalid_content(summary, check_crlf=False)
     # 9.check record:
     if record not in ["cloud", ""]:
@@ -338,6 +340,7 @@ def check_activity_params(data, online, offline):
     check_field(title, 50)
     check_invalid_content(title)
     # 2.check activity_type
+    activity_type = check_int(activity_type)
     if activity_type not in [offline, online]:
         logger.error('Invalid activity type: {}'.format(activity_type))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
@@ -352,6 +355,7 @@ def check_activity_params(data, online, offline):
         logger.error('Invalid datetime params {}'.format(date))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     # 4.check poster
+    poster = check_int(poster)
     if poster not in range(1, 5):
         logger.error('Invalid poster: {}'.format(poster))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)

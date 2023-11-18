@@ -31,7 +31,8 @@ from app_meeting_server.utils.auth import CustomAuthentication
 from app_meeting_server.utils import wx_apis
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, \
     OperationLogType, PolicyLoggerContext
-from app_meeting_server.utils.common import get_cur_date, decrypt_openid, clear_token, refresh_token_and_refresh_token
+from app_meeting_server.utils.common import get_cur_date, decrypt_openid, clear_token, refresh_token_and_refresh_token, \
+    get_anonymous_openid
 from app_meeting_server.utils.ret_api import MyValidationError, ret_json, ret_access_json
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
     check_user_ids, check_activity_params, check_meetings_params, check_schedules_string, check_date, check_type, \
@@ -123,7 +124,8 @@ class LogoffView(GenericAPIView):
 
     def create(self, request, *args, **kwargs):
         user_id = request.user.id
-        if request.user.level == 3 or request.user.activity_level == 3:
+        if request.user.level == MeetigsAdminPermission.level or \
+                request.user.activity_level == ActivityAdminPermission.activity_level:
             raise MyValidationError(RetCode.STATUS_START_ONLY_ONE_ADMIN)
         cur_date = get_cur_date()
         expired_date = cur_date + datetime.timedelta(days=settings.LOGOFF_EXPIRED)
@@ -188,9 +190,13 @@ class RevokeAgreementView(GenericAPIView):
         user_id = request.user.id
         with PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False,
                                  is_agreen=False) as policy_log_context:
+            if request.user.level == MeetigsAdminPermission.level or \
+                    request.user.activity_level == ActivityAdminPermission.activity_level:
+                raise MyValidationError(RetCode.STATUS_START_POLICY_ONLY_ONE_ADMIN)
+            anonymous_openid = get_anonymous_openid()
             with transaction.atomic():
                 User.objects.filter(id=user_id).update(revoke_agreement_time=cur_date,
-                                                       openid=anonymous_name,
+                                                       openid=anonymous_openid,
                                                        gitee_name=anonymous_name,
                                                        nickname=anonymous_name)
                 Meeting.objects.filter(user__id=user_id).update(emaillist=None)
@@ -590,7 +596,7 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
         cur_date = get_cur_date()
         start_date_str = "{} {}".format(meeting.date, meeting.start)
         start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d %H:%M")
-        if int((start_date - cur_date).total_seconds()) > 24 * 60 * 60:
+        if int((start_date - cur_date).total_seconds()) < 1 * 60 * 60:
             raise MyValidationError(RetCode.STATUS_MEETING_CANNNOT_BE_DELETE)
 
         # 删除会议
