@@ -150,7 +150,7 @@ class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
 
     def update(self, request, *args, **kwargs):
         policy_version = settings.PRIVACY_POLICY_VERSION
-        app_policy_version = settings.settings.PRIVACY_APP_POLICY_VERSION
+        app_policy_version = settings.PRIVACY_APP_POLICY_VERSION
         cur_date = get_cur_date()
         with PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False) as policy_log_context:
             if User.objects.get(id=self.request.user.id).agree_privacy_policy:
@@ -182,7 +182,7 @@ class RevokeAgreementView(GenericAPIView):
 
     def create(self, request, *args, **kwargs):
         policy_version = settings.PRIVACY_POLICY_VERSION
-        app_policy_version = settings.settings.PRIVACY_APP_POLICY_VERSION
+        app_policy_version = settings.PRIVACY_APP_POLICY_VERSION
         cur_date = get_cur_date()
         anonymous_name = settings.ANONYMOUS_NAME
         user_id = request.user.id
