@@ -23,7 +23,7 @@ RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkh
 # 3.clean
 RUN groupadd -g ${gid} ${group}
 RUN useradd -u ${uid} -g ${group} -d /home/meetingserver/ -s /sbin/nologin -m ${user}
-RUN yum remove -y gcc python3-pip python3-setuptools procps-ng
+RUN yum remove -y gcc python3-pip procps-ng
 RUN rm -rf /usr/bin/kill
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN chmod -R 550 /home/meetingserver/app-meeting-server/

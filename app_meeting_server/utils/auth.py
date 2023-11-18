@@ -2,9 +2,9 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
 from rest_framework_simplejwt.settings import api_settings
-from rest_framework_simplejwt.state import User
 from app_meeting_server.utils.common import make_signature
 from django.conf import settings
+from django.contrib.auth import get_user_model
 
 
 class CustomAuthentication(JWTAuthentication):
@@ -21,6 +21,7 @@ class CustomAuthentication(JWTAuthentication):
         except KeyError:
             raise InvalidToken(_('Token contained no recognizable user identification'))
 
+        User = get_user_model()
         try:
             user = User.objects.get(**{api_settings.USER_ID_FIELD: user_id})
         except User.DoesNotExist:
