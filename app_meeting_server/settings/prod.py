@@ -142,7 +142,7 @@ SIGNATURE_SECRET = DEFAULT_CONF.get('SIGNATURE_SECRET')
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'app_meeting_server.utils.auth.CustomAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
 }
 
@@ -200,7 +200,8 @@ DATABASES = {
                 'ssl': {
                     'ssl_version': ssl.PROTOCOL_TLSv1_2,
                     'key': MYSQL_TLS_PEM_CONTENT
-                }
+                },
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
         }
     }
 }

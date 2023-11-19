@@ -31,7 +31,7 @@ def upload_video(meeting_info, video_path, thumbnail_path):
     title = meeting_info.get('title')
     desc = meeting_info.get('desc')
     credential = Credential(sessdata=settings.SESSDATA, bili_jct=settings.BILI_JCT)
-    page = video_uploader.VideoUploadPage(path=video_path, title=title, description=desc)
+    page = video_uploader.VideoUploaderPage(path=video_path, title=title, description=desc)
     meta = {
         'copyright': 1,
         'desc': desc,

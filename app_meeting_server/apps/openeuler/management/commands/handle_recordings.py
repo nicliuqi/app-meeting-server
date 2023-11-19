@@ -3,7 +3,6 @@ import logging
 import os
 import requests
 import tempfile
-import wget
 from django.db.models import Q
 from django.conf import settings
 from obs import ObsClient
@@ -17,6 +16,7 @@ from app_meeting_server.utils.tencent_apis import get_records, get_video_downloa
 from app_meeting_server.utils.zoom_apis import getOauthToken
 from app_meeting_server.utils import zoom_apis
 from app_meeting_server.utils.file_stream import write_content
+from app_meeting_server.utils.common import execute_cmd3
 
 logger = logging.getLogger('log')
 
@@ -107,7 +107,8 @@ def download_recordings(zoom_download_url, mid):
         os.remove(os.path.join(tmpdir, target_name))
     r = requests.get(url=zoom_download_url, allow_redirects=False)
     url = r.headers['location']
-    filename = wget.download(url, out=os.path.join(tmpdir, target_name))
+    filename = os.path.join(tmpdir, target_name)
+    execute_cmd3('wget {} -O {}'.format(url, filename))
     return filename
 
 
@@ -524,25 +525,16 @@ def handle_welink_recordings(mid):
             status, res = getDetailDownloadUrl(confUUID, host_id)
             record_urls = res['recordUrls'][0]['urls']
             for record_url in record_urls:
-                if record_url['fileType'] == 'Hd':
+                if record_url['fileType'].lower() == 'hd':
                     waiting_download_recordings.append(record_url)
         tmpdir = tempfile.gettempdir()
-        if len(waiting_download_recordings) == 1:
-            target_name = mid + '.mp4'
-            target_filename = os.path.join(tmpdir, target_name)
-            token = waiting_download_recordings[0]['token']
-            download_url = waiting_download_recordings[0]['url']
-            downloadHWCloudRecording(token, target_filename, download_url)
-            after_download_recording(target_filename, start, end, mid, target_name)
-            return
-        for index, waiting_download_recording in enumerate(waiting_download_recordings):
-            marked_number = index + 1
-            target_name = mid + '-{}.mp4'.format(marked_number)
-            target_filename = os.path.join(tmpdir, target_name)
-            token = waiting_download_recording['token']
-            download_url = waiting_download_recording['url']
-            downloadHWCloudRecording(token, target_filename, download_url)
-            after_download_recording(target_filename, start, end, mid, target_name)
+        target_name = mid + '.mp4'
+        target_filename = os.path.join(tmpdir, target_name)
+        token = waiting_download_recordings[0]['token']
+        download_url = waiting_download_recordings[0]['url']
+        downloadHWCloudRecording(token, target_filename, download_url)
+        after_download_recording(target_filename, start, end, mid, target_name)
+        return
 
 
 def handle_tencent_recordings(mid):
