@@ -16,7 +16,7 @@ from app_meeting_server.utils.tencent_apis import get_records, get_video_downloa
 from app_meeting_server.utils.zoom_apis import getOauthToken
 from app_meeting_server.utils import zoom_apis
 from app_meeting_server.utils.file_stream import write_content
-from app_meeting_server.utils.common import execute_cmd3
+from app_meeting_server.utils.common import execute_cmd3, gen_new_temp_dir, make_dir
 
 logger = logging.getLogger('log')
 
@@ -100,14 +100,12 @@ def download_recordings(zoom_download_url, mid):
     :param mid: 会议ID
     :return: 下载的文件名
     """
-    tmpdir = tempfile.gettempdir()
     target_name = mid + '.mp4'
-    # 判断/tmp/下有无target_name,如果存在则删掉再下载
-    if target_name in os.listdir(tmpdir):
-        os.remove(os.path.join(tmpdir, target_name))
+    dir_name = gen_new_temp_dir()
+    make_dir(dir_name)
+    filename = os.path.join(dir_name, target_name)
     r = requests.get(url=zoom_download_url, allow_redirects=False)
     url = r.headers['location']
-    filename = os.path.join(tmpdir, target_name)
     execute_cmd3('wget {} -O {}'.format(url, filename))
     return filename
 
@@ -118,8 +116,8 @@ def generate_cover(mid, topic, group_name, date, filename, start_time, end_time)
     image_path = filename.replace('.mp4', '.png')
     content = cover_content(topic, group_name, date, start_time, end_time)
     write_content(html_path, content, 'w')
-    os.system("cp app-meeting-server/static/openeuler/images/cover.png {}".format(os.path.dirname(filename)))
-    os.system("wkhtmltoimage --enable-local-file-access {} {}".format(html_path, image_path))
+    execute_cmd3("cp {} {}".format(settings.COVER_PATH, os.path.dirname(filename)))
+    execute_cmd3("wkhtmltoimage --enable-local-file-access {} {}".format(html_path, image_path))
     logger.info("meeting {}: 生成封面".format(mid))
     os.remove(os.path.join(os.path.dirname(filename), 'cover.png'))
 

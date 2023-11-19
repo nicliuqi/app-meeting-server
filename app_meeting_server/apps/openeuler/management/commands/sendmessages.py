@@ -42,7 +42,8 @@ def send_subscribe_msg():
         send_to_list = [creater_user.openid] if creater_user else list()
         collections = Collect.objects.filter(meeting_id=meeting.id)
         collection_users = [collection.user_id for collection in collections]
-        user_openid_lists = User.objects.filter(id__in=collection_users, is_delete=0).values_list("openid", flat=True)
+        user_openid_lists = User.objects.filter(id__in=collection_users, is_delete=0).\
+            exclude(nickname=settings.ANONYMOUS_NAME).values_list("openid", flat=True)
         send_to_list.extend(user_openid_lists)
         send_to_list = list(set(send_to_list))
         if not len(send_to_list):
