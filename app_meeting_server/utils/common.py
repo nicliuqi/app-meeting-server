@@ -6,6 +6,7 @@
 import secrets
 import string
 import subprocess
+import threading
 import time
 import uuid
 import tempfile
@@ -23,6 +24,11 @@ from app_meeting_server.utils import crypto_gcm
 from app_meeting_server.utils.file_stream import write_content
 
 logger = logging.getLogger('log')
+
+
+def start_thread(func, m, record):
+    th = threading.Thread(target=func, args=(m, record))
+    th.start()
 
 
 def get_cur_date():

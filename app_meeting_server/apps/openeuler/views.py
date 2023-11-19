@@ -22,8 +22,6 @@ from openeuler.serializers import LoginSerializer, GroupsSerializer, MeetingSeri
     MeetingsDataSerializer, AllMeetingsSerializer, CollectSerializer, SponsorSerializer, ActivitySerializer, \
     ActivitiesSerializer, ActivityDraftUpdateSerializer, ActivityUpdateSerializer, \
     ActivityCollectSerializer, ActivityRetrieveSerializer
-from rest_framework.response import Response
-from multiprocessing import Process
 from openeuler.utils.send_email import sendmail
 from rest_framework import permissions
 from openeuler.utils import gene_wx_code, drivers, send_cancel_email
@@ -32,7 +30,7 @@ from app_meeting_server.utils import wx_apis
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, \
     OperationLogType, PolicyLoggerContext
 from app_meeting_server.utils.common import get_cur_date, decrypt_openid, clear_token, refresh_token_and_refresh_token, \
-    get_anonymous_openid
+    get_anonymous_openid, start_thread
 from app_meeting_server.utils.ret_api import MyValidationError, ret_json, ret_access_json
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
     check_user_ids, check_activity_params, check_meetings_params, check_schedules_string, check_date, check_type, \
@@ -609,8 +607,7 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
         logger.info('{} has canceled the meeting which mid was {}'.format(request.user.gitee_name, mid))
 
         # 发送删除通知邮件
-        # todo do a test
-        # send_cancel_email.sendmail(mid)
+        send_cancel_email.sendmail(mid)
 
         # 发送会议取消通知
         collections = Collect.objects.filter(meeting_id=meeting_id)
@@ -793,9 +790,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
             'etherpad': etherpad,
             'agenda': summary
         }
-        # todo do a test
-        # p1 = Process(target=sendmail, args=(m, record))
-        # p1.start()
+        start_thread(sendmail, m, record)
         # 5.如果开启录制功能，则在Video表中创建一条数据
         if record == 'cloud':
             Video.objects.create(
