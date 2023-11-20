@@ -144,10 +144,9 @@ def make_nonce():
     return ''.join(secrets.choice(string.digits) for _ in range(6))
 
 
-def execute_cmd3(cmd, timeout=30, err_log=True):
+def execute_cmd3(cmd, timeout=30, err_log=False):
     """execute cmd3"""
     try:
-        logger.info("execute_cmd3 call cmd: {}".format(cmd))
         p = subprocess.Popen(cmd.split(), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         t_wait_seconds = 0
         while True:
@@ -155,13 +154,13 @@ def execute_cmd3(cmd, timeout=30, err_log=True):
                 break
             if timeout >= 0 and t_wait_seconds >= (timeout * 100):
                 p.terminate()
-                return -1, "", "execute_cmd3 exceeded time {} seconds in executing: {}".format(timeout, cmd)
+                return -1, "", "execute_cmd3 exceeded time {} seconds in executing".format(timeout)
             time.sleep(0.01)
             t_wait_seconds += 1
         out, err = p.communicate()
         ret = p.returncode
         if ret != 0 and err_log:
-            logger.error("execute_cmd3 cmd {} return {}, std output: {}, err output: {}.".format(cmd, ret, out, err))
+            logger.error("execute_cmd3 return {}, std output: {}, err output: {}.".format(ret, out, err))
         return ret, out, err
     except Exception as e:
         return -1, "", "execute_cmd3 exceeded raise, e={}, trace={}".format(e.args[0], traceback.format_exc())

@@ -1,8 +1,10 @@
 import datetime
 import logging
 import os
+import shutil
+import traceback
+
 import requests
-import tempfile
 from django.db.models import Q
 from django.conf import settings
 from obs import ObsClient
@@ -93,11 +95,12 @@ def get_participants(mid):
     return response.json()['participants']
 
 
-def download_recordings(zoom_download_url, mid):
+def download_recordings(zoom_download_url, mid, is_zoom=True):
     """
     下载录像视频
     :param zoom_download_url: zoom提供的下载地址
     :param mid: 会议ID
+    :param is_zoom: is_zoom
     :return: 下载的文件名
     """
     target_name = mid + '.mp4'
@@ -105,7 +108,10 @@ def download_recordings(zoom_download_url, mid):
     make_dir(dir_name)
     filename = os.path.join(dir_name, target_name)
     r = requests.get(url=zoom_download_url, allow_redirects=False)
-    url = r.headers['location']
+    if is_zoom:
+        url = r.headers['location']
+    else:
+        url = zoom_download_url
     execute_cmd3('wget {} -O {}'.format(url, filename))
     return filename
 
@@ -116,15 +122,16 @@ def generate_cover(mid, topic, group_name, date, filename, start_time, end_time)
     image_path = filename.replace('.mp4', '.png')
     content = cover_content(topic, group_name, date, start_time, end_time)
     write_content(html_path, content, 'w')
+    os.chmod(html_path, 0o600)
     execute_cmd3("cp {} {}".format(settings.COVER_PATH, os.path.dirname(filename)))
     execute_cmd3("wkhtmltoimage --enable-local-file-access {} {}".format(html_path, image_path))
     logger.info("meeting {}: 生成封面".format(mid))
     os.remove(os.path.join(os.path.dirname(filename), 'cover.png'))
 
 
-def upload_cover(filename, obs_client, bucketName, cover_path):
+def upload_cover(filename, obs_client, bucket_name, cover_path):
     """OBS上传封面"""
-    res = obs_client.uploadFile(bucketName=bucketName, objectKey=cover_path,
+    res = obs_client.uploadFile(bucketName=bucket_name, objectKey=cover_path,
                                 uploadFile=filename.replace('.mp4', '.png'),
                                 taskNum=10, enableCheckpoint=True)
     return res
@@ -132,7 +139,7 @@ def upload_cover(filename, obs_client, bucketName, cover_path):
 
 def download_upload_recordings(start, end, zoom_download_url, mid, total_size, video, endpoint, object_key,
                                group_name,
-                               obs_client):
+                               obs_client, is_zoom=True):
     """
     下载、上传录像及后续操作
     :param start: 录像开始时间
@@ -145,11 +152,11 @@ def download_upload_recordings(start, end, zoom_download_url, mid, total_size, v
     :param object_key: 文件在OBS上的位置
     :param group_name: sig组名
     :param obs_client: ObsClient的实例
+    :param is_zoom: is_zoom
     :return:
     """
     # 下载录像
-    filename = download_recordings(zoom_download_url, str(mid))
-    print()
+    filename = download_recordings(zoom_download_url, str(mid), is_zoom=is_zoom)
     logger.info('meeting {}: 从OBS下载视频，本地保存为{}'.format(mid, filename))
     try:
         # 若下载录像的大小和total_size相等，则继续
@@ -159,11 +166,11 @@ def download_upload_recordings(start, end, zoom_download_url, mid, total_size, v
             topic = video.topic
             agenda = video.agenda
             community = video.community
-            bucketName = settings.OBS_BUCKETNAME
-            if not bucketName:
+            bucket_name = settings.OBS_BUCKETNAME
+            if not bucket_name:
                 logger.error('mid: {}, bucketName required'.format(mid))
                 return
-            download_url = 'https://{}.{}/{}?response-content-disposition=attachment'.format(bucketName,
+            download_url = 'https://{}.{}/{}?response-content-disposition=attachment'.format(bucket_name,
                                                                                              endpoint,
                                                                                              object_key)
             attenders = get_participants(mid)
@@ -183,7 +190,7 @@ def download_upload_recordings(start, end, zoom_download_url, mid, total_size, v
             # 上传视频
             try:
                 # 断点续传上传文件
-                res = obs_client.uploadFile(bucketName=bucketName, objectKey=object_key, uploadFile=filename,
+                res = obs_client.uploadFile(bucketName=bucket_name, objectKey=object_key, uploadFile=filename,
                                             taskNum=10, enableCheckpoint=True, metadata=metadata)
                 try:
                     if res['status'] == 200:
@@ -201,7 +208,7 @@ def download_upload_recordings(start, end, zoom_download_url, mid, total_size, v
                         generate_cover(mid, topic, group_name, date, filename, start_time, end_time)
                         # 上传封面
                         cover_path = res['body']['key'].replace('.mp4', '.png')
-                        res2 = upload_cover(filename, obs_client, bucketName, cover_path)
+                        res2 = upload_cover(filename, obs_client, bucket_name, cover_path)
                         if res2['status'] == 200:
                             logger.info('meeting {}: OBS封面上传成功'.format(mid))
                             try:
@@ -219,14 +226,8 @@ def download_upload_recordings(start, end, zoom_download_url, mid, total_size, v
                                                           thumbnail=url.replace('.mp4', '.png'))
                                 logger.info('meeting {}: 更新数据库'.format(mid))
                                 # 删除临时文件
-                                os.remove(filename)
-                                logger.info('meeting {}: 移除临时文件{}'.format(mid, filename))
-                                os.remove(filename.replace('.mp4', '.html'))
-                                logger.info(
-                                    'meeting {}: 移除临时文件{}'.format(mid, filename.replace('.mp4', '.html')))
-                                os.remove(filename.replace('.mp4', '.png'))
-                                logger.info(
-                                    'meeting {}: 移除临时文件{}'.format(mid, filename.replace('.mp4', '.png')))
+                                dir_name = os.path.dirname(filename)
+                                shutil.rmtree(dir_name)
                                 return topic, filename
                             except Exception as e4:
                                 logger.error('meeting {}: fail to update database! {}'.format(mid, e4))
@@ -236,7 +237,8 @@ def download_upload_recordings(start, end, zoom_download_url, mid, total_size, v
                 logger.error('meeting {}: upload file error! {}'.format(mid, e2))
         else:
             # 否则，删除刚下载的文件
-            os.remove(filename)
+            dir_name = os.path.dirname(filename)
+            shutil.rmtree(dir_name)
     except FileNotFoundError as e1:
         logger.error(e1)
 
@@ -266,8 +268,8 @@ def handle_zoom_recordings(mid):
             access_key_id = settings.ACCESS_KEY_ID
             secret_access_key = settings.SECRET_ACCESS_KEY
             endpoint = settings.OBS_ENDPOINT
-            bucketName = settings.OBS_BUCKETNAME
-            if not (access_key_id and secret_access_key and endpoint and bucketName):
+            bucket_name = settings.OBS_BUCKETNAME
+            if not (access_key_id and secret_access_key and endpoint and bucket_name):
                 logger.error('losing required arguments for ObsClient')
                 return
             try:
@@ -277,7 +279,7 @@ def handle_zoom_recordings(mid):
                 objs = []
                 mark = None
                 while True:
-                    obs_objs = obs_client.listObjects(bucketName, marker=mark, max_keys=1000)
+                    obs_objs = obs_client.listObjects(bucket_name, marker=mark, max_keys=1000)
                     if obs_objs.status < 300:
                         index = 1
                         for content in obs_objs.body.contents:
@@ -377,11 +379,11 @@ def download_upload_welink_recordings(start, end, mid, filename, object_key, end
         topic = (video.topic + '-{}'.format(order_number))
     agenda = video.agenda
     community = video.community
-    bucketName = settings.OBS_BUCKETNAME
-    if not bucketName:
+    bucket_name = settings.OBS_BUCKETNAME
+    if not bucket_name:
         logger.error('mid: {}, bucketName required'.format(mid))
         return
-    download_url = 'https://{}.{}/{}?response-content-disposition=attachment'.format(bucketName, endpoint, object_key)
+    download_url = 'https://{}.{}/{}?response-content-disposition=attachment'.format(bucket_name, endpoint, object_key)
     attenders = get_welink_meeting_participants(mid)
     metadata = {
         "meeting_id": mid,
@@ -397,7 +399,7 @@ def download_upload_welink_recordings(start, end, mid, filename, object_key, end
     }
     try:
         # 断点续传上传文件
-        res = obs_client.uploadFile(bucketName=bucketName, objectKey=object_key, uploadFile=filename,
+        res = obs_client.uploadFile(bucketName=bucket_name, objectKey=object_key, uploadFile=filename,
                                     taskNum=10, enableCheckpoint=True, metadata=metadata)
         try:
             if res['status'] == 200:
@@ -410,7 +412,7 @@ def download_upload_welink_recordings(start, end, mid, filename, object_key, end
                 generate_cover(mid, topic, group_name, date, filename, start, end)
                 # 上传封面
                 cover_path = res['body']['key'].replace('.mp4', '.png')
-                res2 = upload_cover(filename, obs_client, bucketName, cover_path)
+                res2 = upload_cover(filename, obs_client, bucket_name, cover_path)
                 if res2['status'] == 200:
                     logger.info('meeting {}: OBS封面上传成功'.format(mid))
                     try:
@@ -429,21 +431,23 @@ def download_upload_welink_recordings(start, end, mid, filename, object_key, end
                                                       thumbnail=url.replace('.mp4', '.png'))
                         logger.info('meeting {}: 更新数据库'.format(mid))
                         # 删除临时文件
-                        os.remove(filename)
-                        logger.info('meeting {}: 移除临时文件{}'.format(mid, filename))
-                        os.remove(filename.replace('.mp4', '.html'))
-                        logger.info(
-                            'meeting {}: 移除临时文件{}'.format(mid, filename.replace('.mp4', '.html')))
-                        os.remove(filename.replace('.mp4', '.png'))
-                        logger.info(
-                            'meeting {}: 移除临时文件{}'.format(mid, filename.replace('.mp4', '.png')))
+                        dir_name = os.path.dirname(filename)
+                        shutil.rmtree(dir_name)
                         return topic, filename
                     except Exception as e4:
                         logger.error('meeting {}: fail to update database! {}'.format(mid, e4))
         except KeyError as e3:
             logger.error('meeting {}: fail to upload file! {}'.format(mid, e3))
-    except Exception as e2:
-        logger.error('meeting {}: upload file error! {}'.format(mid, e2))
+        finally:
+            if os.path.exists(filename):
+                dir_name = os.path.dirname(filename)
+                shutil.rmtree(dir_name)
+    except Exception as e:
+        logger.error('meeting {}: upload file error! {}'.format(mid, str(e)))
+    finally:
+        if os.path.exists(filename):
+            dir_name = os.path.dirname(filename)
+            shutil.rmtree(dir_name)
 
 
 def after_download_recording(target_filename, start, end, mid, target_name):
@@ -453,8 +457,8 @@ def after_download_recording(target_filename, start, end, mid, target_name):
         access_key_id = settings.ACCESS_KEY_ID
         secret_access_key = settings.SECRET_ACCESS_KEY
         endpoint = settings.OBS_ENDPOINT
-        bucketName = settings.OBS_BUCKETNAME
-        if not (access_key_id and secret_access_key and endpoint and bucketName):
+        bucket_name = settings.OBS_BUCKETNAME
+        if not (access_key_id and secret_access_key and endpoint and bucket_name):
             logger.error('losing required arguments for ObsClient')
             return
         try:
@@ -464,7 +468,7 @@ def after_download_recording(target_filename, start, end, mid, target_name):
             objs = []
             mark = None
             while True:
-                obs_objs = obs_client.listObjects(bucketName, marker=mark, max_keys=1000)
+                obs_objs = obs_client.listObjects(bucket_name, marker=mark, max_keys=1000)
                 if obs_objs.status < 300:
                     index = 1
                     for content in obs_objs.body.contents:
@@ -525,9 +529,10 @@ def handle_welink_recordings(mid):
             for record_url in record_urls:
                 if record_url['fileType'].lower() == 'hd':
                     waiting_download_recordings.append(record_url)
-        tmpdir = tempfile.gettempdir()
+        dir_name = gen_new_temp_dir()
+        make_dir(dir_name)
         target_name = mid + '.mp4'
-        target_filename = os.path.join(tmpdir, target_name)
+        target_filename = os.path.join(dir_name, target_name)
         token = waiting_download_recordings[0]['token']
         download_url = waiting_download_recordings[0]['url']
         downloadHWCloudRecording(token, target_filename, download_url)
@@ -582,8 +587,8 @@ def handle_tencent_recordings(mid):
     access_key_id = settings.ACCESS_KEY_ID
     secret_access_key = settings.SECRET_ACCESS_KEY
     endpoint = settings.OBS_ENDPOINT
-    bucketName = settings.OBS_BUCKETNAME
-    if not (access_key_id and secret_access_key and endpoint and bucketName):
+    bucket_name = settings.OBS_BUCKETNAME
+    if not (access_key_id and secret_access_key and endpoint and bucket_name):
         logger.error('losing required arguments for ObsClient')
         return
     obs_client = ObsClient(access_key_id=access_key_id,
@@ -592,7 +597,7 @@ def handle_tencent_recordings(mid):
     objs = []
     mark = None
     while True:
-        obs_objs = obs_client.listObjects(bucketName, marker=mark, max_keys=1000)
+        obs_objs = obs_client.listObjects(bucket_name, marker=mark, max_keys=1000)
         if obs_objs.status < 300:
             index = 1
             for content in obs_objs.body.contents:
@@ -616,21 +621,21 @@ def handle_tencent_recordings(mid):
         logger.info('meeting {}: OBS无存储对象，开始下载视频'.format(mid))
         download_upload_recordings(start, end, download_url, mid, total_size, video,
                                    endpoint, object_key,
-                                   group_name, obs_client)
+                                   group_name, obs_client, is_zoom=False)
     else:
         key_size_map = {x['key']: x['size'] for x in objs}
         if object_key not in key_size_map.keys():
             logger.info('meeting {}: OBS存储服务中无此对象，开始下载视频'.format(mid))
             download_upload_recordings(start, end, download_url, mid, total_size, video,
                                        endpoint, object_key,
-                                       group_name, obs_client)
+                                       group_name, obs_client, is_zoom=False)
         elif object_key in key_size_map.keys() and key_size_map[object_key] >= total_size:
             logger.info('meeting {}: OBS存储服务中已存在该对象且无需替换'.format(mid))
         else:
             logger.info('meeting {}: OBS存储服务中该对象需要替换，开始下载视频'.format(mid))
             download_upload_recordings(start, end, download_url, mid, total_size, video,
                                        endpoint,
-                                       object_key, group_name, obs_client)
+                                       object_key, group_name, obs_client, is_zoom=False)
 
 
 def run(mid):
@@ -642,8 +647,17 @@ def run(mid):
     logger.info('meeting {}: 开始处理'.format(mid))
     platform = Meeting.objects.get(mid=mid).mplatform
     if platform == 'zoom':
-        handle_zoom_recordings(mid)
+        try:
+            handle_zoom_recordings(mid)
+        except Exception as e:
+            logger.error("handle_zoom_recordings {}, and traceback:{}".format(e, traceback.format_exc()))
     elif platform == 'welink':
-        handle_welink_recordings(mid)
+        try:
+            handle_welink_recordings(mid)
+        except Exception as e:
+            logger.error("handle_welink_recordings {}, and traceback:{}".format(e, traceback.format_exc()))
     elif platform == 'tencent':
-        handle_tencent_recordings(mid)
+        try:
+            handle_tencent_recordings(mid)
+        except Exception as e:
+            logger.error("handle_tencent_recordings {}, and traceback:{}".format(e, traceback.format_exc()))

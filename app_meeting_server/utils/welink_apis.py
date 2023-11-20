@@ -3,7 +3,6 @@ import logging
 import json
 import os
 import requests
-import subprocess
 import time
 from django.conf import settings
 
@@ -154,8 +153,9 @@ def downloadHWCloudRecording(token, target_filename, download_url):
     """下载云录制的视频"""
     if os.path.exists(target_filename):
         os.remove(target_filename)
-    cmd = 'wget --header="Authorization: {}" -O {} {}'.format(token, target_filename, download_url)
-    subprocess.call(cmd.split())
+    ret = requests.get(download_url, headers={"Authorization": token})
+    with open(target_filename, "wb") as f:
+        f.write(ret.content)
 
 
 def get_url(uri):
