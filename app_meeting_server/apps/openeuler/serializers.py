@@ -4,7 +4,7 @@ from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 
 from app_meeting_server.utils.check_params import check_group_id, check_user_ids
-from app_meeting_server.utils.common import get_uuid, encrypt_openid, refresh_token_and_refresh_token
+from app_meeting_server.utils.common import get_uuid, encrypt_openid, refresh_token_and_refresh_token, get_cur_date
 from app_meeting_server.utils.ret_code import RetCode
 from app_meeting_server.utils.wx_apis import get_openid
 from app_meeting_server.utils.ret_api import MyValidationError
@@ -41,15 +41,17 @@ class LoginSerializer(serializers.ModelSerializer):
             encrypt_openid_str = encrypt_openid(openid)
             user = User.objects.filter(openid=encrypt_openid_str).exclude(nickname=settings.ANONYMOUS_NAME).first()
             # if user not exist, and need to create
+            cur = get_cur_date()
             if not user:
                 nickname = get_uuid()
                 avatar = settings.WX_AVATAR_URL
                 user = User.objects.create(
                     nickname=nickname,
                     avatar=avatar,
-                    openid=encrypt_openid_str)
+                    openid=encrypt_openid_str,
+                    last_login=cur)
             else:
-                User.objects.filter(openid=encrypt_openid_str).update(is_delete=0)
+                User.objects.filter(openid=encrypt_openid_str).update(is_delete=0, last_login=cur)
             return user
         except Exception as e:
             logger.error("e:{}, traceback:{}".format(e, traceback.format_exc()))
