@@ -2,9 +2,6 @@ import datetime
 import logging
 import os
 import sys
-import time
-import traceback
-from bilibili_api import video, Verify
 from django.conf import settings
 from django.core.management import BaseCommand
 from obs import ObsClient
@@ -57,6 +54,10 @@ class Command(BaseCommand):
             if 'bvid' in metadata_dict:
                 logger.info('{}已在B站上传，跳过'.format(object_key))
             else:
+                img_object_key = object_key.replace('.mp4', '.png')
+                if obs_client.getObject(bucketName, img_object_key).status != 200:
+                    logger.error('{}未上传封面，跳过上传'.format(object_key))
+                    continue
                 logger.info('{}尚未上传至B站，开始下载'.format(object_key))
                 # 从OBS下载视频到本地临时目录
                 videoFile = os.path.join('/tmp', os.path.basename(object_key))
@@ -76,7 +77,6 @@ class Command(BaseCommand):
                     logger.error('errorMessage', res1.errorMessage)
                     continue
                 # 下载封面
-                img_object_key = object_key.replace('.mp4', '.png')
                 res2 = obs_client.downloadFile(bucketName, img_object_key, imageFile, partSize, taskNum,
                                                enableCheckpoint)
                 if res2.status > 300:
