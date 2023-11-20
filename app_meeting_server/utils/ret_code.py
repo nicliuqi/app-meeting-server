@@ -113,7 +113,7 @@ class RetCode(RetCodeBase):
         STATUS_MEETING_FAILED_CREATE: "Failed to create meeting",
         STATUS_MEETING_NO_AVAILABLE_HOST: "There is currently no available host, please go to the official website to view scheduled meetings",
         STATUS_MEETING_DATE_CONFLICT: "Time conflict, please adjust the time to schedule the meeting",
-        STATUS_MEETING_CANNNOT_BE_DELETE: "Cannot be deleted 1 day before the meeting",
+        STATUS_MEETING_CANNNOT_BE_DELETE: "Cannot be deleted 1 hours before the meeting",
 
         # activity
         STATUS_ACTIVITY_DATA_GT_NOW: "The start date should be earlier than tomorrow"
@@ -145,8 +145,8 @@ class RetCode(RetCodeBase):
         STATUS_USER_LOGIN_FAILED: "用户登录失败",
         STATUS_USER_GET_CODE_FAILED: "获取code失败",
         STATUS_USER_GET_OPENID_FAILED: "获取openid失败",
-        STATUS_START_ONLY_ONE_ADMIN: "管理员当前只有一个,无法注销.",
-        STATUS_START_POLICY_ONLY_ONE_ADMIN: "管理员当前只有一个,无法撤销隐私声明.",
+        STATUS_START_ONLY_ONE_ADMIN: "管理员当前只有一个,无法注销",
+        STATUS_START_POLICY_ONLY_ONE_ADMIN: "管理员当前只有一个,无法撤销隐私声明",
 
         # meetings
         STATUS_MEETING_EMAIL_LIST_OVER_LIMIT: "邮件地址长度超限",
@@ -156,7 +156,7 @@ class RetCode(RetCodeBase):
         STATUS_MEETING_FAILED_CREATE: "创建会议失败",
         STATUS_MEETING_NO_AVAILABLE_HOST: "目前没有可用的主持人，请前往官网查看预约会议",
         STATUS_MEETING_DATE_CONFLICT: "时间冲突，请调整时间预定会议",
-        STATUS_MEETING_CANNNOT_BE_DELETE: "距离会议开始只有一天，无法删除",
+        STATUS_MEETING_CANNNOT_BE_DELETE: "距离会议开始时间小于一个小时，无法删除",
 
         # activity
         STATUS_ACTIVITY_DATA_GT_NOW: "建议发布活动日期应该大于今天"

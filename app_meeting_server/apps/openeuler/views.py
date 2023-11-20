@@ -741,7 +741,6 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         # 2.从available_host_id中随机生成一个host_id,并在host_dict中取出
         host_id = secrets.choice(available_host_id)
         host = host_dict[host_id]
-        logger.info('host_id:{}'.format(host_id))
         status, content = drivers.createMeeting(platform, date, start, end, topic, host, record)
         if status not in [200, 201]:
             logger.error("Failed to create meeting, and code is {}".format(str(status)))

@@ -105,7 +105,7 @@ def check_field(field, field_bit):
 
 
 def check_type(type_str):
-    if type_str not in ["all", "meetings", "activity"]:
+    if type_str not in ["all", "meetings", "activity", "summit"]:
         logger.error("check invalid type:{}".format(type_str))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
