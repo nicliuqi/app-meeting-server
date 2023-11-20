@@ -17,7 +17,7 @@ logger = logging.getLogger('log')
 class Command(BaseCommand):
     def handle(self, *args, **options):
         # 从OBS查询对象
-        os.chdir(settings.temp_path)
+        os.chdir(settings.TEMP_PATH)
         access_key_id = settings.ACCESS_KEY_ID
         secret_access_key = settings.SECRET_ACCESS_KEY
         endpoint = settings.OBS_ENDPOINT

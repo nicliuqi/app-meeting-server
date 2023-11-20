@@ -125,6 +125,7 @@ REFRESH_SIGNATURE_SECRET = DEFAULT_CONF.get("REFRESH_SIGNATURE_SECRET")
 PRIVACY_POLICY_VERSION = DEFAULT_CONF.get('PRIVACY_POLICY_VERSION')
 PRIVACY_APP_POLICY_VERSION = DEFAULT_CONF.get('PRIVACY_APP_POLICY_VERSION')
 COVER_PATH = DEFAULT_CONF.get("COVER_PATH")
+TEMP_PATH = DEFAULT_CONF.get("TEMP_PATH")
 
 WELINK_HOSTS = {
     DEFAULT_CONF.get('WELINK_HOST_1'): {
@@ -145,7 +146,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
     'REFRESH_TOKEN_LIFETIME': timedelta(minutes=60),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -234,11 +235,10 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 STATIC_URL = '/static/'
 
-temp_path = "/tmp/app-meeting-server"
 log_path = os.path.join(os.path.dirname(BASE_DIR), 'logs')
 
-if not os.path.exists(temp_path):
-    os.mkdir(temp_path)
+if not os.path.exists(TEMP_PATH):
+    os.mkdir(TEMP_PATH)
 
 if not os.path.exists(log_path):
     os.mkdir(log_path)
