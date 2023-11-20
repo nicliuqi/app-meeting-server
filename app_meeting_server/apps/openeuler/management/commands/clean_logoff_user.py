@@ -32,7 +32,7 @@ class Command(BaseCommand):
 
     def get_expired_date(self):
         cur = get_cur_date()
-        before_date = cur - datetime.timedelta(days=3 * 365)
+        before_date = cur - datetime.timedelta(days=4 * 365)
         before_date_str = datetime.datetime.strftime(before_date, '%Y-%m-%d %H:%M:%S')
         return before_date_str
 
