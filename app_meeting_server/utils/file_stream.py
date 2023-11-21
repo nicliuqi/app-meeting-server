@@ -12,4 +12,5 @@ def write_content(path, content, model="wb"):
     modes = stat.S_IWUSR
     with os.fdopen(os.open(path, flags, modes), model) as f:
         result = f.write(content)
+    os.chmod(result, 0o600)
     return result

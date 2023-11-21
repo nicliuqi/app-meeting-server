@@ -3,8 +3,10 @@ import logging
 import json
 import os
 import requests
+import stat
 import time
 from django.conf import settings
+from app_meeting_server.utils.file_stream import write_content
 
 logger = logging.getLogger('log')
 
@@ -154,8 +156,7 @@ def downloadHWCloudRecording(token, target_filename, download_url):
     if os.path.exists(target_filename):
         os.remove(target_filename)
     ret = requests.get(download_url, headers={"Authorization": token})
-    with open(target_filename, "wb") as f:
-        f.write(ret.content)
+    write_content(target_filename, ret.content, 'wb')
 
 
 def get_url(uri):
