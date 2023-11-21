@@ -367,7 +367,7 @@ def check_meetings_more_params(request, group_model, city_model):
     end = data.get('end')
     group_name = data.get('group_name')
     emaillist = data.get('emaillist', '')
-    community = data.get('community', 'openeuler')
+    community = data.get('community', 'mindspore')
     agenda = data.get('agenda')
     record = data.get('record')
     etherpad = data.get('etherpad')

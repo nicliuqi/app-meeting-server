@@ -31,23 +31,24 @@ urlpatterns = [
     path('groupuser/action/new/', GroupUserAddView.as_view()),    # 用户组批量添加成员
     path('groupuser/action/del/', GroupUserDelView.as_view()),    # 用户组批量删除成员
     path('groups/', GroupsView.as_view()),                        # 用户组列表
-    path('participants/<int:mid>/', ParticipantsView.as_view()),  # 会议参会者名单
     path('users_include_city/', CityMembersView.as_view()),       # 城市组成员列表
     path('users_exclude_city/', NonCityMembersView.as_view()),    # 非城市组成员列表
     path('sponsors/', SponsorsView.as_view()),                    # 活动发布者列表
     path('nonsponsors/', NonSponsorsView.as_view()),              # 非活动发布者列表
     path('sponsor/action/new/', SponsorsAddView.as_view()),       # 批量添加活动发布者
     path('sponsor/action/del/', SponsorsDelView.as_view()),       # 批量删除活动发布者
+    path('counts/', MyCountsView.as_view()),                      # 我的各类计数
 
     # meeting
     path('meetings/', CreateMeetingView.as_view()),               # 预定会议
-    path('meeting/<int:mmid>/', CancelMeetingView.as_view()),     # 取消会议
+    path('meeting/<int:mid>/', CancelMeetingView.as_view()),      # 取消会议
     path('meetings/<int:pk>/', MeetingDetailView.as_view()),      # 会议详情
     path('meetingslist/', MeetingsListView.as_view()),            # 会议列表
     path('collect/', CollectMeetingView.as_view()),               # 收藏会议
     path('collect/<int:pk>/', CollectionDelView.as_view()),       # 取消收藏会议
     path('collections/', MyCollectionsView.as_view()),            # 我收藏的会议
     path('mymeetings/', MyMeetingsView.as_view()),                # 我预定的会议
+    path('participants/<int:mid>/', ParticipantsView.as_view()),  # 会议参会者名单
 
     # city
     path('cities/', CitiesView.as_view()),                        # 城市列表
@@ -74,7 +75,6 @@ urlpatterns = [
     path('activity/action/collect/', ActivityCollectView.as_view()),                    # 收藏活动
     path('activity/action/collectdel/<int:pk>/', ActivityCollectionDelView.as_view()),  # 取消收藏活动
     path('activitycollections/', ActivityCollectionsView.as_view()),                    # 活动收藏列表
-    path('counts/', MyCountsView.as_view()),                                            # 我的各类计数
     path('recentactivities/', RecentActivitiesView.as_view()),                          # 最近的活动
     path('countactivities/', CountActivitiesView.as_view()),                            # 各类活动计数
 

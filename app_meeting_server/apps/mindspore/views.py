@@ -269,6 +269,7 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
     permission_classes = (MeetigsAdminPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         pk = self.kwargs["pk"]
@@ -395,6 +396,7 @@ class CityMembersView(GenericAPIView, ListModelMixin):
     search_fields = ['nickname']
     permission_classes = (MeetigsAdminPermission,)
     authentication_classes = (CustomAuthentication,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         city_name = self.request.GET.get('city')
@@ -419,6 +421,7 @@ class NonCityMembersView(GenericAPIView, ListModelMixin):
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
     permission_classes = (MeetigsAdminPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         city_name = self.request.GET.get('city')
@@ -443,6 +446,7 @@ class SponsorsView(GenericAPIView, ListModelMixin):
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -620,7 +624,7 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
         with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
                            OperationLogType.OP_TYPE_DELETE,
                            OperationLogDesc.OP_DESC_MEETING_DELETE_CODE) as log_context:
-            log_context.log_vars = [kwargs.get('mmid')]
+            log_context.log_vars = [kwargs.get('mid')]
             ret = self.update(request, *args, **kwargs)
             log_context.result = ret
             return ret
@@ -1038,6 +1042,7 @@ class WaitingActivities(GenericAPIView, ListModelMixin):
     queryset = Activity.objects.filter(is_delete=0, status=2)
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
