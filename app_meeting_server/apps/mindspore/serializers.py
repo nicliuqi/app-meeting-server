@@ -1,13 +1,13 @@
 import logging
 import traceback
 
+from django.conf import settings
 from django.db import transaction
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
-from app_meeting_server.utils import wx_apis
-from app_meeting_server.utils.common import get_uuid, encrypt_openid
+from app_meeting_server.utils.common import get_uuid, encrypt_openid, refresh_token_and_refresh_token, get_cur_date
 from app_meeting_server.utils.ret_code import RetCode
+from app_meeting_server.utils.wx_apis import get_openid
 from mindspore.models import Group, Meeting, Collect, User, GroupUser, City, CityUser, Activity, ActivityCollect
 from app_meeting_server.utils.check_params import check_group_id, check_user_ids
 from app_meeting_server.utils.ret_api import MyValidationError
@@ -31,29 +31,27 @@ class LoginSerializer(serializers.ModelSerializer):
             res = self.context["request"].data
             code = res['code']
             if not code:
-                logger.warning('Login without jscode.')
-                raise serializers.ValidationError('需要code', code='code_error')
-            r = wx_apis.get_openid(code)
+                logger.warning('Login without code.')
+                raise MyValidationError(RetCode.STATUS_USER_GET_CODE_FAILED)
+            r = get_openid(code)
             if not r.get('openid'):
                 logger.warning('Failed to get openid.')
-                raise serializers.ValidationError('未获取到openid', code='code_error')
+                raise MyValidationError(RetCode.STATUS_USER_GET_OPENID_FAILED)
             openid = r['openid']
             encrypt_openid_str = encrypt_openid(openid)
-            nickname = res['userInfo']['nickName'] if 'nickName' in res['userInfo'] else ''
-            avatar = res['userInfo']['avatarUrl'] if 'avatarUrl' in res['userInfo'] else ''
-            user = User.objects.filter(openid=encrypt_openid_str).first()
-            # 如果user不存在，数据库创建user
+            user = User.objects.filter(openid=encrypt_openid_str).exclude(nickname=settings.ANONYMOUS_NAME).first()
+            # if user not exist, and need to create
+            cur = get_cur_date()
             if not user:
-                if nickname == '微信用户':
-                    nickname = get_uuid()
+                nickname = get_uuid()
+                avatar = settings.WX_AVATAR_URL
                 user = User.objects.create(
                     nickname=nickname,
                     avatar=avatar,
-                    openid=encrypt_openid_str)
+                    openid=encrypt_openid_str,
+                    last_login=cur)
             else:
-                User.objects.filter(openid=encrypt_openid_str).update(
-                    avatar=avatar,
-                    is_delete=0)
+                User.objects.filter(openid=encrypt_openid_str).update(is_delete=0, last_login=cur)
             return user
         except Exception as e:
             logger.error("e:{}, traceback:{}".format(e, traceback.format_exc()))
@@ -61,42 +59,41 @@ class LoginSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        refresh = RefreshToken.for_user(instance)
-        access = str(refresh.access_token)
-        encrypt_access = encrypt_openid(access)
+        access_token, refresh_token = refresh_token_and_refresh_token(instance)
+        data['refresh'] = refresh_token
+        data['access'] = access_token
         data['user_id'] = instance.id
-        data['access'] = access
         data['level'] = instance.level
         data['gitee_name'] = instance.gitee_name
         data['nickname'] = instance.nickname
+        data['avatar'] = instance.avatar
         data['activity_level'] = instance.activity_level
         data['agree_privacy_policy'] = instance.agree_privacy_policy
-        User.objects.filter(id=instance.id).update(signature=encrypt_access)
         return data
 
 
-class UsersInGroupSerializer(ModelSerializer):
+class UsersSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'nickname', 'gitee_name', 'avatar']
 
 
-class SigsSerializer(ModelSerializer):
-    class Meta:
-        model = Group
-        fields = '__all__'
-
-
 class GroupsSerializer(ModelSerializer):
     class Meta:
         model = Group
-        fields = '__all__'
+        fields = ['id', 'name']
+
+
+class SigsSerializer(ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ["id", "name", "group_type", "create_time"]
 
 
 class CitiesSerializer(ModelSerializer):
     class Meta:
         model = City
-        fields = '__all__'
+        fields = ["id", "name", "etherpad"]
 
 
 class GroupUserAddSerializer(ModelSerializer):
@@ -114,12 +111,13 @@ class GroupUserAddSerializer(ModelSerializer):
         return check_user_ids(value)
 
     def create(self, validated_data):
-        users = User.objects.filter(id__in=validated_data['ids'], is_delete=0)
+        users = User.objects.filter(id__in=validated_data['ids'], is_delete=0). \
+            exclude(nickname=settings.ANONYMOUS_NAME)
         group_id = Group.objects.filter(id=validated_data['group_id']).first()
         try:
             result_list = list()
-            for user in users:
-                with transaction.atomic():
+            with transaction.atomic():
+                for user in users:
                     groupuser = GroupUser.objects.create(group_id=group_id.id, user_id=int(user.id))
                     User.objects.filter(id=int(user.id), level=1).update(level=2)
                     result_list.append(groupuser)
@@ -156,26 +154,24 @@ class CityUserAddSerializer(ModelSerializer):
     def validate_ids(self, value):
         return check_user_ids(value)
 
+    def validate_city_id(self, value):
+        return check_group_id(City, value)
+
     def create(self, validated_data):
-        users = User.objects.filter(id__in=validated_data['ids'])
+        users = User.objects.filter(id__in=validated_data['ids']).filter(is_delete=True).exclude(
+            nickname=settings.ANONYMOUS_NAME)
         city_id = City.objects.filter(id=validated_data['city_id']).first()
         try:
-            for user in users:
-                with transaction.atomic():
-                    city_user = CityUser.objects.create(city_id=city_id.id, user_id=int(user.id))
+            with transaction.atomic():
+                for user in users:
+                    CityUser.objects.create(city_id=city_id.id, user_id=int(user.id))
                     User.objects.filter(id=int(user.id), level=1).update(level=2)
                     if not GroupUser.objects.filter(group_id=1, user_id=int(user.id)):
                         GroupUser.objects.create(group_id=1, user_id=int(user.id))
-            return city_user
+            return True
         except Exception as e:
             logger.error('Failed to add activity sponsors.and e:{}'.format(str(e)))
             raise MyValidationError(RetCode.INTERNAL_ERROR)
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data['code'] = 201
-        data['msg'] = 'Created successfully'
-        return data
 
 
 class CityUserDelSerializer(ModelSerializer):
@@ -185,6 +181,28 @@ class CityUserDelSerializer(ModelSerializer):
     class Meta:
         model = CityUser
         fields = ['city_id', 'ids']
+
+    def validate_ids(self, value):
+        return check_user_ids(value)
+
+    def validate_city_id(self, value):
+        return check_group_id(City, value)
+
+    def create(self, validated_data):
+        city_id = validated_data.get('city_id')
+        ids_list = validated_data.get('ids_list')
+        with transaction.atomic():
+            CityUser.objects.filter(city_id=city_id, user_id__in=ids_list).delete()
+            for user_id in ids_list:
+                if not CityUser.objects.filter(user_id=user_id):
+                    GroupUser.objects.filter(group_id=1, user_id=int(user_id)).delete()
+        return True
+
+
+class UpdateUserInfoSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'gitee_name']
 
 
 class UserInfoSerializer(ModelSerializer):
@@ -206,10 +224,12 @@ class UserGroupSerializer(ModelSerializer):
     def get_description(self, obj):
         if Group.objects.get(id=obj.group_id).group_type == 1:
             return 'SIG会议'
-        if Group.objects.get(id=obj.group_id).group_type == 2:
+        elif Group.objects.get(id=obj.group_id).group_type == 2:
             return 'MSG会议'
-        if Group.objects.get(id=obj.group_id).group_type == 3:
+        elif Group.objects.get(id=obj.group_id).group_type == 3:
             return '专家委员会'
+        else:
+            return ''
 
 
 class UserCitySerializer(ModelSerializer):
@@ -240,19 +260,13 @@ class MeetingDelSerializer(ModelSerializer):
         fields = ['mmid']
 
 
-class MeetingDetailSerializer(ModelSerializer):
-    class Meta:
-        model = Meeting
-        fields = '__all__'
-
-
 class MeetingsListSerializer(ModelSerializer):
     collection_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Meeting
-        fields = ['id', 'collection_id', 'user_id', 'group_id', 'topic', 'sponsor', 'group_name', 'city', 'date', 'start',
-                  'end', 'agenda', 'etherpad', 'mid', 'mmid', 'join_url', 'replay_url', 'mplatform']
+        fields = ['id', 'collection_id', 'user_id', 'group_id', 'topic', 'sponsor', 'group_name', 'city', 'date',
+                  'start', 'end', 'agenda', 'etherpad', 'mid', 'mmid', 'join_url', 'replay_url', 'mplatform']
 
     def get_collection_id(self, obj):
         user = None

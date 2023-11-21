@@ -420,7 +420,7 @@ class SponsorDelView(GenericAPIView, CreateModelMixin):
 class UserView(GenericAPIView, UpdateModelMixin):
     """更新用户gitee_name"""
     serializer_class = UserSerializer
-    queryset = User.objects.all()
+    queryset = User.objects.filter(is_delete=0).exclude(nickname=settings.ANONYMOUS_NAME)
     authentication_classes = (CustomAuthentication,)
     permission_classes = (AdminPermission,)
 
@@ -857,6 +857,7 @@ class CollectView(GenericAPIView, ListModelMixin, CreateModelMixin):
 
     def create(self, request, *args, **kwargs):
         meeting_id = request.data.get('meeting')
+        meeting_id = check_int(meeting_id)
         user_id = request.user.id
         if Meeting.objects.filter(id=meeting_id, is_delete=0).count() == 0:
             logger.error('Meeting {} is not exist'.format(meeting_id))

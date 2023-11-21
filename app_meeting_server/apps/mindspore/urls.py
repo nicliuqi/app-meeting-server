@@ -1,5 +1,5 @@
 from django.urls import path
-from mindspore.views import LoginView, GroupMembersView, NonGroupMembersView, SigsView, GroupUserAddView, \
+from mindspore.views import LoginView, UsersIncludeView, UsersExcludeView, SigsView, GroupUserAddView, \
     GroupUserDelView, UpdateUserInfoView, CreateMeetingView, MeetingsListView, MeetingDetailView, UserGroupView, \
     UserInfoView, CollectMeetingView, CollectionDelView, MyCollectionsView, MyMeetingsView, CancelMeetingView, \
     GroupsView, ParticipantsView, SponsorsView, NonSponsorsView, SponsorsAddView, \
@@ -8,20 +8,24 @@ from mindspore.views import LoginView, GroupMembersView, NonGroupMembersView, Si
     DraftsListView, ActivityCollectView, ActivityCollectionsView, ActivityCollectionDelView, MyCountsView, \
     CityMembersView, NonCityMembersView, CitiesView, AddCityView, CityUserAddView, CityUserDelView, UserCityView, \
     RecentActivitiesView, PublishedActivitiesView, WaitingPublishingActivitiesView, CountActivitiesView, \
-    MeetingsDataView, ActivitiesDataView, AgreePrivacyPolicyView, RevokeAgreementView, LogoutView, LogoffView
+    MeetingActivityDateView, MeetingActivityDataView, AgreePrivacyPolicyView, RevokeAgreementView, LogoutView, LogoffView, PingView, RefreshView
 
 urlpatterns = [
 
+    # common
+    path('ping/', PingView.as_view()),                            # ping
+
     # user
     path('login/', LoginView.as_view()),                          # 登录
+    path('refresh/', RefreshView.as_view()),                      # 刷新token
     path('logout/', LogoutView.as_view()),                        # 登出账号
     path('logoff/', LogoffView.as_view()),                        # 注销账号
     path('agree/', AgreePrivacyPolicyView.as_view()),             # 同意更新隐私政策
     path('revoke/', RevokeAgreementView.as_view()),               # 撤销同意更新隐私政策
     path('user/<int:pk>/', UpdateUserInfoView.as_view()),         # 修改用户信息
     path('userinfo/<int:pk>/', UserInfoView.as_view()),           # 查询用户信息
-    path('users_include/', GroupMembersView.as_view()),           # 用户组成员
-    path('users_exclude/', NonGroupMembersView.as_view()),        # 非用户组成员
+    path('users_include/<int:pk>/', UsersIncludeView.as_view()),  # 用户组成员
+    path('users_exclude/<int:pk>/', UsersExcludeView.as_view()),  # 非用户组成员
     path('sigs/', SigsView.as_view()),                            # 用户组列表
     path('usergroup/<int:pk>/', UserGroupView.as_view()),         # 用户的组信息
     path('groupuser/action/new/', GroupUserAddView.as_view()),    # 用户组批量添加成员
@@ -73,7 +77,8 @@ urlpatterns = [
     path('counts/', MyCountsView.as_view()),                                            # 我的各类计数
     path('recentactivities/', RecentActivitiesView.as_view()),                          # 最近的活动
     path('countactivities/', CountActivitiesView.as_view()),                            # 各类活动计数
-    path('meetingsdata/', MeetingsDataView.as_view()),                                  # 会议日历数据
-    path('activitiesdata/', ActivitiesDataView.as_view()),                              # 活动日历数据
 
+    # 提供给官网的公共接口
+    path('meeting_activity_date/', MeetingActivityDateView.as_view()),
+    path('meeting_activity_data/', MeetingActivityDataView.as_view()),
 ]
