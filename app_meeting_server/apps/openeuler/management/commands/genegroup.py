@@ -24,10 +24,10 @@ class Command(BaseCommand):
         for sig in content:
             sig_name = sig['group_name']
             maillist = sig['maillist']
-            etherpad = settings.ETHERPAD_PREFIX + '{}-meetings'.format(sig_name)
+            etherpad = settings.ETHERPAD_PREFIX + '%s-meetings' % sig_name
             if not Group.objects.filter(group_name=sig_name):
                 Group.objects.create(group_name=sig_name, maillist=maillist, etherpad=etherpad)
-                self.logger.info('Create group {}'.format(sig_name))
+                self.logger.info('Create group %s' % sig_name)
             else:
                 Group.objects.filter(group_name=sig_name).update(maillist=maillist, etherpad=etherpad)
-                self.logger.info('Update group {}'.format(sig_name))
+                self.logger.info('Update group %s' % sig_name)
