@@ -38,6 +38,11 @@ urlpatterns = [
     path('sponsor/action/new/', SponsorsAddView.as_view()),       # 批量添加活动发布者
     path('sponsor/action/del/', SponsorsDelView.as_view()),       # 批量删除活动发布者
     path('counts/', MyCountsView.as_view()),                      # 我的各类计数
+    path('cities/', CitiesView.as_view()),                        # 城市列表
+    path('city/', AddCityView.as_view()),                         # 添加城市
+    path('cityuser/action/new/', CityUserAddView.as_view()),      # 批量新增城市组成员
+    path('cityuser/action/del/', CityUserDelView.as_view()),      # 批量移除城市组成员
+    path('usercity/<int:pk>/', UserCityView.as_view()),           # 查询用户的城市组关系
 
     # meeting
     path('meetings/', CreateMeetingView.as_view()),               # 预定会议
@@ -49,13 +54,6 @@ urlpatterns = [
     path('collections/', MyCollectionsView.as_view()),            # 我收藏的会议
     path('mymeetings/', MyMeetingsView.as_view()),                # 我预定的会议
     path('participants/<int:mid>/', ParticipantsView.as_view()),  # 会议参会者名单
-
-    # city
-    path('cities/', CitiesView.as_view()),                        # 城市列表
-    path('city/', AddCityView.as_view()),                         # 添加城市
-    path('cityuser/action/new/', CityUserAddView.as_view()),      # 批量新增城市组成员
-    path('cityuser/action/del/', CityUserDelView.as_view()),      # 批量移除城市组成员
-    path('usercity/<int:pk>/', UserCityView.as_view()),           # 查询用户的城市组关系
 
     # activity
     path('activity/', ActivityCreateView.as_view()),                                    # 创建活动

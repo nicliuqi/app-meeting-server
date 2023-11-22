@@ -47,20 +47,17 @@ class OperationLogModule(OperationBase):
     OP_MODULE_USER = 0
     OP_MODULE_MEETING = 1
     OP_MODULE_ACTIVITY = 2
-    OP_MODULE_CITY = 3
 
     CN_OPERATION = {
         OP_MODULE_USER: "用户",
         OP_MODULE_MEETING: "会议",
         OP_MODULE_ACTIVITY: "活动",
-        OP_MODULE_CITY: "城市",
     }
 
     EN_OPERATION = {
         OP_MODULE_USER: "user",
         OP_MODULE_MEETING: "meeting",
         OP_MODULE_ACTIVITY: "activity",
-        OP_MODULE_CITY: "city",
     }
 
 
@@ -181,6 +178,9 @@ class OperationLogDesc(OperationBase):
         OP_DESC_USER_AGREEMENT_CODE: "用户（%s）同意隐私声明。",
         OP_DESC_USER_REVOKE_AGREEMENT_CODE: "用户（%s）撤销隐私声明。",
         OP_DESC_USER_REFRESH_CODE: "用户（%s）刷新token。",
+        OP_DESC_CITY_CREATE_CODE: "创建城市（%s）。",
+        OP_DESC_CITY_ADD_USER_CODE: "城市（%s）添加用户（%s）。",
+        OP_DESC_CITY_REMOVE_USER_CODE: "城市（%s）移除用户（%s）。",
 
         # meeting
         OP_DESC_MEETING_CREATE_CODE: "创建会议（%s）。",
@@ -202,10 +202,6 @@ class OperationLogDesc(OperationBase):
         OP_DESC_ACTIVITY_COLLECT_CODE: "收藏活动（%s）。",
         OP_DESC_ACTIVITY_CANCEL_COLLECT_CODE: "取消收藏活动（%s）。",
 
-        # city
-        OP_DESC_CITY_CREATE_CODE: "创建城市（%s）。",
-        OP_DESC_CITY_ADD_USER_CODE: "城市（%s）添加用户（%s）。",
-        OP_DESC_CITY_REMOVE_USER_CODE: "城市（%s）移除用户（%s）。",
 
     }
 
@@ -222,6 +218,9 @@ class OperationLogDesc(OperationBase):
         OP_DESC_USER_AGREEMENT_CODE: "The user(%s) agree to privacy statement.",
         OP_DESC_USER_REVOKE_AGREEMENT_CODE: "The user(%s) revokes privacy statement.",
         OP_DESC_USER_REFRESH_CODE: "The user(%s) refresh token.",
+        OP_DESC_CITY_CREATE_CODE: "Create city(%s).",
+        OP_DESC_CITY_ADD_USER_CODE: "City(%s) add user(%s).",
+        OP_DESC_CITY_REMOVE_USER_CODE: "City(%s) remove user(%s).",
 
         # meeting
         OP_DESC_MEETING_CREATE_CODE: "Create meeting(%s).",
@@ -242,11 +241,6 @@ class OperationLogDesc(OperationBase):
         OP_DESC_ACTIVITY_PUBLISH_DRAFT_CODE: "Modifies the activity draft and publishes it(%s).",
         OP_DESC_ACTIVITY_COLLECT_CODE: "Collect the activity(%s).",
         OP_DESC_ACTIVITY_CANCEL_COLLECT_CODE: "Cancel to collect the activity(%s).",
-
-        # city
-        OP_DESC_CITY_CREATE_CODE: "Create city(%s).",
-        OP_DESC_CITY_ADD_USER_CODE: "City(%s) add user(%s).",
-        OP_DESC_CITY_REMOVE_USER_CODE: "City(%s) remove user(%s).",
 
     }
 

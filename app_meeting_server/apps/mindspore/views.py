@@ -16,7 +16,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from app_meeting_server.utils import wx_apis
 from app_meeting_server.utils.my_pagination import MyPagination
 from app_meeting_server.utils.permissions import MeetigsAdminPermission, ActivityAdminPermission, \
-    QueryPermission, MaintainerPermission, SponsorPermission, MaintainerAndAdminPermission
+    QueryPermission, MaintainerPermission, SponsorPermission, MaintainerAndAdminPermission, AdminPermission
 from mindspore.models import Activity, ActivityCollect, Record
 from mindspore.models import GroupUser, Group, User, Collect, City, CityUser
 from mindspore.serializers import LoginSerializer, GroupsSerializer, GroupUserAddSerializer, GroupUserDelSerializer, \
@@ -209,7 +209,7 @@ class UpdateUserInfoView(GenericAPIView, UpdateModelMixin):
     serializer_class = UpdateUserInfoSerializer
     queryset = User.objects.filter(is_delete=0).exclude(nickname=settings.ANONYMOUS_NAME)
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (MaintainerAndAdminPermission,)
+    permission_classes = (AdminPermission,)
 
     def put(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
@@ -291,6 +291,8 @@ class SigsView(GenericAPIView, ListModelMixin):
     """SIG列表"""
     serializer_class = GroupsSerializer
     queryset = Group.objects.filter(group_type=1)
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (MeetigsAdminPermission,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -300,6 +302,8 @@ class UserGroupView(GenericAPIView, ListModelMixin):
     """查询用户所在SIG组信息"""
     serializer_class = UserGroupSerializer
     queryset = GroupUser.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -366,6 +370,8 @@ class GroupsView(GenericAPIView, ListModelMixin):
     """组信息"""
     serializer_class = GroupsSerializer
     queryset = Group.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (MeetigsAdminPermission,)
 
     def get(self, request, *args, **kwargs):
         self.queryset = self.queryset.filter(group_type__in=(2, 3))
@@ -520,6 +526,144 @@ class SponsorsDelView(GenericAPIView, CreateModelMixin):
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         User.objects.filter(id__in=new_user_ids, activity_level=2).update(activity_level=1)
         return ret_access_json(request.user)
+
+
+class CitiesView(GenericAPIView, ListModelMixin):
+    """城市列表"""
+    serializer_class = CitiesSerializer
+    queryset = City.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (MeetigsAdminPermission,)
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+
+class AddCityView(GenericAPIView, CreateModelMixin):
+    """添加城市"""
+    serializer_class = CitiesSerializer
+    queryset = City.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (MeetigsAdminPermission,)
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_CREATE,
+                           OperationLogDesc.OP_DESC_CITY_CREATE_CODE) as log_context:
+            log_context.log_vars = [request.data.get("name")]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = ret
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        data = self.request.data
+        name = data.get('name')
+        if name in City.objects.all().values_list('name', flat=True):
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
+        etherpad = '{}/p/meetings-MSG/{}'.format(settings.ETHERPAD_PREFIX, name)
+        City.objects.create(name=name, etherpad=etherpad)
+        return ret_access_json(request.user)
+
+
+class CityUserAddView(GenericAPIView, CreateModelMixin):
+    """批量新增城市组成员"""
+    serializer_class = CityUserAddSerializer
+    queryset = GroupUser.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (MeetigsAdminPermission,)
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_MODIFY,
+                           OperationLogDesc.OP_DESC_CITY_ADD_USER_CODE) as log_context:
+            log_context.log_vars = [request.data.get("city_id"), request.data.get("ids")]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = ret
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        super(CityUserAddView, self).create(self, request, *args, **kwargs)
+        return ret_access_json(request.user)
+
+
+class CityUserDelView(GenericAPIView, CreateModelMixin):
+    """批量删除城市组组成员"""
+    serializer_class = CityUserDelSerializer
+    queryset = GroupUser.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (MeetigsAdminPermission,)
+
+    def post(self, request, *args, **kwargs):
+        with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
+                           OperationLogType.OP_TYPE_DELETE,
+                           OperationLogDesc.OP_DESC_CITY_REMOVE_USER_CODE) as log_context:
+            log_context.log_vars = [request.data.get("city_id"), request.data.get("ids")]
+            ret = self.create(request, *args, **kwargs)
+            log_context.result = ret
+            return ret
+
+    def create(self, request, *args, **kwargs):
+        super(CityUserDelView, self).create(self, request, *args, **kwargs)
+        return ret_access_json(request.user)
+
+
+class UserCityView(GenericAPIView, ListModelMixin):
+    """查询用户所在城市组"""
+    serializer_class = UserCitySerializer
+    queryset = CityUser.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def get_queryset(self):
+        try:
+            usercity = CityUser.objects.filter(user_id=self.kwargs['pk']).all()
+            return usercity
+        except KeyError:
+            pass
+
+
+class MyCountsView(GenericAPIView, ListModelMixin):
+    """我的各类计数"""
+    queryset = Activity.objects.all()
+    permission_classes = (permissions.IsAuthenticated,)
+    authentication_classes = (CustomAuthentication,)
+
+    def get(self, request, *args, **kwargs):
+        user_id = self.request.user.id
+        user = User.objects.get(id=user_id)
+        level = user.level
+        activity_level = user.activity_level
+
+        # shared
+        collected_meetings_count = Meeting.objects.filter(is_delete=0, id__in=(
+            Collect.objects.filter(user_id=user_id).values_list('meeting_id', flat=True))).count()
+        collected_activities_count = Activity.objects.filter(is_delete=0, id__in=(
+            ActivityCollect.objects.filter(user_id=user_id).values_list('activity_id', flat=True))).count()
+        res = {'collected_meetings_count': collected_meetings_count,
+               'collected_activities_count': collected_activities_count}
+        # permission limited
+        if level == 2:
+            created_meetings_count = Meeting.objects.filter(is_delete=0, user_id=user_id).count()
+            res['created_meetings_count'] = created_meetings_count
+        if level == 3:
+            created_meetings_count = Meeting.objects.filter(is_delete=0).count()
+            res['created_meetings_count'] = created_meetings_count
+        if activity_level == 2:
+            published_activities_count = Activity.objects.filter(is_delete=0, status__gt=2, user_id=user_id).count()
+            drafts_count = Activity.objects.filter(is_delete=0, status=1, user_id=user_id).count()
+            publishing_activities_count = Activity.objects.filter(is_delete=0, status=2, user_id=user_id).count()
+            res['published_activities_count'] = published_activities_count
+            res['drafts_count'] = drafts_count
+            res['publishing_activities_count'] = publishing_activities_count
+        if activity_level == 3:
+            published_activities_count = Activity.objects.filter(is_delete=0, status__gt=2).count()
+            drafts_count = Activity.objects.filter(is_delete=0, status=1, user_id=user_id).count()
+            publishing_activities_count = Activity.objects.filter(is_delete=0, status=2).count()
+            res['published_activities_count'] = published_activities_count
+            res['drafts_count'] = drafts_count
+            res['publishing_activities_count'] = publishing_activities_count
+        return JsonResponse(res)
 
 
 # ------------------------------meeting view------------------------------
@@ -822,103 +966,9 @@ class MyCollectionsView(GenericAPIView, ListModelMixin):
         return queryset
 
 
-# ------------------------------city view------------------------------
-class CitiesView(GenericAPIView, ListModelMixin):
-    """城市列表"""
-    serializer_class = CitiesSerializer
-    queryset = City.objects.all()
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (MeetigsAdminPermission,)
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-
-class AddCityView(GenericAPIView, CreateModelMixin):
-    """添加城市"""
-    serializer_class = CitiesSerializer
-    queryset = City.objects.all()
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (MeetigsAdminPermission,)
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_CITY,
-                           OperationLogType.OP_TYPE_CREATE,
-                           OperationLogDesc.OP_DESC_CITY_CREATE_CODE) as log_context:
-            log_context.log_vars = [request.data.get("name")]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = ret
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        data = self.request.data
-        name = data.get('name')
-        if name in City.objects.all().values_list('name', flat=True):
-            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        etherpad = '{}/p/meetings-MSG/{}'.format(settings.ETHERPAD_PREFIX, name)
-        City.objects.create(name=name, etherpad=etherpad)
-        return ret_access_json(request.user)
-
-
-class CityUserAddView(GenericAPIView, CreateModelMixin):
-    """批量新增城市组成员"""
-    serializer_class = CityUserAddSerializer
-    queryset = GroupUser.objects.all()
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (MeetigsAdminPermission,)
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_CITY,
-                           OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_CITY_ADD_USER_CODE) as log_context:
-            log_context.log_vars = [request.data.get("city_id"), request.data.get("ids")]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = ret
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        super(CityUserAddView, self).create(self, request, *args, **kwargs)
-        return ret_access_json(request.user)
-
-
-class CityUserDelView(GenericAPIView, CreateModelMixin):
-    """批量删除城市组组成员"""
-    serializer_class = CityUserDelSerializer
-    queryset = GroupUser.objects.all()
-    authentication_classes = (CustomAuthentication,)
-    permission_classes = (MeetigsAdminPermission,)
-
-    def post(self, request, *args, **kwargs):
-        with LoggerContext(request, OperationLogModule.OP_MODULE_CITY,
-                           OperationLogType.OP_TYPE_DELETE,
-                           OperationLogDesc.OP_DESC_CITY_REMOVE_USER_CODE) as log_context:
-            log_context.log_vars = [request.data.get("city_id"), request.data.get("ids")]
-            ret = self.create(request, *args, **kwargs)
-            log_context.result = ret
-            return ret
-
-    def create(self, request, *args, **kwargs):
-        super(CityUserDelView, self).create(self, request, *args, **kwargs)
-        return ret_access_json(request.user)
-
-
-class UserCityView(GenericAPIView, ListModelMixin):
-    """查询用户所在城市组"""
-    serializer_class = UserCitySerializer
-    queryset = CityUser.objects.all()
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-    def get_queryset(self):
-        try:
-            usercity = CityUser.objects.filter(user_id=self.kwargs['pk']).all()
-            return usercity
-        except KeyError:
-            pass
-
-
 # ------------------------------activity view------------------------------
+
+
 class ActivityCreateView(GenericAPIView, CreateModelMixin):
     """创建活动并申请发布"""
     serializer_class = ActivitySerializer
@@ -1279,6 +1329,7 @@ class RecentActivitiesView(GenericAPIView, ListModelMixin):
     """最近的活动列表"""
     serializer_class = ActivitiesSerializer
     queryset = Activity.objects.filter(is_delete=0)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         self.queryset = self.queryset.filter(status__gt=2, start_date__gte=datetime.datetime.now().
@@ -1457,49 +1508,6 @@ class CountActivitiesView(GenericAPIView, ListModelMixin):
         return JsonResponse(res)
 
 
-class MyCountsView(GenericAPIView, ListModelMixin):
-    """我的各类计数"""
-    queryset = Activity.objects.all()
-    permission_classes = (permissions.IsAuthenticated,)
-    authentication_classes = (CustomAuthentication,)
-
-    def get(self, request, *args, **kwargs):
-        user_id = self.request.user.id
-        user = User.objects.get(id=user_id)
-        level = user.level
-        activity_level = user.activity_level
-
-        # shared
-        collected_meetings_count = Meeting.objects.filter(is_delete=0, id__in=(
-            Collect.objects.filter(user_id=user_id).values_list('meeting_id', flat=True))).count()
-        collected_activities_count = Activity.objects.filter(is_delete=0, id__in=(
-            ActivityCollect.objects.filter(user_id=user_id).values_list('activity_id', flat=True))).count()
-        res = {'collected_meetings_count': collected_meetings_count,
-               'collected_activities_count': collected_activities_count}
-        # permission limited
-        if level == 2:
-            created_meetings_count = Meeting.objects.filter(is_delete=0, user_id=user_id).count()
-            res['created_meetings_count'] = created_meetings_count
-        if level == 3:
-            created_meetings_count = Meeting.objects.filter(is_delete=0).count()
-            res['created_meetings_count'] = created_meetings_count
-        if activity_level == 2:
-            published_activities_count = Activity.objects.filter(is_delete=0, status__gt=2, user_id=user_id).count()
-            drafts_count = Activity.objects.filter(is_delete=0, status=1, user_id=user_id).count()
-            publishing_activities_count = Activity.objects.filter(is_delete=0, status=2, user_id=user_id).count()
-            res['published_activities_count'] = published_activities_count
-            res['drafts_count'] = drafts_count
-            res['publishing_activities_count'] = publishing_activities_count
-        if activity_level == 3:
-            published_activities_count = Activity.objects.filter(is_delete=0, status__gt=2).count()
-            drafts_count = Activity.objects.filter(is_delete=0, status=1, user_id=user_id).count()
-            publishing_activities_count = Activity.objects.filter(is_delete=0, status=2).count()
-            res['published_activities_count'] = published_activities_count
-            res['drafts_count'] = drafts_count
-            res['publishing_activities_count'] = publishing_activities_count
-        return JsonResponse(res)
-
-
 class MeetingActivityDateView(GenericAPIView, ListModelMixin):
     _meeting_queryset = Meeting.objects.filter(is_delete=0)
     _activity_queryset = Activity.objects.filter(status__in=[3, 4, 5], is_delete=0)
@@ -1555,8 +1563,10 @@ class MeetingActivityDataView(GenericAPIView, ListModelMixin):
             'city': meeting["city"],
             'startTime': meeting["start"],
             'endTime': meeting["end"],
-            'duration': math.ceil(float(meeting["end"].replace(':', '.'))) - math.floor(float(meeting["start"].replace(':', '.'))),
-            'duration_time': meeting["start"].split(':')[0] + ':00' + '-' + str(math.ceil(float(meeting["end"].replace(':', '.')))) + ':00',
+            'duration': math.ceil(float(meeting["end"].replace(':', '.'))) - math.floor(
+                float(meeting["start"].replace(':', '.'))),
+            'duration_time': meeting["start"].split(':')[0] + ':00' + '-' + str(
+                math.ceil(float(meeting["end"].replace(':', '.')))) + ':00',
             'name': meeting["topic"],
             'creator': meeting["sponsor"],
             'detail': meeting["agenda"],

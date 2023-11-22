@@ -7,6 +7,8 @@ import logging
 import datetime
 
 from django.core.management.base import BaseCommand
+
+from app_meeting_server.utils.permissions import MeetigsAdminPermission, ActivityAdminPermission
 from openeuler.models import User, GroupUser, Meeting, Collect, Activity, ActivityCollect
 from django.db import transaction
 from app_meeting_server.utils.common import get_cur_date
@@ -49,6 +51,8 @@ class Command(BaseCommand):
         before_date_str = self.get_expired_date()
         expired_users = User.objects.filter(last_login__lt=before_date_str)
         for user in expired_users:
+            if user.level == MeetigsAdminPermission.level or user.activity_level == ActivityAdminPermission.activity_level:
+                continue
             user_id = user.id
             logger.info("The user(userid:{}) last login over expired date, start to delete".format(str(user_id)))
             self.delete_user_data(user_id)
