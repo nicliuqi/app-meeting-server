@@ -29,14 +29,14 @@ from mindspore.utils.send_email import sendmail
 from mindspore.utils.tencent_apis import *
 from mindspore.utils import gene_wx_code, drivers, send_cancel_email
 from app_meeting_server.utils.auth import CustomAuthentication
-from app_meeting_server.utils.common import get_cur_date, refresh_access, decrypt_openid, \
-    refresh_token_and_refresh_token, clear_token, get_anonymous_openid
+from app_meeting_server.utils.common import get_cur_date, decrypt_openid, \
+    refresh_token_and_refresh_token, clear_token, get_anonymous_openid, start_thread
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, \
     OperationLogType, PolicyLoggerContext
 from app_meeting_server.utils.ret_api import MyValidationError, ret_access_json, ret_json
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
-    check_user_ids, check_activity_more_params, check_refresh_token, check_meetings_more_params, check_schedules_string, \
-    check_publish, check_type, check_date
+    check_user_ids, check_activity_more_params, check_refresh_token, check_meetings_more_params, \
+    check_publish, check_type, check_date, check_int, check_schedules_more_string
 from app_meeting_server.utils.ret_code import RetCode
 
 logger = logging.getLogger('log')
@@ -290,7 +290,9 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
 class SigsView(GenericAPIView, ListModelMixin):
     """SIG列表"""
     serializer_class = GroupsSerializer
-    queryset = Group.objects.filter(group_type=1)
+    queryset = Group.objects.filter(group_type=1).order_by("name")
+    filter_backends = [SearchFilter]
+    search_fields = ['name']
     authentication_classes = (CustomAuthentication,)
     permission_classes = (MeetigsAdminPermission,)
 
@@ -303,7 +305,7 @@ class UserGroupView(GenericAPIView, ListModelMixin):
     serializer_class = UserGroupSerializer
     queryset = GroupUser.objects.all()
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (MaintainerPermission,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -405,17 +407,16 @@ class CityMembersView(GenericAPIView, ListModelMixin):
     pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
-        city_name = self.request.GET.get('city')
-        if not City.objects.filter(name=city_name):
+        city_id = self.request.GET.get('city')
+        city_id = check_int(city_id)
+        if not City.objects.filter(id=city_id):
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        city_name = self.request.GET.get('city')
-        city_id = City.objects.get(name=city_name).id
-        city_users = CityUser.objects.filter(city_id=city_id)
-        ids = [x.user_id for x in city_users]
-        user = User.objects.filter(id__in=ids, is_delete=0).exclude(nickname=settings.ANONYMOUS_NAME)
+        city_id = self.request.GET.get('city')
+        city_users = CityUser.objects.filter(city_id=city_id).values_list("user_id", flat=True)
+        user = User.objects.filter(id__in=city_users, is_delete=0).exclude(nickname=settings.ANONYMOUS_NAME)
         return user
 
 
@@ -430,17 +431,16 @@ class NonCityMembersView(GenericAPIView, ListModelMixin):
     pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
-        city_name = self.request.GET.get('city')
-        if not City.objects.filter(name=city_name):
+        city_id = self.request.GET.get('city')
+        city_id = check_int(city_id)
+        if not City.objects.filter(id=city_id):
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        city_name = self.request.GET.get('city')
-        city_id = City.objects.get(name=city_name).id
-        city_users = CityUser.objects.filter(city_id=city_id)
-        ids = [x.user_id for x in city_users]
-        user = User.objects.filter(is_delete=0).exclude(id__in=ids)
+        city_id = self.request.GET.get('city')
+        city_users = CityUser.objects.filter(city_id=city_id).values_list("user_id", flat=True)
+        user = User.objects.filter(is_delete=0).exclude(id__in=city_users)
         return user
 
 
@@ -466,6 +466,7 @@ class NonSponsorsView(GenericAPIView, ListModelMixin):
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -531,9 +532,11 @@ class SponsorsDelView(GenericAPIView, CreateModelMixin):
 class CitiesView(GenericAPIView, ListModelMixin):
     """城市列表"""
     serializer_class = CitiesSerializer
-    queryset = City.objects.all()
+    queryset = City.objects.all().order_by("name")
+    filter_backends = [SearchFilter]
+    search_fields = ['name']
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (MeetigsAdminPermission,)
+    permission_classes = (MaintainerAndAdminPermission,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -611,6 +614,8 @@ class UserCityView(GenericAPIView, ListModelMixin):
     """查询用户所在城市组"""
     serializer_class = UserCitySerializer
     queryset = CityUser.objects.all()
+    authentication_classes = (CustomAuthentication,)
+    permission_classes = (MaintainerPermission,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -714,7 +719,6 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         meetings = Meeting.objects.filter(is_delete=0, date=date, end__gt=start_search, start__lt=end_search).values()
         unavailable_host_ids = [meeting['host_id'] for meeting in meetings]
         available_host_id = list(set(host_list) - set(unavailable_host_ids))
-        access = refresh_access(self.request.user)
         if len(available_host_id) == 0:
             logger.info('no available host')
             raise MyValidationError(RetCode.STATUS_MEETING_DATE_CONFLICT)
@@ -725,9 +729,9 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
         if status not in [200, 201]:
             logger.error("Failed to create meeting, and code is {}".format(str(status)))
             raise MyValidationError(RetCode.STATUS_MEETING_FAILED_CREATE)
-        meeting_id = resp['mmid']
-        meeting_code = resp['mid']
-        join_url = resp['join_url']
+        meeting_id = resp.get("mmid")
+        meeting_code = resp.get('mid')
+        join_url = resp.get('join_url')
         # 3.保存数据
         new_meetings = Meeting.objects.create(
             mid=meeting_code,
@@ -752,9 +756,8 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
             mplatform=platform
         )
         logger.info('created a {} meeting which mid is {}.'.format(platform, meeting_code))
-        logger.info('meeting info: {},{}-{},{}'.format(date, start, end, topic))
         start_thread(sendmail, meeting_code, record)
-        return JsonResponse({'code': 201, 'msg': '创建成功', 'id': new_meetings.id, 'access': access})
+        return ret_access_json(request.user, id=new_meetings.id)
 
 
 class CancelMeetingView(GenericAPIView, UpdateModelMixin):
@@ -1000,7 +1003,7 @@ class ActivityCreateView(GenericAPIView, CreateModelMixin):
         register_url = data.get('register_url')
         synopsis = data.get('synopsis')
         schedules = data.get('schedules')
-        poster = data.get('post')
+        poster = data.get('poster')
         user_id = request.user.id
         publish = request.GET.get('publish')
         publish = check_publish(publish)
@@ -1066,13 +1069,9 @@ class ActivityUpdateView(GenericAPIView, UpdateModelMixin):
     def update(self, request, *args, **kwargs):
         schedules = request.data.get("schedules")
         replay_url = request.data.get("replay_url")
-        online_url = request.data.get("online_url")
-        check_schedules_string(schedules)
+        check_schedules_more_string(schedules)
         if not replay_url.startswith('https://'):
             logger.error('Invalid replay_url url: {}'.format(replay_url))
-            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
-        if not online_url.startswith('https://'):
-            logger.error('Invalid online url: {}'.format(online_url))
             raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
         super(ActivityUpdateView, self).update(request, *args, **kwargs)
         return ret_access_json(request.user)
@@ -1222,7 +1221,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
         register_url = data.get('register_url')
         synopsis = data.get('synopsis')
         schedules = data.get('schedules')
-        poster = data.get('post')
+        poster = data.get('poster')
         publish = self.request.GET.get('publish')
         publish = check_publish(publish)
         # 修改活动草案并申请发布

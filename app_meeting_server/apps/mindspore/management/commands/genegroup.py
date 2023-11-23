@@ -1,40 +1,34 @@
 import logging
-import subprocess
+import sys
+import yaml
 from mindspore.models import Group
-from django.conf import settings
 from django.core.management.base import BaseCommand
-
-logger = logging.getLogger('log')
+from django.conf import settings
+from obs import ObsClient
 
 
 class Command(BaseCommand):
+    logger = logging.getLogger('log')
+
     def handle(self, *args, **options):
-        subprocess.call('git clone {} mindspore/community'.format(settings.COMMUNITY_REPO_URL).split())
+        bucket_name = settings.OBS_BUCKETNAME
+        obj_key = settings.SIGS_INFO_OBJECT
+        obs_client = ObsClient(access_key_id=settings.ACCESS_KEY_ID,
+                               secret_access_key=settings.SECRET_ACCESS_KEY,
+                               server='https://%s' % settings.OBS_ENDPOINT)
+        res = obs_client.getObject(bucket_name, obj_key)
+        if res.status != 200:
+            self.logger.error('Fail to get OBS object of sigs info')
+            sys.exit(1)
+        content = yaml.safe_load(res.body.response.read())
         etherpad_pre = '{}/p/meetings-'.format(settings.ETHERPAD_PREFIX)
-        if not Group.objects.filter(name='MSG'):
-            Group.objects.create(name='MSG', group_type=2, etherpad=etherpad_pre + 'MSG')
-            logger.info('Create group MSG')
-        if not Group.objects.filter(name='Tech'):
-            Group.objects.create(name='Tech', group_type=3, etherpad=etherpad_pre + 'Tech')
-            logger.info('Create group Tech')
-        with open('mindspore/community/sigs/README.md', 'r') as f:
-            for line in f.readlines():
-                if line.startswith('| ['):
-                    sig_name = line[3:].split(']')[0]
-                    if not Group.objects.filter(name=sig_name):
-                        Group.objects.create(name=sig_name, group_type=1, etherpad=etherpad_pre + sig_name)
-                        logger.info('Create sig {}'.format(sig_name))
-                    else:
-                        Group.objects.filter(name=sig_name).update(group_type=1, etherpad=etherpad_pre + sig_name)
-                        logger.info('Update sig {}'.format(sig_name))
-        with open('mindspore/community/working-groups/README.md', 'r') as f:
-            for line in f.readlines():
-                if line.startswith('| ['):
-                    sig_name = line[3:].split(']')[0]
-                    if not Group.objects.filter(name=sig_name, group_type=1):
-                        Group.objects.create(name=sig_name, group_type=1, etherpad=etherpad_pre + sig_name)
-                        logger.info('Create sig {}'.format(sig_name))
-                    else:
-                        Group.objects.filter(name=sig_name).update(group_type=1, etherpad=etherpad_pre + sig_name)
-                        logger.info('Update sig {}'.format(sig_name))
-        logger.info('Done')
+        for sig in content:
+            sig_name = sig['name']
+            group_type = sig['group_type']
+            etherpad = etherpad_pre + sig_name
+            if not Group.objects.filter(name=sig_name, group_type=group_type):
+                Group.objects.create(name=sig_name, group_type=group_type, etherpad=etherpad)
+                self.logger.info('Create group %s' % sig_name)
+            else:
+                Group.objects.filter(name=sig_name, group_type=group_type).update(etherpad=etherpad)
+                self.logger.info('Update group %s' % sig_name)

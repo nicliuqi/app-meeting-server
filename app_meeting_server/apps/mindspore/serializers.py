@@ -208,7 +208,7 @@ class UpdateUserInfoSerializer(ModelSerializer):
 class UserInfoSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'level', 'activity_level', 'gitee_name']
+        fields = ['id', 'level', 'gitee_name', 'activity_level', 'nickname', 'avatar']
 
 
 class UserGroupSerializer(ModelSerializer):
@@ -300,7 +300,7 @@ class ActivitySerializer(ModelSerializer):
 class ActivityUpdateSerializer(ModelSerializer):
     class Meta:
         model = Activity
-        fields = ['schedules', 'replay_url', 'online_url']
+        fields = ['schedules', 'replay_url']
 
 
 class ActivityDraftUpdateSerializer(ModelSerializer):
@@ -312,7 +312,6 @@ class ActivityDraftUpdateSerializer(ModelSerializer):
 class ActivitiesSerializer(ModelSerializer):
     collection_id = serializers.SerializerMethodField()
     register_id = serializers.SerializerMethodField()
-    register_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Activity
@@ -336,8 +335,7 @@ class ActivityRetrieveSerializer(ActivitiesSerializer):
         model = Activity
         fields = ['id', 'collection_id', 'register_id', 'title', 'start_date', 'end_date', 'activity_category',
                   'activity_type', 'register_method', 'register_url', 'synopsis', 'address', 'detail_address',
-                  'online_url', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user', 'register_count',
-                  'wx_code', 'sign_url', 'replay_url']
+                  'online_url', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user', 'wx_code', 'sign_url', 'replay_url']
 
 
 class ActivityCollectSerializer(ModelSerializer):

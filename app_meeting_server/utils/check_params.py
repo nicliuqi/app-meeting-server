@@ -180,6 +180,23 @@ def check_schedules(schedules_list):
                 check_invalid_content(title)
 
 
+def check_schedules_more(schedules_list):
+    for schedules in schedules_list:
+        for schedule in schedules:
+            start = schedule["start"]
+            end = schedule["end"]
+            check_time(start, is_activity=True)
+            check_time(end, is_activity=True)
+            topic = schedule["topic"]
+            check_invalid_content(topic)
+            for speakers in schedule["speakerList"]:
+                name = speakers["name"]
+                check_invalid_content(name)
+                title = speakers.get("title")
+                if title:
+                    check_invalid_content(title)
+
+
 def check_email_list(email_list_str):
     # len of email list str gt 1000 and the single email limit 50 and limit 20 email
     if len(email_list_str) > 1020:
@@ -222,7 +239,7 @@ def check_duration_date(start_date, end_date, now_time):
     if (start_time - now_time).days > 60:
         logger.error('The start time is at most 60 days later than the current time')
         raise MyValidationError(RetCode.STATUS_START_LT_LIMIT)
-    if start_time >= end_time:
+    if start_time > end_time:
         logger.error('The start time should not be later than the end time')
         raise MyValidationError(RetCode.STATUS_START_LT_END)
 
@@ -382,7 +399,7 @@ def check_meetings_more_params(request, group_model, city_model):
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     else:
         host_list = settings.MEETING_HOSTS.get(platform.lower())
-        if not host_list or not isinstance(host_list, dict):
+        if not host_list or not isinstance(host_list, list):
             logger.error("Could not match any meeting host")
             raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     # 3.check sponsor
@@ -427,7 +444,7 @@ def check_meetings_more_params(request, group_model, city_model):
     if meeting_type == 2 and city_model.objects.filter(name=city).count == 0:
         logger.error('MSG Meeting of city is not exist:{}'.format(city))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
-    group_id = group_model.objects.get(group_name=group_name).id
+    group_id = group_model.objects.get(name=group_name).id
     validated_data = {
         'platform': platform,
         'host_list': host_list,
@@ -489,7 +506,7 @@ def check_activity_params(data, online, offline):
         logger.error('Invalid poster: {}'.format(poster))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     # 5.check register_url
-    if not register_url.startswith('https://'):
+    if not register_url or not register_url.startswith('https://'):
         logger.error('Invalid register url: {}'.format(register_url))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     # 6.check synopsis
@@ -540,7 +557,7 @@ def check_activity_more_params(data):
     register_url = data.get('register_url')
     synopsis = data.get('synopsis')
     schedules = data.get('schedules')
-    poster = data.get('post')
+    poster = data.get('poster')
     # 1.check_title
     check_field(title, 50)
     check_invalid_content(title)
@@ -566,13 +583,14 @@ def check_activity_more_params(data):
         logger.error('Invalid activity category: {}'.format(activity_category))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     # 6.check register_url
-    if not register_url.startswith('https://'):
+    if not register_url or not register_url.startswith('https://'):
         logger.error('Invalid register url: {}'.format(register_url))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     # 7.check online_url
-    if not online_url.startswith('https://'):
-        logger.error('Invalid online url: {}'.format(online_url))
-        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    if activity_type in [2, 3]:
+        if not online_url or not online_url.startswith('https://'):
+            logger.error('Invalid online url: {}'.format(online_url))
+            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     # 8.check synopsis
     if synopsis:
         check_field(synopsis, 4096)
@@ -585,7 +603,7 @@ def check_activity_more_params(data):
     check_field(detail_address, 100)
     check_invalid_content(detail_address)
     # 10.check scheduler
-    check_schedules(schedules)
+    check_schedules_more(schedules)
     schedules_str = json.dumps(schedules)
     check_field(schedules_str, 8192)
     validated_data = {
@@ -601,7 +619,7 @@ def check_activity_more_params(data):
         'online_url': online_url,
         'register_url': register_url,
         'synopsis': synopsis,
-        'schedules': schedules,
+        'schedules': schedules_str,
         'poster': poster
     }
     return validated_data
@@ -611,6 +629,15 @@ def check_schedules_string(content):
     try:
         schedules_obj = json.loads(content)
         check_schedules(schedules_obj)
+    except Exception as e:
+        logger.error("[check_schedules_string] {}".format(e))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+
+
+def check_schedules_more_string(content):
+    try:
+        schedules_obj = json.loads(content)
+        check_schedules_more(schedules_obj)
     except Exception as e:
         logger.error("[check_schedules_string] {}".format(e))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)

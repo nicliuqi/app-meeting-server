@@ -24,6 +24,7 @@ def check_modify_time(now_time, modify_time):
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
+        logger.info("start to check pivacy_policy_update")
         # 获取当前时间
         now_time = datetime.now()
         # 连接ObsClient
@@ -42,4 +43,3 @@ class Command(BaseCommand):
             return
         User.objects.all().update(agree_privacy_policy=False)
         logger.info('Notice the target object has been modified, update agreement status of all users.')
-

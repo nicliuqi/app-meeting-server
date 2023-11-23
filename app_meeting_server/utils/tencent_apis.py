@@ -102,7 +102,7 @@ def createMeeting(date, start, end, topic, host_id, record):
         'host_id': host_id
     }
     if r.status_code != 200:
-        logger.error('Fail to create meeting, status_code is {}, r:{}, payload:{}'.format(r.status_code, r.content, payload))
+        logger.error('Fail to create meeting, status_code is {}'.format(r.status_code))
         return r.status_code, resp_dict
     resp_dict['mid'] = r.json()['meeting_info_list'][0]['meeting_code']
     resp_dict['mmid'] = r.json()['meeting_info_list'][0]['meeting_id']
