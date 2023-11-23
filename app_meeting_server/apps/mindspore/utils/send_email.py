@@ -8,6 +8,8 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from django.conf import settings
+
+from app_meeting_server.utils.file_stream import read_content
 from mindspore.models import Meeting
 
 logger = logging.getLogger('log')
@@ -46,41 +48,33 @@ def sendmail(mid, record=None):
     portal_zh = settings.PORTAL_ZH
     portal_en = settings.PORTAL_EN
     if not summary and not record:
-        with open('app_meeting_server/templates/template_without_summary_without_recordings.txt', 'r',
-                  encoding='utf-8') as fp:
-            body = fp.read()
-            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
-                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}'). \
-                replace('{{etherpad}}', '{4}').replace('{{platform}}', '{5}'). \
-                replace('{{portal_zh}}', '{6}').replace('{{portal_en}}', '{7}'). \
-                format(sig_name, start_time, join_url, topic, etherpad, platform, portal_zh, portal_en)
+        body = read_content(settings.TEMPLATE_NOT_SUMMARY_NOT_RECORDING)
+        body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
+            replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}'). \
+            replace('{{etherpad}}', '{4}').replace('{{platform}}', '{5}'). \
+            replace('{{portal_zh}}', '{6}').replace('{{portal_en}}', '{7}'). \
+            format(sig_name, start_time, join_url, topic, etherpad, platform, portal_zh, portal_en)
     elif summary and not record:
-        with open('app_meeting_server/templates/template_with_summary_without_recordings.txt', 'r',
-                  encoding='utf-8') as fp:
-            body = fp.read()
-            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
-                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}'). \
-                replace('{{etherpad}}', '{5}').replace('{{platform}}', '{6}'). \
-                replace('{{portal_zh}}', '{7}').replace('{{portal_en}}', '{8}'). \
-                format(sig_name, start_time, join_url, topic, summary, etherpad, platform, portal_zh, portal_en)
+        body = read_content(settings.TEMPLATE_SUMMARY_NOT_RECORDING)
+        body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
+            replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}'). \
+            replace('{{etherpad}}', '{5}').replace('{{platform}}', '{6}'). \
+            replace('{{portal_zh}}', '{7}').replace('{{portal_en}}', '{8}'). \
+            format(sig_name, start_time, join_url, topic, summary, etherpad, platform, portal_zh, portal_en)
     elif not summary and record:
-        with open('app_meeting_server/templates/template_without_summary_with_recordings.txt', 'r',
-                  encoding='utf-8') as fp:
-            body = fp.read()
-            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
-                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}'). \
-                replace('{{etherpad}}', '{4}').replace('{{platform}}', '{5}'). \
-                replace('{{portal_zh}}', '{6}').replace('{{portal_en}}', '{7}'). \
-                format(sig_name, start_time, join_url, topic, etherpad, platform, portal_zh, portal_en)
+        body = read_content(settings.TEMPLATE_NOT_SUMMARY_RECORDING)
+        body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
+            replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}'). \
+            replace('{{etherpad}}', '{4}').replace('{{platform}}', '{5}'). \
+            replace('{{portal_zh}}', '{6}').replace('{{portal_en}}', '{7}'). \
+            format(sig_name, start_time, join_url, topic, etherpad, platform, portal_zh, portal_en)
     elif summary and record:
-        with open('app_meeting_server/templates/template_with_summary_with_recordings.txt', 'r',
-                  encoding='utf-8') as fp:
-            body = fp.read()
-            body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
-                replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}'). \
-                replace('{{etherpad}}', '{5}').replace('{{platform}}', '{6}'). \
-                replace('{{portal_zh}}', '{7}').replace('{{portal_en}}', '{8}'). \
-                format(sig_name, start_time, join_url, topic, summary, etherpad, platform, portal_zh, portal_en)
+        body = read_content(settings.TEMPLATE_SUMMARY_RECORDING)
+        body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
+            replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}'). \
+            replace('{{etherpad}}', '{5}').replace('{{platform}}', '{6}'). \
+            replace('{{portal_zh}}', '{7}').replace('{{portal_en}}', '{8}'). \
+            format(sig_name, start_time, join_url, topic, summary, etherpad, platform, portal_zh, portal_en)
     content = MIMEText(body_of_email, 'plain', 'utf-8')
     msg.attach(content)
 

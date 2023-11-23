@@ -163,4 +163,4 @@ def execute_cmd3(cmd, timeout=30, err_log=False):
             logger.error("execute_cmd3 return {}, std output: {}, err output: {}.".format(ret, out, err))
         return ret, out, err
     except Exception as e:
-        return -1, "", "execute_cmd3 exceeded raise, e={}, trace={}".format(e.args[0], traceback.format_exc())
+        return -1, "", "execute_cmd3 exceeded raise, e={}, trace={}".format(str(e), traceback.format_exc())

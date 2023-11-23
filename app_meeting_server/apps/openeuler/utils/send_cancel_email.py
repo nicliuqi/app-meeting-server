@@ -8,6 +8,8 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+from app_meeting_server.utils.file_stream import read_content
 from openeuler.models import Meeting
 
 logger = logging.getLogger('log')
@@ -37,12 +39,10 @@ def sendmail(mid):
     msg = MIMEMultipart()
 
     # 添加邮件主体
-    body_of_email = None
-    with open('app_meeting_server/templates/template_cancel_meeting.txt', 'r', encoding='utf-8') as fp:
-        body = fp.read()
-        body_of_email = body.replace('{{platform}}', platform). \
-            replace('{{start_time}}', start_time). \
-            replace('{{sig_name}}', sig_name)
+    body = read_content(settings.TEMPLATE_CANCEL_EMAIL)
+    body_of_email = body.replace('{{platform}}', platform). \
+        replace('{{start_time}}', start_time). \
+        replace('{{sig_name}}', sig_name)
     content = MIMEText(body_of_email, 'plain', 'utf-8')
     msg.attach(content)
 

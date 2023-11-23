@@ -6,7 +6,7 @@ import requests
 import stat
 import time
 from django.conf import settings
-from app_meeting_server.utils.file_stream import write_content
+from app_meeting_server.utils.file_stream import write_content, download_big_file
 
 logger = logging.getLogger('log')
 
@@ -155,8 +155,8 @@ def downloadHWCloudRecording(token, target_filename, download_url):
     """下载云录制的视频"""
     if os.path.exists(target_filename):
         os.remove(target_filename)
-    ret = requests.get(download_url, headers={"Authorization": token})
-    write_content(target_filename, ret.content, 'wb')
+    headers = {"Authorization": token}
+    download_big_file(download_url, target_filename, headers=headers)
 
 
 def get_url(uri):
