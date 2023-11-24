@@ -1367,7 +1367,7 @@ class DraftsListView(GenericAPIView, ListModelMixin):
 class PublishedActivitiesView(GenericAPIView, ListModelMixin):
     """我发布的活动列表(已发布)"""
     serializer_class = ActivitiesSerializer
-    queryset = Activity.objects.all()
+    queryset = Activity.objects.all().order_by('-start_date', 'id')
     authentication_classes = (CustomAuthentication,)
     permission_classes = (SponsorPermission,)
     pagination_class = MyPagination
@@ -1522,8 +1522,8 @@ class MeetingActivityDateView(GenericAPIView, ListModelMixin):
 
     def get_activity(self):
         date_list = self._activity_queryset.filter(
-            date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
-            date__lte=(datetime.datetime.now() + datetime.timedelta(days=30)).strftime('%Y-%m-%d')). \
+            start_date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
+            end_date__lte=(datetime.datetime.now() + datetime.timedelta(days=30)).strftime('%Y-%m-%d')). \
             distinct().order_by('-date', 'id').values_list("date", flat=True)
         return date_list
 
