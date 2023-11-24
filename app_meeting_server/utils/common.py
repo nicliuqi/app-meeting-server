@@ -14,7 +14,7 @@ import os
 import logging
 import traceback
 from contextlib import suppress
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import PBKDF2PasswordHasher
 from django.conf import settings
@@ -164,3 +164,17 @@ def execute_cmd3(cmd, timeout=30, err_log=False):
         return ret, out, err
     except Exception as e:
         return -1, "", "execute_cmd3 exceeded raise, e={}, trace={}".format(str(e), traceback.format_exc())
+
+
+def get_date_by_start_and_end(start_date_str, end_date_str):
+    all_date_list = list()
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+    end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+    date_delta = (end_date - start_date).days
+    if date_delta <= 0:
+        return all_date_list
+    for day in range(0, date_delta + 1):
+        cur_date = start_date + timedelta(days=day)
+        cur_date_str = cur_date.strftime("%Y-%m-%d")
+        all_date_list.append(cur_date_str)
+    return all_date_list

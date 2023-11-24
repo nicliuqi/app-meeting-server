@@ -30,7 +30,7 @@ from mindspore.utils.tencent_apis import *
 from mindspore.utils import gene_wx_code, drivers, send_cancel_email
 from app_meeting_server.utils.auth import CustomAuthentication
 from app_meeting_server.utils.common import get_cur_date, decrypt_openid, \
-    refresh_token_and_refresh_token, clear_token, get_anonymous_openid, start_thread
+    refresh_token_and_refresh_token, clear_token, get_anonymous_openid, start_thread, get_date_by_start_and_end
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, \
     OperationLogType, PolicyLoggerContext
 from app_meeting_server.utils.ret_api import MyValidationError, ret_access_json, ret_json
@@ -1521,11 +1521,17 @@ class MeetingActivityDateView(GenericAPIView, ListModelMixin):
         return date_list
 
     def get_activity(self):
-        date_list = self._activity_queryset.filter(
+        all_date_list = self._activity_queryset.filter(
             start_date__gte=(datetime.datetime.now() - datetime.timedelta(days=180)).strftime('%Y-%m-%d'),
-            end_date__lte=(datetime.datetime.now() + datetime.timedelta(days=30)).strftime('%Y-%m-%d')). \
-            distinct().order_by('-date', 'id').values_list("date", flat=True)
-        return date_list
+            start_date__lte=(datetime.datetime.now() + datetime.timedelta(days=30)).strftime('%Y-%m-%d')).values(
+            "start_date", "end_date")
+        all_ret_date_list = list()
+        for all_date in all_date_list:
+            start_date_str = all_date["start_date"]
+            end_date_str = all_date["end_date"]
+            temp = get_date_by_start_and_end(start_date_str, end_date_str)
+            all_ret_date_list.extend(temp)
+        return all_ret_date_list
 
     def get(self, request, *args, **kwargs):
         query_type_str = request.GET.get("type")
@@ -1551,12 +1557,7 @@ class MeetingActivityDataView(GenericAPIView, ListModelMixin):
     _activity_queryset = Activity.objects.filter(status__in=[3, 4, 5], is_delete=0)
 
     def get_meetings(self, query_date):
-        queryset = self._meeting_queryset.filter(date=query_date).order_by('-date', 'id').values()
-        records = Record.objects.filter(platform="bilibili", url__isnull=False).values()
-        record_dict = dict()
-        for record in records:
-            if record['platform'] == 'bilibili' and record['url']:
-                record_dict[record['mid']] = record['url']
+        queryset = self._meeting_queryset.filter(date=query_date).values().order_by('-date', 'id')
         list_data = [{
             'id': meeting["id"],
             'group_name': meeting["group_name"],
@@ -1581,7 +1582,7 @@ class MeetingActivityDataView(GenericAPIView, ListModelMixin):
         return list_data
 
     def get_activity(self, query_date):
-        queryset = self._activity_queryset.filter(date=query_date).order_by('-date', 'id').values()
+        queryset = self._activity_queryset.filter(start_date__lte=query_date, end_date__gte=query_date).values().order_by('create_time')
         list_data = [{
             'id': activity["id"],
             'title': activity["title"],
