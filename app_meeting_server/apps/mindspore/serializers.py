@@ -152,7 +152,7 @@ class CityUserAddSerializer(ModelSerializer):
         return check_group_id(City, value)
 
     def create(self, validated_data):
-        users = User.objects.filter(id__in=validated_data['ids']).filter(is_delete=True).exclude(
+        users = User.objects.filter(id__in=validated_data['ids']).filter(is_delete=0).exclude(
             nickname=settings.ANONYMOUS_NAME)
         city_id = City.objects.filter(id=validated_data['city_id']).first()
         try:
@@ -160,8 +160,6 @@ class CityUserAddSerializer(ModelSerializer):
                 for user in users:
                     CityUser.objects.create(city_id=city_id.id, user_id=int(user.id))
                     User.objects.filter(id=int(user.id), level=1).update(level=2)
-                    if not GroupUser.objects.filter(group_id=1, user_id=int(user.id)):
-                        GroupUser.objects.create(group_id=1, user_id=int(user.id))
             return True
         except Exception as e:
             logger.error('Failed to add activity sponsors.and e:{}'.format(str(e)))
@@ -188,8 +186,8 @@ class CityUserDelSerializer(ModelSerializer):
         with transaction.atomic():
             CityUser.objects.filter(city_id=city_id, user_id__in=ids_list).delete()
             for user_id in ids_list:
-                if not CityUser.objects.filter(user_id=user_id):
-                    GroupUser.objects.filter(group_id=1, user_id=int(user_id)).delete()
+                if CityUser.objects.filter(user_id=user_id).count() == 0:
+                    User.objects.filter(id=int(user_id), level=2).update(level=1)
         return True
 
 
@@ -328,7 +326,8 @@ class ActivityRetrieveSerializer(ActivitiesSerializer):
         model = Activity
         fields = ['id', 'collection_id', 'title', 'start_date', 'end_date', 'activity_category',
                   'activity_type', 'register_method', 'register_url', 'synopsis', 'address', 'detail_address',
-                  'online_url', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user', 'wx_code', 'sign_url', 'replay_url']
+                  'online_url', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user', 'wx_code', 'sign_url',
+                  'replay_url']
 
 
 class ActivityCollectSerializer(ModelSerializer):
