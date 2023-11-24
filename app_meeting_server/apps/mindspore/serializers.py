@@ -127,12 +127,6 @@ class GroupUserAddSerializer(ModelSerializer):
             logger.error("msg:{}, err:{}".format(msg, e))
             raise MyValidationError(RetCode.INTERNAL_ERROR)
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data['code'] = 201
-        data['msg'] = 'Success to add maintainers to the group'
-        return data
-
 
 class GroupUserDelSerializer(ModelSerializer):
     ids = serializers.CharField(max_length=255, write_only=True)
@@ -311,7 +305,6 @@ class ActivityDraftUpdateSerializer(ModelSerializer):
 
 class ActivitiesSerializer(ModelSerializer):
     collection_id = serializers.SerializerMethodField()
-    register_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Activity
@@ -333,7 +326,7 @@ class ActivitiesSerializer(ModelSerializer):
 class ActivityRetrieveSerializer(ActivitiesSerializer):
     class Meta:
         model = Activity
-        fields = ['id', 'collection_id', 'register_id', 'title', 'start_date', 'end_date', 'activity_category',
+        fields = ['id', 'collection_id', 'title', 'start_date', 'end_date', 'activity_category',
                   'activity_type', 'register_method', 'register_url', 'synopsis', 'address', 'detail_address',
                   'online_url', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user', 'wx_code', 'sign_url', 'replay_url']
 

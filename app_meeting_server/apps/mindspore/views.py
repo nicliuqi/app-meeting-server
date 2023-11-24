@@ -585,7 +585,7 @@ class CityUserAddView(GenericAPIView, CreateModelMixin):
             return ret
 
     def create(self, request, *args, **kwargs):
-        super(CityUserAddView, self).create(self, request, *args, **kwargs)
+        super(CityUserAddView, self).create(request, *args, **kwargs)
         return ret_access_json(request.user)
 
 
@@ -606,7 +606,7 @@ class CityUserDelView(GenericAPIView, CreateModelMixin):
             return ret
 
     def create(self, request, *args, **kwargs):
-        super(CityUserDelView, self).create(self, request, *args, **kwargs)
+        super(CityUserDelView, self).create(request, *args, **kwargs)
         return ret_access_json(request.user)
 
 
@@ -846,6 +846,8 @@ class MeetingsListView(GenericAPIView, ListModelMixin):
     """会议列表"""
     serializer_class = MeetingsListSerializer
     queryset = Meeting.objects.filter(is_delete=0)
+    filter_backends = [SearchFilter]
+    search_fields = ['topic']
     pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
