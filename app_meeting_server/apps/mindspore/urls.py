@@ -6,7 +6,7 @@ from mindspore.views import LoginView, UsersIncludeView, UsersExcludeView, SigsV
     SponsorsDelView, ActivityCreateView, ActivityUpdateView, DraftUpdateView, WaitingActivities, WaitingActivity, \
     ApproveActivityView, DenyActivityView, ActivityDeleteView, DraftView, ActivitiesListView, ActivityDetailView, \
     DraftsListView, ActivityCollectView, ActivityCollectionsView, ActivityCollectionDelView, MyCountsView, \
-    CityMembersView, NonCityMembersView, CitiesView, AddCityView, CityUserAddView, CityUserDelView, UserCityView, \
+    CityMembersView, NonCityMembersView, CitiesView,AddCityView, CityUserAddView, CityUserDelView, UserCityView, \
     RecentActivitiesView, PublishedActivitiesView, WaitingPublishingActivitiesView, CountActivitiesView, \
     MeetingActivityDateView, MeetingActivityDataView, AgreePrivacyPolicyView, RevokeAgreementView, LogoutView, LogoffView, PingView, RefreshView
 
@@ -38,8 +38,8 @@ urlpatterns = [
     path('sponsor/action/new/', SponsorsAddView.as_view()),       # 批量添加活动发布者
     path('sponsor/action/del/', SponsorsDelView.as_view()),       # 批量删除活动发布者
     path('counts/', MyCountsView.as_view()),                      # 我的各类计数
-    path('cities/', CitiesView.as_view()),                        # 城市列表
     path('city/', AddCityView.as_view()),                         # 添加城市
+    path('cities/', CitiesView.as_view()),                        # 城市列表
     path('cityuser/action/new/', CityUserAddView.as_view()),      # 批量新增城市组成员
     path('cityuser/action/del/', CityUserDelView.as_view()),      # 批量移除城市组成员
     path('usercity/<int:pk>/', UserCityView.as_view()),           # 查询用户的城市组关系

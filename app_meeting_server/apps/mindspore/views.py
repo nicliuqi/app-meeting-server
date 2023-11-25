@@ -17,7 +17,7 @@ from app_meeting_server.utils import wx_apis
 from app_meeting_server.utils.my_pagination import MyPagination
 from app_meeting_server.utils.permissions import MeetigsAdminPermission, ActivityAdminPermission, \
     QueryPermission, MaintainerPermission, SponsorPermission, MaintainerAndAdminPermission, AdminPermission
-from mindspore.models import Activity, ActivityCollect, Record
+from mindspore.models import Activity, ActivityCollect
 from mindspore.models import GroupUser, Group, User, Collect, City, CityUser
 from mindspore.serializers import LoginSerializer, GroupsSerializer, GroupUserAddSerializer, GroupUserDelSerializer, \
     UserInfoSerializer, UserGroupSerializer, \
@@ -1300,6 +1300,8 @@ class ActivitiesListView(GenericAPIView, ListModelMixin):
     """活动列表"""
     serializer_class = ActivitiesSerializer
     queryset = Activity.objects.filter(is_delete=0, status__gt=2).order_by('-start_date', 'id')
+    filter_backends = [SearchFilter]
+    search_fields = ['title']
     pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
@@ -1475,8 +1477,6 @@ class ActivityCollectionDelView(GenericAPIView, DestroyModelMixin):
 class CountActivitiesView(GenericAPIView, ListModelMixin):
     """各类活动计数"""
     queryset = Activity.objects.filter(is_delete=0, status__gt=2).order_by('-start_date', 'id')
-    filter_backends = [SearchFilter]
-    search_fields = ['title']
 
     def get(self, request, *args, **kwargs):
         search = self.request.GET.get('search')
