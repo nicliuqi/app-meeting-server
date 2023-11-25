@@ -3,7 +3,7 @@ import traceback
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 
-from app_meeting_server.utils.check_params import check_group_id, check_user_ids
+from app_meeting_server.utils.check_params import check_group_id, check_user_ids, check_privacy_agreement
 from app_meeting_server.utils.common import get_uuid, encrypt_openid, refresh_token_and_refresh_token, get_cur_date
 from app_meeting_server.utils.ret_code import RetCode
 from app_meeting_server.utils.wx_apis import get_openid
@@ -29,7 +29,9 @@ class LoginSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         try:
             res = self.context["request"].data
+            agree = res.get('agree')
             code = res['code']
+            check_privacy_agreement(agree)
             if not code:
                 logger.warning('Login without code.')
                 raise MyValidationError(RetCode.STATUS_USER_GET_CODE_FAILED)

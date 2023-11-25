@@ -47,6 +47,8 @@ class RetCode(RetCodeBase):
     STATUS_START_VALID_URL = -13
     STATUS_START_VALID_XSS = -14
     STATUS_START_VALID_CRLF = -15
+    STATUS_DISAGREE_PRIVACY = -16
+    STATUS_OLD_PRIVACY = -17
 
     STATUS_FACILITY_BIT_MASK = 16
     STATUS_FACILITY_USER = 1 << STATUS_FACILITY_BIT_MASK
@@ -94,6 +96,8 @@ class RetCode(RetCodeBase):
         STATUS_START_VALID_URL: "Please do not enter URL links",
         STATUS_START_VALID_XSS: "Please do not enter XSS tags",
         STATUS_START_VALID_CRLF: "Please do not enter \r\n tags",
+        STATUS_DISAGREE_PRIVACY: "User does not agree the privacy policy",
+        STATUS_OLD_PRIVACY: "User does not agree the latest privacy policy",
 
         # user
         STATUS_USER_HAS_SIGNED_POLICY: "The user has signed privacy policy agreement already.",
@@ -137,6 +141,8 @@ class RetCode(RetCodeBase):
         STATUS_START_VALID_URL: "请勿输入URL链接，XSS标签等内容",
         STATUS_START_VALID_XSS: "请勿输入XSS标签等内容",
         STATUS_START_VALID_CRLF: "请勿输入\r\n等内容",
+        STATUS_DISAGREE_PRIVACY: "用户未同意隐私声明",
+        STATUS_OLD_PRIVACY: "用户未同意最新隐私声明",
 
         # user
         STATUS_USER_HAS_SIGNED_POLICY: "用户已签署隐私政策协议",

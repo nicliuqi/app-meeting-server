@@ -292,6 +292,7 @@ def check_group_id_and_user_ids(group_id, user_ids, group_user_model, group_mode
 def check_meetings_params(request, group_model):
     data = request.data
     now_time = datetime.datetime.now()
+    agree = data.get('agree')
     topic = data.get('topic')
     platform = data.get('platform', 'zoom')
     sponsor = data.get('sponsor')
@@ -305,6 +306,7 @@ def check_meetings_params(request, group_model):
     summary = data.get('agenda')
     record = data.get('record')
     etherpad = data.get('etherpad')
+    check_privacy_agreement(agree)
     # 0 check group_id
     group_id = check_int(group_id)
     # 1.check topic
@@ -469,6 +471,7 @@ def check_meetings_more_params(request, group_model, city_model):
 
 def check_activity_params(data, online, offline):
     now_time = datetime.datetime.now()
+    agree = data.get('agree')
     title = data.get('title')
     date = data.get('date')
     activity_type = data.get('activity_type')
@@ -482,6 +485,7 @@ def check_activity_params(data, online, offline):
     start = data.get('start')
     end = data.get('end')
     schedules = data.get('schedules')
+    check_privacy_agreement(agree)
     # 1.check title
     check_field(title, 50)
     check_invalid_content(title)
@@ -652,3 +656,12 @@ def check_publish(publish):
         logger.error("invalid publish {}".format(publish.lower))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     return publish
+
+
+def check_privacy_agreement(agree):
+    if not agree:
+        logger.error("[check_privacy_agreement] lack of param `agree`")
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    if not isinstance(agree, bool):
+        logger.error("[check_privacy_agreement] param agree must be type of bool")
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)

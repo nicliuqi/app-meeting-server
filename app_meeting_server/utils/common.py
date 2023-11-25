@@ -178,3 +178,7 @@ def get_date_by_start_and_end(start_date_str, end_date_str):
         cur_date_str = cur_date.strftime("%Y-%m-%d")
         all_date_list.append(cur_date_str)
     return all_date_list
+
+
+def get_version_params():
+    return settings.PRIVACY_POLICY_VERSION, settings.PRIVACY_APP_POLICY_VERSION, get_cur_date()
