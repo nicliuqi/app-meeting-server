@@ -1025,7 +1025,7 @@ class ActivityCreateView(GenericAPIView, CreateModelMixin):
                 online_url=online_url,
                 register_url=register_url,
                 synopsis=synopsis,
-                schedules=json.dumps(schedules),
+                schedules=schedules,
                 poster=poster,
                 status=2,
                 user_id=user_id
@@ -1045,7 +1045,7 @@ class ActivityCreateView(GenericAPIView, CreateModelMixin):
                 online_url=online_url,
                 register_url=register_url,
                 synopsis=synopsis,
-                schedules=json.dumps(schedules),
+                schedules=schedules,
                 poster=poster,
                 user_id=user_id,
             )
@@ -1242,7 +1242,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
                 online_url=online_url,
                 register_url=register_url,
                 synopsis=synopsis,
-                schedules=json.dumps(schedules),
+                schedules=schedules,
                 poster=poster,
                 status=2
             )
@@ -1261,7 +1261,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
                 online_url=online_url,
                 register_url=register_url,
                 synopsis=synopsis,
-                schedules=json.dumps(schedules),
+                schedules=schedules,
                 poster=poster,
             )
         return ret_access_json(request.user)
