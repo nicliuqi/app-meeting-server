@@ -1602,7 +1602,7 @@ class MeetingActivityDataView(GenericAPIView, ListModelMixin):
             'replay_url': activity["replay_url"],
             'poster': activity["poster"],
             'wx_code': activity["wx_code"],
-            'schedules': json.loads(activity["schedules"])
+            'schedules': activity["schedules"]
         } for activity in queryset]
         return list_data
 
