@@ -8,7 +8,7 @@ from obs import ObsClient
 
 class ObsClientImp:
     def __init__(self, ak, sk, endpoint):
-        if all([ak, sk, endpoint]):
+        if not all([ak, sk, endpoint]):
             raise RuntimeError("lack of params")
         self.obs_client = ObsClient(access_key_id=ak, secret_access_key=sk, server=endpoint)
 

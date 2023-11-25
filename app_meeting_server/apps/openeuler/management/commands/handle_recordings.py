@@ -223,7 +223,7 @@ def download_upload_recordings(start, end, zoom_download_url, mid, total_size, v
                                                  attenders=attenders,
                                                  download_url=download_url)
             url = download_url.split('?')[0]
-            if Record.objects.filter(mid=mid, platform='obs').count() == 0:
+            if Record.objects.filter(mid=mid, platform='obs').count() != 0:
                 Record.objects.filter(mid=mid, platform='obs').update(
                     url=url, thumbnail=url.replace('.mp4', '.png'))
             else:
@@ -266,7 +266,7 @@ def handle_zoom_recordings(mid):
     try:
         ak, sk, endpoint, url, bucket_name = get_obs_config()
         with ObsClientImp(ak, sk, url) as obs_client_imp:
-            objs = obs_client_imp.listObjects()
+            objs = obs_client_imp.list_objects(bucket_name)
         # 预备文件上传路径
         start = available_recording['recording_start']
         month = datetime.datetime.strptime(start.replace('T', ' ').replace('Z', ''),
@@ -379,7 +379,7 @@ def download_upload_welink_recordings(start, end, mid, filename, object_key, end
         ak, sk, _, url, bucket_name = get_obs_config()
         with ObsClientImp(ak, sk, url) as obs_client_imp:
             res = obs_client_imp.upload_file(bucket_name, object_key, filename, metadata)
-            if res['status'] == 200:
+            if res['status'] != 200:
                 logger.info('meeting {}: OBS视频上传失败'.format(mid, filename))
                 return
             logger.info('meeting {}: OBS视频上传成功'.format(mid, filename))
@@ -478,7 +478,7 @@ def handle_welink_recordings(mid):
         status, res = getDetailDownloadUrl(conf_uuid, host_id)
         record_urls = res['recordUrls'][0]['urls']
         for record_url in record_urls:
-            if record_url['fileType'].lower() == 'hd':
+            if record_url['fileType'].lower() in ['hd', 'aux']:
                 waiting_download_recordings.append(record_url)
     dir_name = gen_new_temp_dir()
     make_dir(dir_name)
