@@ -162,7 +162,7 @@ class CityUserAddSerializer(ModelSerializer):
                     User.objects.filter(id=int(user.id), level=1).update(level=2)
             return True
         except Exception as e:
-            logger.error('Failed to add activity sponsors.and e:{}'.format(str(e)))
+            logger.error('Failed to add city user.and e:{}'.format(str(e)))
             raise MyValidationError(RetCode.INTERNAL_ERROR)
 
 
@@ -182,13 +182,17 @@ class CityUserDelSerializer(ModelSerializer):
 
     def create(self, validated_data):
         city_id = validated_data.get('city_id')
-        ids_list = validated_data.get('ids_list')
-        with transaction.atomic():
-            CityUser.objects.filter(city_id=city_id, user_id__in=ids_list).all().delete()
-            for user_id in ids_list:
-                if CityUser.objects.filter(user_id=user_id).count() == 0:
-                    User.objects.filter(id=int(user_id), level=2).update(level=1)
-        return True
+        ids_list = validated_data.get('ids')
+        try:
+            with transaction.atomic():
+                CityUser.objects.filter(city_id=city_id, user_id__in=ids_list).delete()
+                for user_id in ids_list:
+                    if CityUser.objects.filter(user_id=user_id).count() == 0:
+                        User.objects.filter(id=int(user_id), level=2).update(level=1)
+            return True
+        except Exception as e:
+            logger.error('Failed to del city user.and e:{}'.format(str(e)))
+            raise MyValidationError(RetCode.INTERNAL_ERROR)
 
 
 class UpdateUserInfoSerializer(ModelSerializer):

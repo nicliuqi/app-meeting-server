@@ -3,6 +3,8 @@
 # @Author  : Tom_zc
 # @FileName: ret_api.py
 # @Software: PyCharm
+import logging
+from functools import wraps
 from django.http import JsonResponse
 from django.utils.encoding import force_str
 from rest_framework import status
@@ -11,6 +13,8 @@ from django.utils.translation import gettext_lazy as _
 
 from app_meeting_server.utils.common import refresh_access
 from app_meeting_server.utils.ret_code import RetCode
+
+logger = logging.getLogger('log')
 
 
 class MyValidationError(APIException):
@@ -42,3 +46,17 @@ def ret_access_json(user, code=200, msg="success", data=None, **kwargs):
     ret_dict = {'code': code, 'msg': msg, "data": data, "access": access}
     ret_dict.update(kwargs)
     return JsonResponse(ret_dict)
+
+
+def capture_myvalidation_exception(fn):
+    @wraps(fn)
+    def inner(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except MyValidationError as e:
+            logger.error("capture_myvalidation_exception:{} e:{}".format(fn.__name__, e))
+            raise e
+        except Exception as e:
+            logger.error("capture_myvalidation_exception:{} e:{}".format(fn.__name__, e))
+
+    return inner

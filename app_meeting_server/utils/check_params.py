@@ -13,7 +13,7 @@ from rest_framework_simplejwt.exceptions import AuthenticationFailed
 from django.utils.translation import ugettext_lazy as _
 from app_meeting_server.utils.common import make_refresh_signature, get_cur_date
 from app_meeting_server.utils.regular_match import match_email, match_url, match_crlf
-from app_meeting_server.utils.ret_api import MyValidationError
+from app_meeting_server.utils.ret_api import MyValidationError, capture_myvalidation_exception
 from app_meeting_server.utils.ret_code import RetCode
 from django.contrib.auth import get_user_model
 from html.parser import HTMLParser
@@ -59,6 +59,15 @@ def check_itude(value):
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
 
+def check_link(url):
+    if not isinstance(url, str):
+        logger.error('Invalid link: {}'.format(url))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    if not url or not url.startswith('https://') or "redirect" in url.lower():
+        logger.error('Invalid link: {}'.format(url))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+
+
 def check_refresh_token(refresh):
     if not refresh:
         logger.error("receive empty refresh")
@@ -97,6 +106,7 @@ class ParserHandler:
         self.parser.close()
 
 
+@capture_myvalidation_exception
 def check_invalid_content(content, check_crlf=True):
     # check xss and url, and \r\n
     # 1.check xss
@@ -139,6 +149,7 @@ def check_date(date_str):
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
 
+@capture_myvalidation_exception
 def check_time(time_str, is_meetings=False, is_activity=False):
     """
         time_str is 08:00   08 in 08-11 00 in 00-60 and
@@ -164,6 +175,7 @@ def check_time(time_str, is_meetings=False, is_activity=False):
             raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
 
+@capture_myvalidation_exception
 def check_schedules(schedules_list):
     for schedules in schedules_list:
         start = schedules["start"]
@@ -180,6 +192,7 @@ def check_schedules(schedules_list):
                 check_invalid_content(title)
 
 
+@capture_myvalidation_exception
 def check_schedules_more(schedules_list):
     for schedules in schedules_list:
         for schedule in schedules:
@@ -197,6 +210,7 @@ def check_schedules_more(schedules_list):
                     check_invalid_content(title)
 
 
+@capture_myvalidation_exception
 def check_email_list(email_list_str):
     # len of email list str gt 1000 and the single email limit 50 and limit 20 email
     if len(email_list_str) > 1020:
@@ -212,6 +226,7 @@ def check_email_list(email_list_str):
             raise MyValidationError(RetCode.STATUS_MEETING_INVALID_EMAIL)
 
 
+@capture_myvalidation_exception
 def check_duration(start, end, date, now_time, is_meetings=False, is_activity=False):
     err_msg = list()
     check_time(start, is_meetings=is_meetings, is_activity=is_activity)
@@ -230,6 +245,7 @@ def check_duration(start, end, date, now_time, is_meetings=False, is_activity=Fa
     return err_msg
 
 
+@capture_myvalidation_exception
 def check_duration_date(start_date, end_date, now_time):
     if start_date <= datetime.datetime.strftime(now_time, '%Y-%m-%d'):
         logger.error('The start date should be earlier than tomorrow')
@@ -289,6 +305,7 @@ def check_group_id_and_user_ids(group_id, user_ids, group_user_model, group_mode
     return group_id, new_list_ids
 
 
+@capture_myvalidation_exception
 def check_meetings_params(request, group_model):
     data = request.data
     now_time = datetime.datetime.now()
@@ -375,6 +392,7 @@ def check_meetings_params(request, group_model):
     return validated_data
 
 
+@capture_myvalidation_exception
 def check_meetings_more_params(request, group_model, city_model):
     now_time = datetime.datetime.now()
     data = request.data
@@ -469,6 +487,7 @@ def check_meetings_more_params(request, group_model, city_model):
     return validated_data
 
 
+@capture_myvalidation_exception
 def check_activity_params(data, online, offline):
     now_time = datetime.datetime.now()
     agree = data.get('agree')
@@ -510,9 +529,7 @@ def check_activity_params(data, online, offline):
         logger.error('Invalid poster: {}'.format(poster))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     # 5.check register_url
-    if not register_url or not register_url.startswith('https://'):
-        logger.error('Invalid register url: {}'.format(register_url))
-        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    check_link(register_url)
     # 6.check synopsis
     if synopsis:
         check_field(synopsis, 4096)
@@ -547,6 +564,7 @@ def check_activity_params(data, online, offline):
     return validated_data
 
 
+@capture_myvalidation_exception
 def check_activity_more_params(data):
     title = data.get('title')
     start_date = data.get('start_date')
@@ -587,14 +605,10 @@ def check_activity_more_params(data):
         logger.error('Invalid activity category: {}'.format(activity_category))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     # 6.check register_url
-    if not register_url or not register_url.startswith('https://'):
-        logger.error('Invalid register url: {}'.format(register_url))
-        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    check_link(register_url)
     # 7.check online_url
     if activity_type in [2, 3]:
-        if not online_url or not online_url.startswith('https://'):
-            logger.error('Invalid online url: {}'.format(online_url))
-            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+        check_link(online_url)
     # 8.check synopsis
     if synopsis:
         check_field(synopsis, 4096)
@@ -629,6 +643,7 @@ def check_activity_more_params(data):
     return validated_data
 
 
+@capture_myvalidation_exception
 def check_schedules_string(content):
     try:
         schedules_obj = json.loads(content)
@@ -638,6 +653,7 @@ def check_schedules_string(content):
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
 
+@capture_myvalidation_exception
 def check_schedules_more_string(content):
     try:
         schedules_obj = json.loads(content)

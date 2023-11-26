@@ -1418,10 +1418,8 @@ class ActivityCollectView(GenericAPIView, CreateModelMixin):
 
     def create(self, request, *args, **kwargs):
         activity_id = request.data.get('activity')
+        activity_id = check_int(activity_id)
         user_id = request.user.id
-        if not isinstance(activity_id, int):
-            logger.error('Invalid activity id: {}'.format(activity_id))
-            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         if not Activity.objects.filter(id=activity_id, status__in=[3, 4, 5], is_delete=0):
             logger.error('Activity {} is not exist'.format(activity_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
