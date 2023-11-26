@@ -48,8 +48,8 @@ class CustomAuthentication(JWTAuthentication):
             raise InvalidToken(_('Token has expired'))
         if user.agree_privacy_policy != 1:
             logger.error("User:{} has no agreement about privacy policy".format(str(user_id)))
-            raise MyValidationError(RetCode.STATUS_FAILED_CHECK_PRIVACY)
+            raise MyValidationError(RetCode.STATUS_DISAGREE_PRIVACY)
         if user.agree_privacy_policy_version != settings.PRIVACY_POLICY_VERSION:
             logger.error("User:{} has does not agree the latest privacy policy".format(str(user_id)))
-            raise MyValidationError(RetCode.STATUS_FAILED_CHECK_PRIVACY)
+            raise MyValidationError(RetCode.STATUS_OLD_PRIVACY)
         return user

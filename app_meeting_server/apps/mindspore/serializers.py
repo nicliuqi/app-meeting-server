@@ -184,7 +184,7 @@ class CityUserDelSerializer(ModelSerializer):
         city_id = validated_data.get('city_id')
         ids_list = validated_data.get('ids_list')
         with transaction.atomic():
-            CityUser.objects.filter(city_id=city_id, user_id__in=ids_list).delete()
+            CityUser.objects.filter(city_id=city_id, user_id__in=ids_list).all().delete()
             for user_id in ids_list:
                 if CityUser.objects.filter(user_id=user_id).count() == 0:
                     User.objects.filter(id=int(user_id), level=2).update(level=1)

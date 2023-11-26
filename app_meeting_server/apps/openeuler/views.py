@@ -61,12 +61,13 @@ class LoginView(GenericAPIView, CreateModelMixin):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
                            OperationLogType.OP_TYPE_LOGIN,
                            OperationLogDesc.OP_DESC_USER_LOGIN_CODE) as log_context, \
-                PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=True):
+                PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False) as policy_log_context:
             log_context.log_vars = ["anonymous"]
             ret = self.create(request, *args, **kwargs)
             log_context.request.user = User.objects.filter(id=ret.data.get("user_id")).first()
             log_context.log_vars = [str(ret.data.get("user_id"))]
             log_context.result = ret
+            policy_log_context.result = True
             return ret
 
 
@@ -199,7 +200,7 @@ class RevokeAgreementView(GenericAPIView):
                                                        openid=anonymous_openid,
                                                        gitee_name=anonymous_name,
                                                        nickname=anonymous_name)
-                Meeting.objects.filter(user__id=user_id).update(emaillist=None)
+                Meeting.objects.filter(user__id=user_id).update(emaillist=None, sponsor=anonymous_name)
                 policy_log_context.result = True
         clear_token(request.user)
         resp = ret_json(msg="Revoke agreement of privacy policy")

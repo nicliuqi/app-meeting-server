@@ -416,7 +416,7 @@ class CityMembersView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         city_id = self.request.GET.get('city')
         city_users = CityUser.objects.filter(city_id=city_id).values_list("user_id", flat=True)
-        user = User.objects.filter(id__in=city_users, is_delete=0).exclude(nickname=settings.ANONYMOUS_NAME)
+        user = User.objects.filter(id__in=city_users, is_delete=0).exclude(nickname=settings.ANONYMOUS_NAME).order_by('nickname')
         return user
 
 
@@ -440,14 +440,14 @@ class NonCityMembersView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         city_id = self.request.GET.get('city')
         city_users = CityUser.objects.filter(city_id=city_id).values_list("user_id", flat=True)
-        user = User.objects.filter(is_delete=0).exclude(id__in=city_users)
+        user = User.objects.filter(is_delete=0).exclude(id__in=city_users).order_by('nickname')
         return user
 
 
 class SponsorsView(GenericAPIView, ListModelMixin):
     """活动发起人列表"""
     serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=2, is_delete=0).exclude(nickname=settings.ANONYMOUS_NAME)
+    queryset = User.objects.filter(activity_level=2, is_delete=0).exclude(nickname=settings.ANONYMOUS_NAME).order_by("nickname")
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
@@ -461,7 +461,7 @@ class SponsorsView(GenericAPIView, ListModelMixin):
 class NonSponsorsView(GenericAPIView, ListModelMixin):
     """非活动发起人列表"""
     serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=1, is_delete=0).exclude(nickname=settings.ANONYMOUS_NAME)
+    queryset = User.objects.filter(activity_level=1, is_delete=0).exclude(nickname=settings.ANONYMOUS_NAME).order_by('nickname')
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
@@ -845,7 +845,7 @@ class MeetingDetailView(GenericAPIView, RetrieveModelMixin):
 class MeetingsListView(GenericAPIView, ListModelMixin):
     """会议列表"""
     serializer_class = MeetingsListSerializer
-    queryset = Meeting.objects.filter(is_delete=0)
+    queryset = Meeting.objects.filter(is_delete=0).order_by('-date', 'start')
     filter_backends = [SearchFilter]
     search_fields = ['topic']
     pagination_class = MyPagination
@@ -861,14 +861,13 @@ class MeetingsListView(GenericAPIView, ListModelMixin):
         if meeting_type == 'tech':
             self.queryset = self.queryset.filter(meeting_type=3)
         if meeting_range == 'daily':
-            self.queryset = self.queryset.filter(date=today).order_by('start')
+            self.queryset = self.queryset.filter(date=today)
         if meeting_range == 'weekly':
             week_before = datetime.datetime.strftime(datetime.datetime.today() - datetime.timedelta(days=7), '%Y-%m-%d')
             week_later = datetime.datetime.strftime(datetime.datetime.today() + datetime.timedelta(days=7), '%Y-%m-%d')
-            self.queryset = self.queryset.filter(Q(date__gte=week_before) & Q(date__lte=week_later)).order_by('-date',
-                                                                                                              'start')
+            self.queryset = self.queryset.filter(Q(date__gte=week_before) & Q(date__lte=week_later))
         if meeting_range == 'recently':
-            self.queryset = self.queryset.filter(date__gte=today).order_by('date', 'start')
+            self.queryset = self.queryset.filter(date__gte=today)
         return self.list(request, *args, **kwargs)
 
 
@@ -1090,7 +1089,7 @@ class ActivityUpdateView(GenericAPIView, UpdateModelMixin):
 class WaitingActivities(GenericAPIView, ListModelMixin):
     """待审活动列表"""
     serializer_class = ActivitiesSerializer
-    queryset = Activity.objects.filter(is_delete=0, status=2)
+    queryset = Activity.objects.filter(is_delete=0, status=2).order_by('-start_date', 'id')
     authentication_classes = (CustomAuthentication,)
     permission_classes = (ActivityAdminPermission,)
     pagination_class = MyPagination
