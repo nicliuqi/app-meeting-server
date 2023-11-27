@@ -6,15 +6,7 @@ The repository is a django project for community meetings.
 1. python: 3.5+
 2. django:3.0.8
 3. mysql:8.0.18  
-#### install
-database is required to run this application, we utilize docker to setting up our developing environment, use command
-below to quick run server on localhost:
-```
-# seeting up environment
-make dev-env
-# running on virtualenv, several seconds needed for database to be ready
-make run-server
-```
+
 
 #### create a project with Pycharm
 File ==> New Project ==> Django:
