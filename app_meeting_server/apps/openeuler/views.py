@@ -94,7 +94,7 @@ class RefreshView(TokenRefreshView):
 
 class LogoutView(GenericAPIView):
     """登出"""
-    authentication_classes = (CustomAuthentication,)
+    authentication_classes = (CustomAuthenticationWithoutPolicyAgreen,)
     permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request, *args, **kwargs):
@@ -111,7 +111,7 @@ class LogoutView(GenericAPIView):
 
 class LogoffView(GenericAPIView):
     """注销"""
-    authentication_classes = (CustomAuthentication,)
+    authentication_classes = (CustomAuthenticationWithoutPolicyAgreen,)
     permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request, *args, **kwargs):
@@ -171,7 +171,7 @@ class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
 
 class RevokeAgreementView(GenericAPIView):
     """撤销同意隐私声明"""
-    authentication_classes = (CustomAuthentication,)
+    authentication_classes = (CustomAuthenticationWithoutPolicyAgreen,)
     permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request, *args, **kwargs):

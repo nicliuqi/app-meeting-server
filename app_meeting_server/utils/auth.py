@@ -50,6 +50,7 @@ class CustomAuthentication(JWTAuthentication):
             logger.error("User:{} has no agreement about privacy policy".format(str(user_id)))
             raise MyValidationError(RetCode.STATUS_DISAGREE_PRIVACY)
         if user.agree_privacy_policy_version != settings.PRIVACY_POLICY_VERSION:
+            user_model.objects.filter(id=user_id).update(agree_privacy_policy=0)
             logger.error("User:{} has does not agree the latest privacy policy".format(str(user_id)))
             raise MyValidationError(RetCode.STATUS_OLD_PRIVACY)
         return user
