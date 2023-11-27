@@ -45,11 +45,9 @@ urlpatterns = [
     path('meeting/<int:mid>/', MeetingDelView.as_view()),               # 删除会议
     path('meetings/<int:pk>/', MeetingView.as_view()),                  # 查询单个会议详情
     path('mymeetings/', MyMeetingsView.as_view()),                      # 查询我创建的会议
-    path('allmeetings/', AllMeetingsView.as_view()),                    # 查询所有会议
     path('collect/', CollectView.as_view()),                            # 添加收藏
     path('collect/<int:pk>/', CollectDelView.as_view()),                # 取消收藏
     path('collections/', MyCollectionsView.as_view()),                  # 我收藏的会议
-    path('participants/<int:mid>/', ParticipantsView.as_view()),        # 查询会议的参会者
     path('sigmeetingsdata/<str:gn>/', SigMeetingsDataView.as_view()),   # 分页官网网页SIG会议数据
 
     # activity

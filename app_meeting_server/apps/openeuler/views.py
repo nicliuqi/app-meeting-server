@@ -25,7 +25,7 @@ from openeuler.serializers import LoginSerializer, GroupsSerializer, MeetingSeri
 from openeuler.utils.send_email import sendmail
 from rest_framework import permissions
 from openeuler.utils import gene_wx_code, drivers, send_cancel_email
-from app_meeting_server.utils.auth import CustomAuthentication
+from app_meeting_server.utils.auth import CustomAuthentication, CustomAuthenticationWithoutPolicyAgreen
 from app_meeting_server.utils import wx_apis
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, \
     OperationLogType, PolicyLoggerContext
@@ -61,7 +61,7 @@ class LoginView(GenericAPIView, CreateModelMixin):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
                            OperationLogType.OP_TYPE_LOGIN,
                            OperationLogDesc.OP_DESC_USER_LOGIN_CODE) as log_context, \
-                PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False) as policy_log_context:
+                PolicyLoggerContext(policy_version, app_policy_version, cur_date) as policy_log_context:
             log_context.log_vars = ["anonymous"]
             ret = self.create(request, *args, **kwargs)
             log_context.request.user = User.objects.filter(id=ret.data.get("user_id")).first()
@@ -139,7 +139,7 @@ class LogoffView(GenericAPIView):
 
 class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
     """同意更新隐私声明"""
-    authentication_classes = (CustomAuthentication,)
+    authentication_classes = (CustomAuthenticationWithoutPolicyAgreen,)
     permission_classes = (permissions.IsAuthenticated,)
 
     def put(self, request, *args, **kwargs):
@@ -155,7 +155,7 @@ class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
         policy_version = settings.PRIVACY_POLICY_VERSION
         app_policy_version = settings.PRIVACY_APP_POLICY_VERSION
         cur_date = get_cur_date()
-        with PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False) as policy_log_context:
+        with PolicyLoggerContext(policy_version, app_policy_version, cur_date) as policy_log_context:
             if User.objects.get(id=self.request.user.id).agree_privacy_policy:
                 msg = 'The user {} has signed privacy policy agreement already.'.format(self.request.user.id)
                 logger.error(msg)
@@ -189,8 +189,7 @@ class RevokeAgreementView(GenericAPIView):
         cur_date = get_cur_date()
         anonymous_name = settings.ANONYMOUS_NAME
         user_id = request.user.id
-        with PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False,
-                                 is_agreen=False) as policy_log_context:
+        with PolicyLoggerContext(policy_version, app_policy_version, cur_date, is_agreen=False) as policy_log_context:
             if request.user.level == MeetigsAdminPermission.level or \
                     request.user.activity_level == ActivityAdminPermission.activity_level:
                 raise MyValidationError(RetCode.STATUS_START_POLICY_ONLY_ONE_ADMIN)
@@ -704,7 +703,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
                            OperationLogType.OP_TYPE_CREATE,
                            OperationLogDesc.OP_DESC_MEETING_CREATE_CODE) as log_context, \
-                PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False) as policy_log_context:
+                PolicyLoggerContext(policy_version, app_policy_version, cur_date) as policy_log_context:
             log_context.log_vars = [request.data.get('topic')]
             ret = self.create(request, *args, **kwargs)
             log_context.result = ret
@@ -984,7 +983,7 @@ class ActivityView(GenericAPIView, CreateModelMixin):
         with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
                            OperationLogType.OP_TYPE_CREATE,
                            OperationLogDesc.OP_DESC_ACTIVITY_CREATE_CODE) as log_context, \
-                PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False) as policy_log_context:
+                PolicyLoggerContext(policy_version, app_policy_version, cur_date) as policy_log_context:
             log_context.log_vars = [request.data.get("title")]
             ret = self.create(request, *args, **kwargs)
             log_context.result = ret
@@ -1237,7 +1236,7 @@ class ActivityDraftView(GenericAPIView, CreateModelMixin):
         with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
                            OperationLogType.OP_TYPE_CREATE,
                            OperationLogDesc.OP_DESC_ACTIVITY_CREATE_DRAFT_CODE) as log_context, \
-                PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False) as policy_log_context:
+                PolicyLoggerContext(policy_version, app_policy_version, cur_date) as policy_log_context:
             log_context.log_vars = [request.data.get("title")]
             ret = self.create(request, *args, **kwargs)
             log_context.result = ret
@@ -1344,15 +1343,12 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
     permission_classes = (SponsorPermission,)
 
     def put(self, request, *args, **kwargs):
-        policy_version, app_policy_version, cur_date = get_version_params()
         with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
                            OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_ACTIVITY_MODIFY_DRAFT_CODE) as log_context, \
-                PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False) as policy_log_context:
+                           OperationLogDesc.OP_DESC_ACTIVITY_MODIFY_DRAFT_CODE) as log_context:
             log_context.log_vars = [kwargs.get('pk')]
             ret = self.update(request, *args, **kwargs)
             log_context.result = ret
-            policy_log_context.result = True
             return ret
 
     def update(self, request, *args, **kwargs):
@@ -1412,15 +1408,12 @@ class DraftPublishView(GenericAPIView, UpdateModelMixin):
     permission_classes = (SponsorPermission,)
 
     def put(self, request, *args, **kwargs):
-        policy_version, app_policy_version, cur_date = get_version_params()
         with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
                            OperationLogType.OP_TYPE_MODIFY,
-                           OperationLogDesc.OP_DESC_ACTIVITY_PUBLISH_DRAFT_CODE) as log_context, \
-                PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False) as policy_log_context:
+                           OperationLogDesc.OP_DESC_ACTIVITY_PUBLISH_DRAFT_CODE) as log_context:
             log_context.log_vars = [kwargs.get('pk')]
             ret = self.update(request, *args, **kwargs)
             log_context.result = ret
-            policy_log_context.result = True
             return ret
 
     def update(self, request, *args, **kwargs):

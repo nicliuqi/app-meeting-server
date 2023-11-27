@@ -53,3 +53,40 @@ class CustomAuthentication(JWTAuthentication):
             logger.error("User:{} has does not agree the latest privacy policy".format(str(user_id)))
             raise MyValidationError(RetCode.STATUS_OLD_PRIVACY)
         return user
+
+
+class CustomAuthenticationWithoutPolicyAgreen(JWTAuthentication):
+    """
+    CustomAuthentication override get_user
+    """
+
+    def get_user(self, validated_token):
+        """
+        Attempts to find and return a user using the given validated token.
+        """
+        try:
+            user_id = validated_token[api_settings.USER_ID_CLAIM]
+        except KeyError:
+            logger.error("Token contained no recognizable user identification")
+            raise InvalidToken(_('Token contained no recognizable user identification'))
+
+        user_model = get_user_model()
+        try:
+            user = user_model.objects.get(**{api_settings.USER_ID_FIELD: user_id})
+        except user_model.DoesNotExist:
+            logger.error("User:{} not found".format(str(user_id)))
+            raise AuthenticationFailed(_('User not found'), code='user_not_found')
+
+        if not user.is_delete == 0:
+            logger.error("User:{} is inactive".format(str(user_id)))
+            raise AuthenticationFailed(_('User is inactive'), code='user_inactive')
+
+        if user.nickname == settings.ANONYMOUS_NAME:
+            logger.error("User:{} is anonymous".format(str(user_id)))
+            raise AuthenticationFailed(_('User is anonymous'), code='user_anonymous')
+
+        token = make_signature(validated_token)
+        if user.signature != str(token):
+            logger.error("User:{} token has expired".format(str(user_id)))
+            raise InvalidToken(_('Token has expired'))
+        return user

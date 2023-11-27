@@ -287,7 +287,7 @@ class LoggerContext:
 
 
 class PolicyLoggerContext:
-    def __init__(self, version, app_version, date, result, is_agreen=True):
+    def __init__(self, version, app_version, date, result=False, is_agreen=True):
         self.version = version
         self.app_version = app_version
         self.date = date
@@ -299,7 +299,7 @@ class PolicyLoggerContext:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.is_agreen:
-            operation = "agreen to policy"
+            operation = "agree to policy"
         else:
             operation = "revoke to policy"
         logger.info("user {} about policy version({}) and app version({}) and time({}), result is:{}".format(

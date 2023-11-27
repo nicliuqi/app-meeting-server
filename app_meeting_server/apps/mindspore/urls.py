@@ -53,7 +53,6 @@ urlpatterns = [
     path('collect/<int:pk>/', CollectionDelView.as_view()),       # 取消收藏会议
     path('collections/', MyCollectionsView.as_view()),            # 我收藏的会议
     path('mymeetings/', MyMeetingsView.as_view()),                # 我预定的会议
-    path('participants/<int:mid>/', ParticipantsView.as_view()),  # 会议参会者名单
 
     # activity
     path('activity/', ActivityCreateView.as_view()),                                    # 创建活动

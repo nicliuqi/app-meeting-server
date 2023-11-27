@@ -28,15 +28,16 @@ from mindspore.serializers import LoginSerializer, GroupsSerializer, GroupUserAd
 from mindspore.utils.send_email import sendmail
 from mindspore.utils.tencent_apis import *
 from mindspore.utils import gene_wx_code, drivers, send_cancel_email
-from app_meeting_server.utils.auth import CustomAuthentication
+from app_meeting_server.utils.auth import CustomAuthentication, CustomAuthenticationWithoutPolicyAgreen
 from app_meeting_server.utils.common import get_cur_date, decrypt_openid, \
-    refresh_token_and_refresh_token, clear_token, get_anonymous_openid, start_thread, get_date_by_start_and_end
+    refresh_token_and_refresh_token, clear_token, get_anonymous_openid, start_thread, get_date_by_start_and_end, \
+    get_version_params
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, \
     OperationLogType, PolicyLoggerContext
 from app_meeting_server.utils.ret_api import MyValidationError, ret_access_json, ret_json
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
     check_user_ids, check_activity_more_params, check_refresh_token, check_meetings_more_params, \
-    check_publish, check_type, check_date, check_int, check_schedules_more_string
+    check_publish, check_type, check_date, check_int, check_schedules_more_string, check_link
 from app_meeting_server.utils.ret_code import RetCode
 
 logger = logging.getLogger('log')
@@ -57,14 +58,17 @@ class LoginView(GenericAPIView, CreateModelMixin, ListModelMixin):
     queryset = User.objects.all()
 
     def post(self, request, *args, **kwargs):
+        policy_version, app_policy_version, cur_date = get_version_params()
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
                            OperationLogType.OP_TYPE_LOGIN,
-                           OperationLogDesc.OP_DESC_USER_LOGIN_CODE) as log_context:
+                           OperationLogDesc.OP_DESC_USER_LOGIN_CODE) as log_context, \
+                PolicyLoggerContext(policy_version, app_policy_version, cur_date) as policy_log_context:
             log_context.log_vars = ["anonymous"]
             ret = self.create(request, *args, **kwargs)
             log_context.request.user = User.objects.filter(id=ret.data.get("user_id")).first()
             log_context.log_vars = [str(ret.data.get("user_id"))]
             log_context.result = ret
+            policy_log_context.result = True
             return ret
 
 
@@ -136,7 +140,7 @@ class LogoffView(GenericAPIView):
 
 class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
     """同意更新隐私声明"""
-    authentication_classes = (CustomAuthentication,)
+    authentication_classes = (CustomAuthenticationWithoutPolicyAgreen,)
     permission_classes = (permissions.IsAuthenticated,)
 
     def put(self, request, *args, **kwargs):
@@ -152,7 +156,7 @@ class AgreePrivacyPolicyView(GenericAPIView, UpdateModelMixin):
         policy_version = settings.PRIVACY_POLICY_VERSION
         app_policy_version = settings.PRIVACY_APP_POLICY_VERSION
         cur_date = get_cur_date()
-        with PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False) as policy_log_context:
+        with PolicyLoggerContext(policy_version, app_policy_version, cur_date) as policy_log_context:
             if User.objects.get(id=self.request.user.id).agree_privacy_policy:
                 msg = 'The user {} has signed privacy policy agreement already.'.format(self.request.user.id)
                 logger.error(msg)
@@ -186,8 +190,7 @@ class RevokeAgreementView(GenericAPIView):
         cur_date = get_cur_date()
         anonymous_name = settings.ANONYMOUS_NAME
         user_id = request.user.id
-        with PolicyLoggerContext(policy_version, app_policy_version, cur_date, result=False,
-                                 is_agreen=False) as policy_log_context:
+        with PolicyLoggerContext(policy_version, app_policy_version, cur_date, is_agreen=False) as policy_log_context:
             if request.user.level == MeetigsAdminPermission.level or \
                     request.user.activity_level == ActivityAdminPermission.activity_level:
                 raise MyValidationError(RetCode.STATUS_START_POLICY_ONLY_ONE_ADMIN)
@@ -197,8 +200,8 @@ class RevokeAgreementView(GenericAPIView):
                                                        openid=anonymous_openid,
                                                        gitee_name=anonymous_name,
                                                        nickname=anonymous_name)
-                Meeting.objects.filter(user__id=user_id).update(emaillist=None)
-                policy_log_context.result = True
+                Meeting.objects.filter(user__id=user_id).update(emaillist=None, sponsor=anonymous_name)
+            policy_log_context.result = True
         clear_token(request.user)
         resp = ret_json(msg="Revoke agreement of privacy policy")
         return resp
@@ -681,11 +684,14 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
     permission_classes = (MaintainerPermission,)
 
     def post(self, request, *args, **kwargs):
+        policy_version, app_policy_version, cur_date = get_version_params()
         with LoggerContext(request, OperationLogModule.OP_MODULE_MEETING,
                            OperationLogType.OP_TYPE_CREATE,
-                           OperationLogDesc.OP_DESC_MEETING_CREATE_CODE) as log_context:
+                           OperationLogDesc.OP_DESC_MEETING_CREATE_CODE) as log_context, \
+                PolicyLoggerContext(policy_version, app_policy_version, cur_date) as policy_log_context:
             log_context.log_vars = [request.data.get('topic')]
             ret = self.create(request, *args, **kwargs)
+            policy_log_context.result = True
             log_context.result = ret
             return ret
 
@@ -981,11 +987,14 @@ class ActivityCreateView(GenericAPIView, CreateModelMixin):
     permission_classes = (SponsorPermission,)
 
     def post(self, request, *args, **kwargs):
+        policy_version, app_policy_version, cur_date = get_version_params()
         with LoggerContext(request, OperationLogModule.OP_MODULE_ACTIVITY,
                            OperationLogType.OP_TYPE_CREATE,
-                           OperationLogDesc.OP_DESC_ACTIVITY_CREATE_CODE) as log_context:
+                           OperationLogDesc.OP_DESC_ACTIVITY_CREATE_CODE) as log_context, \
+                PolicyLoggerContext(policy_version, app_policy_version, cur_date) as policy_log_context:
             log_context.log_vars = [request.data.get("title")]
             ret = self.create(request, *args, **kwargs)
+            policy_log_context.result = True
             log_context.result = ret
             return ret
 
@@ -1071,9 +1080,7 @@ class ActivityUpdateView(GenericAPIView, UpdateModelMixin):
         schedules = request.data.get("schedules")
         replay_url = request.data.get("replay_url")
         check_schedules_more_string(schedules)
-        if not replay_url.startswith('https://'):
-            logger.error('Invalid replay_url url: {}'.format(replay_url))
-            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+        check_link(replay_url)
         super(ActivityUpdateView, self).update(request, *args, **kwargs)
         return ret_access_json(request.user)
 
@@ -1204,6 +1211,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
     def update(self, request, *args, **kwargs):
         user_id = request.user.id
         activity_id = self.kwargs.get('pk')
+        activity_id = check_int(activity_id)
         if Activity.objects.filter(id=activity_id, user_id=user_id, status=1):
             logger.error('Invalid activity id: {}'.format(activity_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
