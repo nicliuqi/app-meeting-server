@@ -66,7 +66,8 @@ def check_link(url):
     if not isinstance(url, str):
         logger.error('Invalid link: {}'.format(url))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
-    if not url or not url.startswith('https://') or "redirect" in url.lower():
+    url = url.lower()
+    if not url or not url.startswith('https://') or "redirect" in url:
         logger.error('Invalid link: {}'.format(url))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
 
@@ -617,12 +618,13 @@ def check_activity_more_params(data):
         check_field(synopsis, 4096)
         check_invalid_content(synopsis, check_crlf=False)
     # 9.check synopsis
-    longitude = check_itude(longitude)
-    latitude = check_itude(latitude)
-    check_field(address, 100)
-    check_invalid_content(address)
-    check_field(detail_address, 100)
-    check_invalid_content(detail_address)
+    if activity_type in [1, 3]:
+        longitude = check_itude(longitude)
+        latitude = check_itude(latitude)
+        check_field(address, 100)
+        check_invalid_content(address)
+        check_field(detail_address, 100)
+        check_invalid_content(detail_address)
     # 10.check scheduler
     check_schedules_more(schedules)
     schedules_str = json.dumps(schedules)
