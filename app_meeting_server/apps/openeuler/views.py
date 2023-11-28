@@ -30,7 +30,7 @@ from app_meeting_server.utils import wx_apis
 from app_meeting_server.utils.operation_log import LoggerContext, OperationLogModule, OperationLogDesc, \
     OperationLogType, PolicyLoggerContext
 from app_meeting_server.utils.common import get_cur_date, decrypt_openid, clear_token, refresh_token_and_refresh_token, \
-    get_anonymous_openid, start_thread, get_version_params
+    start_thread, get_version_params
 from app_meeting_server.utils.ret_api import MyValidationError, ret_json, ret_access_json
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
     check_user_ids, check_activity_params, check_meetings_params, check_schedules_string, check_date, check_type, \
@@ -193,7 +193,8 @@ class RevokeAgreementView(GenericAPIView):
                     request.user.activity_level == ActivityAdminPermission.activity_level:
                 raise MyValidationError(RetCode.STATUS_START_POLICY_ONLY_ONE_ADMIN)
             with transaction.atomic():
-                User.objects.filter(id=user_id).update(revoke_agreement_time=cur_date,
+                User.objects.filter(id=user_id).update(agree_privacy_policy=False,
+                                                       revoke_agreement_time=cur_date,
                                                        gitee_name=None,
                                                        level=1,
                                                        activity_level=1)

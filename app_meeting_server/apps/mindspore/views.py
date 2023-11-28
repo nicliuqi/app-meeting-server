@@ -193,7 +193,8 @@ class RevokeAgreementView(GenericAPIView):
                     request.user.activity_level == ActivityAdminPermission.activity_level:
                 raise MyValidationError(RetCode.STATUS_START_POLICY_ONLY_ONE_ADMIN)
             with transaction.atomic():
-                User.objects.filter(id=user_id).update(revoke_agreement_time=cur_date,
+                User.objects.filter(id=user_id).update(agree_privacy_policy=False,
+                                                       revoke_agreement_time=cur_date,
                                                        gitee_name=None,
                                                        level=1,
                                                        activity_level=1)
@@ -1207,7 +1208,6 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
             logger.error('Invalid activity id: {}'.format(activity_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         data = check_activity_more_params(request.data)
-        activity_id = data.get('activity_id')
         title = data.get('title')
         start_date = data.get('start_date')
         end_date = data.get('end_date')
@@ -1376,9 +1376,10 @@ class PublishedActivitiesView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        queryset = Activity.objects.filter(is_delete=0, status__gt=2, user_id=self.request.user.id)
         if self.request.user.activity_level == 3:
-            queryset = Activity.objects.filter(is_delete=0, status__gt=2)
+            queryset = self.queryset.filter(is_delete=0, status__gt=2)
+        else:
+            queryset = self.queryset.filter(is_delete=0, status__gt=2, user_id=self.request.user.id)
         return queryset
 
 
@@ -1578,7 +1579,8 @@ class MeetingActivityDataView(GenericAPIView, ListModelMixin):
         return list_data
 
     def get_activity(self, query_date):
-        queryset = self._activity_queryset.filter(start_date__lte=query_date, end_date__gte=query_date).values().order_by('create_time')
+        queryset = self._activity_queryset.filter(start_date__lte=query_date,
+                                                  end_date__gte=query_date).values().order_by('create_time')
         list_data = [{
             'id': activity["id"],
             'title': activity["title"],
