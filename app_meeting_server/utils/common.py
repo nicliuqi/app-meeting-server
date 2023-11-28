@@ -52,23 +52,6 @@ def get_uuid():
         return 'USER_{}'.format(res)
 
 
-def check_unique_openid(uid):
-    user_model = get_user_model()
-    anonymous_openid = '{}_{}'.format(settings.ANONYMOUS_NAME, uid)
-    if user_model.objects.filter(openid=anonymous_openid):
-        raise ValueError('Duplicate nickname')
-    return anonymous_openid
-
-
-def get_anonymous_openid():
-    while True:
-        uid = uuid.uuid4()
-        res = str(uid).split('-')[0]
-        with suppress(ValueError):
-            anonymous_openid = check_unique_openid(res)
-            return anonymous_openid
-
-
 def make_signature(access_token):
     pbkdf2_password_hasher = PBKDF2PasswordHasher()
     return pbkdf2_password_hasher.encode(access_token, settings.SIGNATURE_SECRET, iterations=260000)

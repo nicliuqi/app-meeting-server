@@ -39,7 +39,7 @@ class LoginSerializer(serializers.ModelSerializer):
                 raise MyValidationError(RetCode.STATUS_USER_GET_OPENID_FAILED)
             openid = r['openid']
             encrypt_openid_str = encrypt_openid(openid)
-            user = User.objects.filter(openid=encrypt_openid_str).exclude(nickname=settings.ANONYMOUS_NAME).first()
+            user = User.objects.filter(openid=encrypt_openid_str).first()
             # if user not exist, and need to create
             cur = get_cur_date()
             if not user:
@@ -111,8 +111,7 @@ class GroupUserAddSerializer(ModelSerializer):
         return check_user_ids(value)
 
     def create(self, validated_data):
-        users = User.objects.filter(id__in=validated_data['ids'], is_delete=0). \
-            exclude(nickname=settings.ANONYMOUS_NAME)
+        users = User.objects.filter(id__in=validated_data['ids'], is_delete=0)
         group_id = Group.objects.filter(id=validated_data['group_id']).first()
         try:
             result_list = list()
@@ -152,8 +151,7 @@ class CityUserAddSerializer(ModelSerializer):
         return check_group_id(City, value)
 
     def create(self, validated_data):
-        users = User.objects.filter(id__in=validated_data['ids']).filter(is_delete=0).exclude(
-            nickname=settings.ANONYMOUS_NAME)
+        users = User.objects.filter(id__in=validated_data['ids']).filter(is_delete=0)
         city_id = City.objects.filter(id=validated_data['city_id']).first()
         try:
             with transaction.atomic():

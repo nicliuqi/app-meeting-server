@@ -308,7 +308,6 @@ LOGGING = {
 
 # logoff expired and clean personal data
 LOGOFF_EXPIRED = 6 * 30
-ANONYMOUS_NAME = "anonymous"
 
 if FOR_OPENEULER:
     ACCESS_KEY_ID_2 = DEFAULT_CONF.get('ACCESS_KEY_ID_2')

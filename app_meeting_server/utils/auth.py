@@ -38,10 +38,6 @@ class CustomAuthentication(JWTAuthentication):
             logger.error("User:{} is inactive".format(str(user_id)))
             raise AuthenticationFailed(_('User is inactive'), code='user_inactive')
 
-        if user.nickname == settings.ANONYMOUS_NAME:
-            logger.error("User:{} is anonymous".format(str(user_id)))
-            raise AuthenticationFailed(_('User is anonymous'), code='user_anonymous')
-
         token = make_signature(validated_token)
         if user.signature != str(token):
             logger.error("User:{} token has expired".format(str(user_id)))
@@ -81,10 +77,6 @@ class CustomAuthenticationWithoutPolicyAgreen(JWTAuthentication):
         if not user.is_delete == 0:
             logger.error("User:{} is inactive".format(str(user_id)))
             raise AuthenticationFailed(_('User is inactive'), code='user_inactive')
-
-        if user.nickname == settings.ANONYMOUS_NAME:
-            logger.error("User:{} is anonymous".format(str(user_id)))
-            raise AuthenticationFailed(_('User is anonymous'), code='user_anonymous')
 
         token = make_signature(validated_token)
         if user.signature != str(token):

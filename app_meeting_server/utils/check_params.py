@@ -60,6 +60,9 @@ def check_itude(value):
 
 
 def check_link(url):
+    if len(url) > 255:
+        logger.error("invalid link length:{}".format(len(url)))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
     if not isinstance(url, str):
         logger.error('Invalid link: {}'.format(url))
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)

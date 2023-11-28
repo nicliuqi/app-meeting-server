@@ -4,8 +4,7 @@ from django.core.management import BaseCommand
 
 from app_meeting_server.utils.common import decrypt_openid
 from openeuler.models import Collect, Meeting, User
-from app_meeting_server.utils import wx_apis, crypto_gcm
-from django.conf import settings
+from app_meeting_server.utils import wx_apis
 
 logger = logging.getLogger('log')
 
@@ -37,13 +36,11 @@ def send_subscribe_msg():
         time = date + ' ' + start_time
         mid = meeting.mid
         creater_id = meeting.user_id
-        creater_user = User.objects.filter(id=creater_id, is_delete=0).\
-            exclude(nickname=settings.ANONYMOUS_NAME).first()
+        creater_user = User.objects.filter(id=creater_id, is_delete=0).first()
         send_to_list = [creater_user.openid] if creater_user else list()
         collections = Collect.objects.filter(meeting_id=meeting.id)
         collection_users = [collection.user_id for collection in collections]
-        user_openid_lists = User.objects.filter(id__in=collection_users, is_delete=0).\
-            exclude(nickname=settings.ANONYMOUS_NAME).values_list("openid", flat=True)
+        user_openid_lists = User.objects.filter(id__in=collection_users, is_delete=0).values_list("openid", flat=True)
         send_to_list.extend(user_openid_lists)
         send_to_list = list(set(send_to_list))
         if not len(send_to_list):

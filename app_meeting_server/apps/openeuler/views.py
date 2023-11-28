@@ -187,20 +187,18 @@ class RevokeAgreementView(GenericAPIView):
         policy_version = settings.PRIVACY_POLICY_VERSION
         app_policy_version = settings.PRIVACY_APP_POLICY_VERSION
         cur_date = get_cur_date()
-        anonymous_name = settings.ANONYMOUS_NAME
         user_id = request.user.id
         with PolicyLoggerContext(policy_version, app_policy_version, cur_date, is_agreen=False) as policy_log_context:
             if request.user.level == MeetigsAdminPermission.level or \
                     request.user.activity_level == ActivityAdminPermission.activity_level:
                 raise MyValidationError(RetCode.STATUS_START_POLICY_ONLY_ONE_ADMIN)
-            anonymous_openid = get_anonymous_openid()
             with transaction.atomic():
                 User.objects.filter(id=user_id).update(revoke_agreement_time=cur_date,
-                                                       openid=anonymous_openid,
-                                                       gitee_name=anonymous_name,
-                                                       nickname=anonymous_name)
-                Meeting.objects.filter(user__id=user_id).update(emaillist=None, sponsor=anonymous_name)
-                policy_log_context.result = True
+                                                       gitee_name=None,
+                                                       level=1,
+                                                       activity_level=1)
+                Meeting.objects.filter(user__id=user_id).update(emaillist=None, sponsor='')
+            policy_log_context.result = True
         clear_token(request.user)
         resp = ret_json(msg="Revoke agreement of privacy policy")
         return resp
@@ -235,8 +233,7 @@ class UsersIncludeView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         group_users = GroupUser.objects.filter(group_id=self.kwargs['pk']).all()
         ids = [x.user_id for x in group_users]
-        user = User.objects.filter(id__in=ids, is_delete=0). \
-            exclude(nickname=settings.ANONYMOUS_NAME).order_by('nickname')
+        user = User.objects.filter(id__in=ids, is_delete=0).order_by('nickname')
         return user
 
 
@@ -260,9 +257,7 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         group_users = GroupUser.objects.filter(group_id=self.kwargs['pk']).all()
         ids = [x.user_id for x in group_users]
-        user = User.objects.filter(is_delete=0). \
-            exclude(nickname=settings.ANONYMOUS_NAME). \
-            exclude(id__in=ids).order_by('nickname')
+        user = User.objects.filter(is_delete=0).exclude(id__in=ids).order_by('nickname')
         return user
 
 
@@ -307,8 +302,7 @@ class GroupUserDelView(GenericAPIView, CreateModelMixin):
         group_id = request.data.get('group_id')
         user_ids = request.data.get('ids')
         new_group_id, new_list_ids = check_group_id_and_user_ids(group_id, user_ids, GroupUser, Group)
-        count_user = User.objects.filter(id__in=new_list_ids).filter(is_delete=0).exclude(
-            nickname=settings.ANONYMOUS_NAME).count()
+        count_user = User.objects.filter(id__in=new_list_ids).filter(is_delete=0).count()
         if count_user != len(new_list_ids):
             logger.info("GroupUserDelView find anonymous or be deleted")
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
@@ -319,7 +313,7 @@ class GroupUserDelView(GenericAPIView, CreateModelMixin):
 class UserInfoView(GenericAPIView, RetrieveModelMixin):
     """查询本机用户的level和gitee_name"""
     serializer_class = UserInfoSerializer
-    queryset = User.objects.filter(is_delete=0).exclude(nickname=settings.ANONYMOUS_NAME)
+    queryset = User.objects.filter(is_delete=0)
     permission_classes = (permissions.IsAuthenticated,)
     authentication_classes = (CustomAuthentication,)
 
@@ -334,8 +328,7 @@ class UserInfoView(GenericAPIView, RetrieveModelMixin):
 class SponsorsView(GenericAPIView, ListModelMixin):
     """活动发起人列表"""
     serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=2, is_delete=0). \
-        exclude(nickname=settings.ANONYMOUS_NAME).order_by("nickname")
+    queryset = User.objects.filter(activity_level=2, is_delete=0).order_by("nickname")
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
@@ -349,8 +342,7 @@ class SponsorsView(GenericAPIView, ListModelMixin):
 class NonSponsorView(GenericAPIView, ListModelMixin):
     """非活动发起人列表"""
     serializer_class = SponsorSerializer
-    queryset = User.objects.filter(activity_level=1, is_delete=0). \
-        exclude(nickname=settings.ANONYMOUS_NAME).order_by("nickname")
+    queryset = User.objects.filter(activity_level=1, is_delete=0).order_by("nickname")
     filter_backends = [SearchFilter]
     search_fields = ['nickname']
     authentication_classes = (CustomAuthentication,)
@@ -379,14 +371,12 @@ class SponsorAddView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         user_ids = request.data.get('ids')
         new_user_ids = check_user_ids(user_ids)
-        match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0). \
-            exclude(nickname=settings.ANONYMOUS_NAME).count()
+        match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0).count()
         if len(new_user_ids) != match_queryset:
             logger.error("The input ids: {}, parse result {} not eq query result {}".format(user_ids, new_user_ids,
                                                                                             match_queryset))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0). \
-            exclude(nickname=settings.ANONYMOUS_NAME).update(activity_level=2)
+        User.objects.filter(id__in=new_user_ids, activity_level=1, is_delete=0).update(activity_level=2)
         return ret_access_json(request.user)
 
 
@@ -408,21 +398,19 @@ class SponsorDelView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         user_ids = request.data.get('ids')
         new_user_ids = check_user_ids(user_ids)
-        match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=2, is_delete=0). \
-            exclude(nickname=settings.ANONYMOUS_NAME).count()
+        match_queryset = User.objects.filter(id__in=new_user_ids, activity_level=2, is_delete=0).count()
         if match_queryset != len(new_user_ids):
             logger.error("The input ids: {}, parse result {} not eq query result {}".format(user_ids, new_user_ids,
                                                                                             match_queryset))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
-        User.objects.filter(id__in=new_user_ids, activity_level=2, is_delete=0). \
-            exclude(nickname=settings.ANONYMOUS_NAME).update(activity_level=1)
+        User.objects.filter(id__in=new_user_ids, activity_level=2, is_delete=0).update(activity_level=1)
         return ret_access_json(request.user)
 
 
 class UserView(GenericAPIView, UpdateModelMixin):
     """更新用户gitee_name"""
     serializer_class = UserSerializer
-    queryset = User.objects.filter(is_delete=0).exclude(nickname=settings.ANONYMOUS_NAME)
+    queryset = User.objects.filter(is_delete=0)
     authentication_classes = (CustomAuthentication,)
     permission_classes = (AdminPermission,)
 
