@@ -24,3 +24,4 @@ class MyMiddleware(MiddlewareMixin):
             response["Pragma"] = "no-cache"
             response["Expires"] = 0
             response["Referrer-Policy"] = "no-referrer"
+        return response
