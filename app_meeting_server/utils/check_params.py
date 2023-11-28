@@ -11,7 +11,7 @@ from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 from django.utils.translation import ugettext_lazy as _
-from app_meeting_server.utils.common import make_refresh_signature, get_cur_date
+from app_meeting_server.utils.common import make_refresh_signature, get_cur_date, format_strptime
 from app_meeting_server.utils.regular_match import match_email, match_url, match_crlf
 from app_meeting_server.utils.ret_api import MyValidationError, capture_myvalidation_exception
 from app_meeting_server.utils.ret_code import RetCode
@@ -686,3 +686,10 @@ def check_privacy_agreement(agree):
     if not isinstance(agree, bool):
         logger.error("[check_privacy_agreement] param agree must be type of bool")
         raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+
+
+def check_end_date(end_date):
+    end_strpdate = format_strptime(end_date)
+    cur_date = get_cur_date()
+    if cur_date + datetime.timedelta(days=10) > end_strpdate:
+        raise MyValidationError(RetCode.STATUS_ACTIVITY_END_LT_NOW)

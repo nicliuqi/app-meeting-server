@@ -77,6 +77,7 @@ class RetCode(RetCodeBase):
 
     # sub module: activity
     STATUS_ACTIVITY_DATA_GT_NOW = STATUS_FACILITY_ACTIVITY + 0
+    STATUS_ACTIVITY_END_LT_NOW = STATUS_FACILITY_ACTIVITY + 1
 
     EN_OPERATION = {
         # common
@@ -120,7 +121,8 @@ class RetCode(RetCodeBase):
         STATUS_MEETING_CANNNOT_BE_DELETE: "Cannot be deleted 1 hours before the meeting",
 
         # activity
-        STATUS_ACTIVITY_DATA_GT_NOW: "The start date should be earlier than tomorrow"
+        STATUS_ACTIVITY_DATA_GT_NOW: "The start date should be earlier than tomorrow",
+        STATUS_ACTIVITY_END_LT_NOW: "It is recommended that the publishing campaign end date should be within 10 days"
     }
 
     CN_OPERATION = {
@@ -165,6 +167,7 @@ class RetCode(RetCodeBase):
         STATUS_MEETING_CANNNOT_BE_DELETE: "距离会议开始时间小于一个小时，无法删除",
 
         # activity
-        STATUS_ACTIVITY_DATA_GT_NOW: "建议发布活动日期应该大于今天"
+        STATUS_ACTIVITY_DATA_GT_NOW: "建议发布活动日期应该大于今天",
+        STATUS_ACTIVITY_END_LT_NOW: "建议发布活动结束日期应该位于10天内"
 
     }

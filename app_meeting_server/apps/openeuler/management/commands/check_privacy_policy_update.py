@@ -21,6 +21,7 @@ def check_modify_time(now_time, modify_time):
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
+        logger.info("start to check_privacy_policy_update")
         # 获取当前时间
         now_time = datetime.now()
         # 连接ObsClient

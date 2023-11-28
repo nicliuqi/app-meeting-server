@@ -36,7 +36,7 @@ from app_meeting_server.utils.operation_log import LoggerContext, OperationLogMo
 from app_meeting_server.utils.ret_api import MyValidationError, ret_access_json, ret_json
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
     check_user_ids, check_activity_more_params, check_refresh_token, check_meetings_more_params, \
-    check_publish, check_type, check_date, check_int, check_schedules_more_string, check_link
+    check_publish, check_type, check_date, check_int, check_schedules_more_string, check_link, check_end_date
 from app_meeting_server.utils.ret_code import RetCode
 
 logger = logging.getLogger('log')
@@ -531,7 +531,7 @@ class CitiesView(GenericAPIView, ListModelMixin):
     filter_backends = [SearchFilter]
     search_fields = ['name']
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (MaintainerAndAdminPermission,)
+    permission_classes = (MeetigsAdminPermission,)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -995,6 +995,7 @@ class ActivityCreateView(GenericAPIView, CreateModelMixin):
         title = data.get('title')
         start_date = data.get('start_date')
         end_date = data.get('end_date')
+        check_end_date(end_date)
         activity_category = data.get('activity_category')
         activity_type = data.get('activity_type')
         address = data.get('address')
@@ -1211,6 +1212,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
         title = data.get('title')
         start_date = data.get('start_date')
         end_date = data.get('end_date')
+        check_end_date(end_date)
         activity_category = data.get('activity_category')
         activity_type = data.get('activity_type')
         address = data.get('address')

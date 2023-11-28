@@ -6,11 +6,13 @@ from django.core.management.base import BaseCommand
 from django.conf import settings
 from obs import ObsClient
 
+logger = logging.getLogger('log')
+
 
 class Command(BaseCommand):
-    logger = logging.getLogger('log')
 
     def handle(self, *args, **options):
+        logger.error("start to genegroup...")
         bucket_name = settings.OBS_BUCKETNAME
         obj_key = settings.SIGS_INFO_OBJECT
         obs_client = ObsClient(access_key_id=settings.ACCESS_KEY_ID,
@@ -18,7 +20,7 @@ class Command(BaseCommand):
                                server='https://%s' % settings.OBS_ENDPOINT)
         res = obs_client.getObject(bucket_name, obj_key)
         if res.status != 200:
-            self.logger.error('Fail to get OBS object of sigs info')
+            logger.error('Fail to get OBS object of sigs info')
             sys.exit(1)
         content = yaml.safe_load(res.body.response.read())
         etherpad_pre = '{}/p/meetings-'.format(settings.ETHERPAD_PREFIX)
@@ -28,7 +30,7 @@ class Command(BaseCommand):
             etherpad = etherpad_pre + sig_name
             if not Group.objects.filter(name=sig_name, group_type=group_type):
                 Group.objects.create(name=sig_name, group_type=group_type, etherpad=etherpad)
-                self.logger.info('Create group %s' % sig_name)
+                logger.info('Create group %s' % sig_name)
             else:
                 Group.objects.filter(name=sig_name, group_type=group_type).update(etherpad=etherpad)
-                self.logger.info('Update group %s' % sig_name)
+                logger.info('Update group %s' % sig_name)

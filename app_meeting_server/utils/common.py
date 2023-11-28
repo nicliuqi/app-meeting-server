@@ -36,6 +36,10 @@ def get_cur_date():
     return cur_date
 
 
+def format_strptime(date_str):
+    return datetime.strptime(date_str, '%Y-%m-%d')
+
+
 def check_unique(uid):
     user_model = get_user_model()
     if user_model.objects.filter(nickname='USER_{}'.format(uid)):
