@@ -1203,7 +1203,7 @@ class DraftUpdateView(GenericAPIView, UpdateModelMixin):
         user_id = request.user.id
         activity_id = self.kwargs.get('pk')
         activity_id = check_int(activity_id)
-        if Activity.objects.filter(id=activity_id, user_id=user_id, status=1):
+        if Activity.objects.filter(id=activity_id, user_id=user_id, status=1).count() == 0:
             logger.error('Invalid activity id: {}'.format(activity_id))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         data = check_activity_more_params(request.data)
