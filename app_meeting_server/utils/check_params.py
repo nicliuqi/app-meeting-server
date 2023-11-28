@@ -691,5 +691,5 @@ def check_privacy_agreement(agree):
 def check_end_date(end_date):
     end_strpdate = format_strptime(end_date)
     cur_date = get_cur_date()
-    if cur_date + datetime.timedelta(days=10) > end_strpdate:
+    if end_strpdate > cur_date + datetime.timedelta(days=10):
         raise MyValidationError(RetCode.STATUS_ACTIVITY_END_LT_NOW)

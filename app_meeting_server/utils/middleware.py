@@ -12,9 +12,7 @@ logger = logging.getLogger("log")
 
 class MyMiddleware(MiddlewareMixin):
     def process_response(self, _, response):
-        logger.info("1.---------------------------")
         if isinstance(response, HttpResponseBase):
-            logger.info("2.---------------------------")
             response["X-XSS-Protection"] = "1; mode=block"
             response["X-Frame-Options"] = "DENY"
             response["X-Content-Type-Options"] = "nosniff"
