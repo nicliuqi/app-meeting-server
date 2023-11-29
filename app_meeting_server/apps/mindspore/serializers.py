@@ -6,6 +6,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from app_meeting_server.utils.common import get_uuid, encrypt_openid, refresh_token_and_refresh_token, get_cur_date
+from app_meeting_server.utils.permissions import MeetigsAdminPermission
 from app_meeting_server.utils.ret_code import RetCode
 from app_meeting_server.utils.wx_apis import get_openid
 from mindspore.models import Group, Meeting, Collect, User, GroupUser, City, CityUser, Activity, ActivityCollect
@@ -111,7 +112,7 @@ class GroupUserAddSerializer(ModelSerializer):
         return check_user_ids(value)
 
     def create(self, validated_data):
-        users = User.objects.filter(id__in=validated_data['ids'], is_delete=0)
+        users = User.objects.filter(id__in=validated_data['ids'], is_delete=0).exclude(level=MeetigsAdminPermission.level)
         group_id = Group.objects.filter(id=validated_data['group_id']).first()
         try:
             result_list = list()
@@ -151,7 +152,8 @@ class CityUserAddSerializer(ModelSerializer):
         return check_group_id(City, value)
 
     def create(self, validated_data):
-        users = User.objects.filter(id__in=validated_data['ids']).filter(is_delete=0)
+        users = User.objects.filter(id__in=validated_data['ids']).\
+            exclude(level=MeetigsAdminPermission.level).filter(is_delete=0)
         city_id = City.objects.filter(id=validated_data['city_id']).first()
         try:
             with transaction.atomic():
@@ -184,9 +186,6 @@ class CityUserDelSerializer(ModelSerializer):
         try:
             with transaction.atomic():
                 CityUser.objects.filter(city_id=city_id, user_id__in=ids_list).delete()
-                for user_id in ids_list:
-                    if CityUser.objects.filter(user_id=user_id).count() == 0:
-                        User.objects.filter(id=int(user_id), level=2).update(level=1)
             return True
         except Exception as e:
             logger.error('Failed to del city user.and e:{}'.format(str(e)))
@@ -260,7 +259,7 @@ class MeetingsListSerializer(ModelSerializer):
     class Meta:
         model = Meeting
         fields = ['id', 'collection_id', 'user_id', 'group_id', 'topic', 'sponsor', 'group_name', 'city', 'date',
-                  'start', 'end', 'agenda', 'etherpad', 'mid', 'mmid', 'join_url', 'replay_url', 'mplatform']
+                  'start', 'end', 'agenda', 'etherpad', 'mid', 'mmid', 'join_url', 'mplatform']
 
     def get_collection_id(self, obj):
         user = None
@@ -294,7 +293,7 @@ class ActivitySerializer(ModelSerializer):
 class ActivityUpdateSerializer(ModelSerializer):
     class Meta:
         model = Activity
-        fields = ['schedules', 'replay_url']
+        fields = ['schedules']
 
 
 class ActivityDraftUpdateSerializer(ModelSerializer):
@@ -310,7 +309,7 @@ class ActivitiesSerializer(ModelSerializer):
         model = Activity
         fields = ['id', 'collection_id', 'title', 'start_date', 'end_date', 'activity_category',
                   'activity_type', 'register_method', 'register_url', 'synopsis', 'address', 'detail_address',
-                  'online_url', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user', 'replay_url']
+                  'online_url', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user']
 
     def get_collection_id(self, obj):
         user = None
@@ -328,8 +327,7 @@ class ActivityRetrieveSerializer(ActivitiesSerializer):
         model = Activity
         fields = ['id', 'collection_id', 'title', 'start_date', 'end_date', 'activity_category',
                   'activity_type', 'register_method', 'register_url', 'synopsis', 'address', 'detail_address',
-                  'online_url', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user', 'wx_code', 'sign_url',
-                  'replay_url']
+                  'online_url', 'longitude', 'latitude', 'schedules', 'poster', 'status', 'user', 'wx_code', 'sign_url']
 
 
 class ActivityCollectSerializer(ModelSerializer):

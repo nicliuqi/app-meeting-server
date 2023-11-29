@@ -36,7 +36,8 @@ from app_meeting_server.utils.operation_log import LoggerContext, OperationLogMo
 from app_meeting_server.utils.ret_api import MyValidationError, ret_access_json, ret_json
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
     check_user_ids, check_activity_more_params, check_refresh_token, check_meetings_more_params, \
-    check_publish, check_type, check_date, check_int, check_schedules_more_string, check_link, check_end_date
+    check_publish, check_type, check_date, check_int, check_schedules_more_string, check_end_date, \
+    check_invalid_content
 from app_meeting_server.utils.ret_code import RetCode
 
 logger = logging.getLogger('log')
@@ -281,7 +282,8 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         group_users = GroupUser.objects.filter(group_id=self.kwargs['pk']).all()
         ids = [x.user_id for x in group_users]
-        user = User.objects.filter(is_delete=0).exclude(id__in=ids).order_by('nickname')
+        user = User.objects.filter(is_delete=0).exclude(id__in=ids).\
+            exclude(level=MeetigsAdminPermission.level).order_by('nickname')
         return user
 
 
@@ -306,6 +308,10 @@ class UserGroupView(GenericAPIView, ListModelMixin):
     permission_classes = (MaintainerPermission,)
 
     def get(self, request, *args, **kwargs):
+        user_id = kwargs.get("pk")
+        if user_id != request.user.id:
+            logger.error('user_id did not match.user_id:{}, request.user.id:{}'.format(user_id, request.user.id))
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -437,7 +443,8 @@ class NonCityMembersView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         city_id = self.request.GET.get('city')
         city_users = CityUser.objects.filter(city_id=city_id).values_list("user_id", flat=True)
-        user = User.objects.filter(is_delete=0).exclude(id__in=city_users).order_by('nickname')
+        user = User.objects.filter(is_delete=0).exclude(id__in=city_users).\
+            exclude(level=MeetigsAdminPermission.level).order_by('nickname')
         return user
 
 
@@ -556,6 +563,7 @@ class AddCityView(GenericAPIView, CreateModelMixin):
     def create(self, request, *args, **kwargs):
         data = self.request.data
         name = data.get('name')
+        check_invalid_content(name)
         if name in City.objects.all().values_list('name', flat=True):
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         etherpad = '{}/p/meetings-MSG/{}'.format(settings.ETHERPAD_PREFIX, name)
@@ -613,6 +621,10 @@ class UserCityView(GenericAPIView, ListModelMixin):
     permission_classes = (MaintainerPermission,)
 
     def get(self, request, *args, **kwargs):
+        user_id = kwargs.get("pk")
+        if user_id != request.user.id:
+            logger.error('user_id did not match.user_id:{}, request.user.id:{}'.format(user_id, request.user.id))
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -722,7 +734,6 @@ class CreateMeetingView(GenericAPIView, CreateModelMixin):
             raise MyValidationError(RetCode.STATUS_MEETING_DATE_CONFLICT)
         # 2.从available_host_id中随机生成一个host_id,并在host_dict中取出
         host_id = secrets.choice(available_host_id)
-        logger.info('host_id: {}'.format(host_id))
         status, resp = drivers.createMeeting(platform, date, start, end, topic, host_id, record)
         if status not in [200, 201]:
             logger.error("Failed to create meeting, and code is {}".format(str(status)))
@@ -1071,18 +1082,16 @@ class ActivityUpdateView(GenericAPIView, UpdateModelMixin):
 
     def update(self, request, *args, **kwargs):
         schedules = request.data.get("schedules")
-        replay_url = request.data.get("replay_url")
         check_schedules_more_string(schedules)
-        check_link(replay_url)
         super(ActivityUpdateView, self).update(request, *args, **kwargs)
         return ret_access_json(request.user)
 
     def get_queryset(self):
         user_id = self.request.user.id
-        activity_level = User.objects.get(id=user_id).activity_level
         queryset = Activity.objects.filter(is_delete=0, status__in=[3, 4, 5], user_id=user_id)
-        if activity_level == 3:
-            queryset = Activity.objects.filter(is_delete=0, status__in=[3, 4, 5])
+        if queryset.count() == 0:
+            logger.error("[ActivityUpdateView] current acitivity is not exist")
+            raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         return queryset
 
 
@@ -1378,10 +1387,7 @@ class PublishedActivitiesView(GenericAPIView, ListModelMixin):
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        if self.request.user.activity_level == 3:
-            queryset = self.queryset.filter(is_delete=0, status__gt=2)
-        else:
-            queryset = self.queryset.filter(is_delete=0, status__gt=2, user_id=self.request.user.id)
+        queryset = self.queryset.filter(is_delete=0, status__gt=2, user_id=self.request.user.id)
         return queryset
 
 
@@ -1599,7 +1605,6 @@ class MeetingActivityDataView(GenericAPIView, ListModelMixin):
             'register_url': activity["register_url"],
             'synopsis': activity["synopsis"],
             'sign_url': activity["sign_url"],
-            'replay_url': activity["replay_url"],
             'poster': activity["poster"],
             'wx_code': activity["wx_code"],
             'schedules': activity["schedules"]
