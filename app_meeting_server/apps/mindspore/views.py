@@ -37,7 +37,7 @@ from app_meeting_server.utils.ret_api import MyValidationError, ret_access_json,
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
     check_user_ids, check_activity_more_params, check_refresh_token, check_meetings_more_params, \
     check_publish, check_type, check_date, check_int, check_schedules_more_string, check_end_date, \
-    check_invalid_content
+    check_invalid_content, check_field
 from app_meeting_server.utils.ret_code import RetCode
 
 logger = logging.getLogger('log')
@@ -211,7 +211,7 @@ class UpdateUserInfoView(GenericAPIView, UpdateModelMixin):
     serializer_class = UpdateUserInfoSerializer
     queryset = User.objects.filter(is_delete=0)
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (AdminPermission,)
+    permission_classes = (MeetigsAdminPermission,)
 
     def put(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
@@ -564,6 +564,7 @@ class AddCityView(GenericAPIView, CreateModelMixin):
         data = self.request.data
         name = data.get('name')
         check_invalid_content(name)
+        check_field(name, 20)
         if name in City.objects.all().values_list('name', flat=True):
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         etherpad = '{}/p/meetings-MSG/{}'.format(settings.ETHERPAD_PREFIX, name)

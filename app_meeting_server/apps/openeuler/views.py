@@ -767,7 +767,7 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
             group_id=group_id,
             mplatform=platform
         )
-        logger.info('{} has created a {} meeting which mid is {}.'.format(sponsor, platform, mid))
+        logger.info('created a {} meeting which mid is {}.'.format(platform, mid))
         logger.info('meeting info: {},{}-{},{}'.format(date, start, end, topic))
         # 4.发送email
         m = {
@@ -784,16 +784,6 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
             'agenda': summary
         }
         start_thread(sendmail, m, record)
-        # 5.如果开启录制功能，则在Video表中创建一条数据
-        if record == 'cloud':
-            Video.objects.create(
-                mid=mid,
-                topic=data['topic'],
-                community=community,
-                group_name=data['group_name'],
-                agenda=data['agenda'] if 'agenda' in data else ''
-            )
-            logger.info('meeting {} was created with auto recording.'.format(mid))
         meeting = Meeting.objects.get(mid=mid)
         t3 = time.time()
         print('total waste: {}'.format(t3 - t1))

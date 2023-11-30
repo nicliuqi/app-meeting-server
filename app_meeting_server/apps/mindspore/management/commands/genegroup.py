@@ -12,7 +12,7 @@ logger = logging.getLogger('log')
 class Command(BaseCommand):
 
     def handle(self, *args, **options):
-        logger.error("start to genegroup...")
+        logger.info("start to genegroup...")
         bucket_name = settings.OBS_BUCKETNAME
         obj_key = settings.SIGS_INFO_OBJECT
         obs_client = ObsClient(access_key_id=settings.ACCESS_KEY_ID,

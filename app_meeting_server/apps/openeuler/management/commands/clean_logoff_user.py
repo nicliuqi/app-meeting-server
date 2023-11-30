@@ -25,11 +25,6 @@ class Command(BaseCommand):
             # 2.delete meetings
             ret = Collect.objects.filter(user_id=user_id).delete()
             logger.info("delete meeting collect and result is:{}".format(str(ret)))
-            meetings_ids = Meeting.objects.filter(user_id=user_id).values_list("mid", flat=True)
-            ret = Video.objects.filter(mid__in=meetings_ids).delete()
-            logger.info("delete video and result is:{}".format(str(ret)))
-            ret = Record.objects.filter(mid__in=meetings_ids).delete()
-            logger.info("delete record and result is:{}".format(str(ret)))
             ret = Meeting.objects.filter(user_id=user_id).delete()
             logger.info("delete meeting and result is:{}".format(str(ret)))
             # 3.delete activity
@@ -71,14 +66,9 @@ class Command(BaseCommand):
         expired_meetings = Meeting.objects.filter(create_time__lt=before_date_str)
         for meetings in expired_meetings:
             meetings_id = meetings.id
-            mid = meetings.mid
             logger.info("The meetings(meetings_id:{}) create time over expired date, start to delete".format(str(meetings_id)))
             ret = Collect.objects.filter(meeting_id=meetings_id).delete()
             logger.info("delete meeting collect and result is:{}".format(str(ret)))
-            ret = Video.objects.filter(mid=mid).delete()
-            logger.info("delete video and result is:{}".format(str(ret)))
-            ret = Record.objects.filter(mid=mid).delete()
-            logger.info("delete record and result is:{}".format(str(ret)))
             ret = Meeting.objects.filter(id=meetings_id).delete()
             logger.info("delete meeting and result is:{}".format(str(ret)))
 
