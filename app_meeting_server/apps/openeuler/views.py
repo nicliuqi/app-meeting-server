@@ -198,6 +198,7 @@ class RevokeAgreementView(GenericAPIView):
                                                        gitee_name=None,
                                                        level=1,
                                                        activity_level=1)
+                GroupUser.objects.filter(user_id=user_id).delete()
                 Meeting.objects.filter(user__id=user_id).update(emaillist=None, sponsor='')
             policy_log_context.result = True
         clear_token(request.user)
