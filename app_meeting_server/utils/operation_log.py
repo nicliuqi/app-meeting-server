@@ -170,7 +170,7 @@ class OperationLogDesc(OperationBase):
         OP_DESC_USER_LOGIN_CODE: "用户（%s）登录。",
         OP_DESC_USER_LOGOUT_CODE: "用户（%s）登出。",
         OP_DESC_USER_LOGOFF_CODE: "用户（%s）注销。",
-        OP_DESC_USER_MODIFY_CODE: "用户（%s）修改用户（%s）信息。",
+        OP_DESC_USER_MODIFY_CODE: "修改用户（%s）信息。",
         OP_DESC_USER_ADD_GROUP_CODE: "用户（%s）被添加到SIG组（%s）。",
         OP_DESC_USER_REMOVE_GROUP_CODE: "用户（%s）从SIG组（%s）中移除。",
         OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE: "用户（%s）被添加为活动发起人。",
@@ -210,7 +210,7 @@ class OperationLogDesc(OperationBase):
         OP_DESC_USER_LOGIN_CODE: "The user(%s) login.",
         OP_DESC_USER_LOGOUT_CODE: "The user(%s) logout.",
         OP_DESC_USER_LOGOFF_CODE: "The user(%s) logoff.",
-        OP_DESC_USER_MODIFY_CODE: "The user(%s) modify the user(%s) info.",
+        OP_DESC_USER_MODIFY_CODE: "The user modify the user(%s) info.",
         OP_DESC_USER_ADD_GROUP_CODE: "The user(%s) is added to SIG group(%s).",
         OP_DESC_USER_REMOVE_GROUP_CODE: "The user(%s) is removed from SIG group(%s).",
         OP_DESC_USER_ADD_ACTIVITY_SPONSOR_CODE: "The user(%s) was added as activity sponsor.",
@@ -251,8 +251,6 @@ def console_log(request, log_module, log_desc, log_type, log_vars, resp=None):
     if request.user and request.user.id:
         user_id = request.user.id
         if request.user.level == MeetigsAdminPermission.level or request.user.activity_level == ActivityAdminPermission.activity_level:
-            logger.error("0 data is:{}".format(request.META.get("HTTP_X_REAL_IP")))
-            logger.error("1 data is:{}".format(request.META))
             ip = request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR")
     result = OperationLogResult.OP_RESULT_FAILED
     if isinstance(resp, Response) and str(resp.status_code).startswith("20"):

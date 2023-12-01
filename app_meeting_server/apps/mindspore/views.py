@@ -221,7 +221,7 @@ class UpdateUserInfoView(GenericAPIView, UpdateModelMixin):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
                            OperationLogType.OP_TYPE_MODIFY,
                            OperationLogDesc.OP_DESC_USER_MODIFY_CODE) as log_context:
-            log_context.log_vars = [request.user.id, request.user.id]
+            log_context.log_vars = [request.user.id]
             ret = self.update(request, *args, **kwargs)
             log_context.result = ret
             return ret
