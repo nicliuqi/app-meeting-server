@@ -251,7 +251,9 @@ def console_log(request, log_module, log_desc, log_type, log_vars, resp=None):
     if request.user and request.user.id:
         user_id = request.user.id
         if request.user.level == MeetigsAdminPermission.level or request.user.activity_level == ActivityAdminPermission.activity_level:
-            ip = request.META.get("HTTP_X_FORWARDED_FOR") or request.META.get("REMOTE_ADDR")
+            logger.error("0 data is:{}".format(request.META.get("HTTP_X_REAL_IP")))
+            logger.error("1 data is:{}".format(request.META))
+            ip = request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR")
     result = OperationLogResult.OP_RESULT_FAILED
     if isinstance(resp, Response) and str(resp.status_code).startswith("20"):
         result = OperationLogResult.OP_RESULT_SUCCEED
