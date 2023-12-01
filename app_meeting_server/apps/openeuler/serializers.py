@@ -5,6 +5,7 @@ from rest_framework.serializers import ModelSerializer
 
 from app_meeting_server.utils.check_params import check_group_id, check_user_ids, check_privacy_agreement
 from app_meeting_server.utils.common import get_uuid, encrypt_openid, refresh_token_and_refresh_token, get_cur_date
+from app_meeting_server.utils.permissions import MeetigsAdminPermission
 from app_meeting_server.utils.ret_code import RetCode
 from app_meeting_server.utils.wx_apis import get_openid
 from app_meeting_server.utils.ret_api import MyValidationError
@@ -89,7 +90,8 @@ class GroupUserAddSerializer(ModelSerializer):
         return check_user_ids(value)
 
     def create(self, validated_data):
-        users = User.objects.filter(id__in=validated_data['ids'], is_delete=0)
+        users = User.objects.filter(id__in=validated_data['ids'], is_delete=0).\
+            exclude(level=MeetigsAdminPermission.level)
         group_id = Group.objects.filter(id=validated_data['group_id']).first()
         try:
             result_list = list()

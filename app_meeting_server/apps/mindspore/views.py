@@ -202,6 +202,8 @@ class RevokeAgreementView(GenericAPIView):
                 Meeting.objects.filter(user__id=user_id).update(emaillist=None, sponsor='')
                 GroupUser.objects.filter(user_id=user_id).delete()
                 CityUser.objects.filter(user_id=user_id).delete()
+                ActivityCollect.objects.filter(user_id=user_id).delete()
+                Collect.objects.filter(user_id=user_id).delete()
             policy_log_context.result = True
         clear_token(request.user)
         resp = ret_json(msg="Revoke agreement of privacy policy")

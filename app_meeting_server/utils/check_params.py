@@ -358,6 +358,7 @@ def check_meetings_params(request, group_model):
         raise MyValidationError(RetCode.STATUS_SIG_GROUP_NOT_EXIST)
     # 6. check etherpad
     check_field(etherpad, 64)
+    check_link(etherpad)
     if not etherpad.startswith(settings.ETHERPAD_PREFIX):
         logger.error('Invalid etherpad address {}'.format(str(etherpad)))
         raise MyValidationError(RetCode.STATUS_MEETING_INVALID_ETHERPAD)
@@ -440,6 +441,7 @@ def check_meetings_more_params(request, group_model, city_model):
         logger.error('Invalid group name: {}'.format(group_name))
         raise MyValidationError(RetCode.STATUS_SIG_GROUP_NOT_EXIST)
     # 6.check etherpad
+    check_link(etherpad)
     if not etherpad.startswith(settings.ETHERPAD_PREFIX):
         logger.error('Invalid etherpad address {}'.format(str(etherpad)))
         raise MyValidationError(RetCode.STATUS_MEETING_INVALID_ETHERPAD)

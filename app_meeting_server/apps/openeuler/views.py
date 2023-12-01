@@ -198,8 +198,10 @@ class RevokeAgreementView(GenericAPIView):
                                                        gitee_name=None,
                                                        level=1,
                                                        activity_level=1)
-                GroupUser.objects.filter(user_id=user_id).delete()
                 Meeting.objects.filter(user__id=user_id).update(emaillist=None, sponsor='')
+                GroupUser.objects.filter(user_id=user_id).delete()
+                ActivityCollect.objects.filter(user_id=user_id).delete()
+                Collect.objects.filter(user_id=user_id).delete()
             policy_log_context.result = True
         clear_token(request.user)
         resp = ret_json(msg="Revoke agreement of privacy policy")
@@ -259,7 +261,8 @@ class UsersExcludeView(GenericAPIView, ListModelMixin):
     def get_queryset(self):
         group_users = GroupUser.objects.filter(group_id=self.kwargs['pk']).all()
         ids = [x.user_id for x in group_users]
-        user = User.objects.filter(is_delete=0).exclude(id__in=ids).order_by('nickname')
+        user = User.objects.filter(is_delete=0).exclude(id__in=ids).\
+            exclude(level=MeetigsAdminPermission.level).order_by('nickname')
         return user
 
 
@@ -414,7 +417,7 @@ class UserView(GenericAPIView, UpdateModelMixin):
     serializer_class = UserSerializer
     queryset = User.objects.filter(is_delete=0)
     authentication_classes = (CustomAuthentication,)
-    permission_classes = (AdminPermission,)
+    permission_classes = (MeetigsAdminPermission,)
 
     def put(self, request, *args, **kwargs):
         with LoggerContext(request, OperationLogModule.OP_MODULE_USER,
