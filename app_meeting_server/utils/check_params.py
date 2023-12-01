@@ -5,6 +5,7 @@
 # @Software: PyCharm
 import datetime
 import json
+import copy
 import logging
 from django.db import models
 from django.conf import settings
@@ -114,11 +115,12 @@ class ParserHandler:
 def check_invalid_content(content, check_crlf=True):
     # check xss and url, and \r\n
     # 1.check xss
-    content = content.strip()
+    new_conent = copy.deepcopy(content)
+    new_conent = new_conent.strip()
     with ParserHandler() as f:
-        f.feed(content)
+        f.feed(new_conent)
         if f.result:
-            logger.error("check xss:{}".format(content))
+            logger.error("check xss:{}".format(new_conent))
             raise MyValidationError(RetCode.STATUS_START_VALID_XSS)
     # 2.check url
     reg = match_url(content)
@@ -129,7 +131,7 @@ def check_invalid_content(content, check_crlf=True):
     if check_crlf:
         reg = match_crlf(content)
         if reg:
-            logger.error("check crlf url:{}".format(",".join(reg)))
+            logger.error("check crlf")
             raise MyValidationError(RetCode.STATUS_START_VALID_CRLF)
 
 
