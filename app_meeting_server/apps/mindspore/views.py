@@ -569,7 +569,7 @@ class AddCityView(GenericAPIView, CreateModelMixin):
         name = data.get('name')
         check_invalid_content(name)
         check_field(name, 20)
-        if name in City.objects.all().values_list('name', flat=True):
+        if City.objects.filter(name=name).count() != 0:
             raise MyValidationError(RetCode.STATUS_START_CITY_EXIST)
         etherpad = '{}/p/meetings-MSG/{}'.format(settings.ETHERPAD_PREFIX, name)
         City.objects.create(name=name, etherpad=etherpad)
