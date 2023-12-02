@@ -17,8 +17,11 @@ sys.path.insert(0, os.path.join(BASE_DIR, "apps"))
 
 CONFIG_PATH = os.getenv('CONFIG_PATH')
 MYSQL_TLS_PEM_PATH = os.getenv('MYSQL_TLS_PEM_PATH')
+TLS_CRT_PATH = os.getenv('TLS_CRT_PATH')
+TLS_KEY_PATH = os.getenv('TLS_KEY_PATH')
 
-if not os.path.exists(CONFIG_PATH) or not os.path.exists(MYSQL_TLS_PEM_PATH):
+if not os.path.exists(CONFIG_PATH) or not os.path.exists(MYSQL_TLS_PEM_PATH) or not os.path.exists(TLS_CRT_PATH) or \
+        not os.path.exists(TLS_KEY_PATH):
     sys.exit()
 
 DEFAULT_CONF = yaml.safe_load(open(CONFIG_PATH, 'r'))
@@ -28,6 +31,8 @@ is_delete_config = sys.argv[0] == 'uwsgi' or (len(sys.argv) >= 2 and sys.argv[1]
 if is_delete_config:
     os.remove(CONFIG_PATH)
     os.remove(MYSQL_TLS_PEM_PATH)
+    os.remove(TLS_CRT_PATH)
+    os.remove(TLS_KEY_PATH)
 
 # Quick-start development settings - unsuitable for production
 
