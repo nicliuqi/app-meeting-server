@@ -18,10 +18,10 @@ from datetime import datetime, timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import PBKDF2PasswordHasher
 from django.conf import settings
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from app_meeting_server.utils import crypto_gcm
 from app_meeting_server.utils.file_stream import write_content
+from app_meeting_server.utils.my_refresh import MyTokenObtainPairSerializer
 
 logger = logging.getLogger('log')
 
@@ -67,7 +67,7 @@ def make_refresh_signature(refresh_token):
 
 
 def refresh_access(user):
-    refresh = TokenObtainPairSerializer.get_token(user)
+    refresh = MyTokenObtainPairSerializer.get_token(user)
     access_token = str(refresh.access_token)
     access_signature = make_signature(access_token)
     user_model = get_user_model()
@@ -83,7 +83,7 @@ def save_token(access_token, refresh_token, user):
 
 
 def refresh_token_and_refresh_token(user):
-    refresh = TokenObtainPairSerializer.get_token(user)
+    refresh = MyTokenObtainPairSerializer.get_token(user)
     access_token = str(refresh.access_token)
     refresh_token = str(refresh)
     save_token(access_token, refresh_token, user)
