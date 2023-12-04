@@ -602,7 +602,7 @@ class MeetingDelView(GenericAPIView, DestroyModelMixin):
         Meeting.objects.filter(mid=mid).update(is_delete=1)
         meeting_id = meeting.id
         mid = meeting.mid
-        logger.info('{} has canceled the meeting which mid was {}'.format(request.user.gitee_name, mid))
+        logger.info('{} has canceled the meeting which mid was {}'.format(user_id, mid))
 
         # 发送删除通知邮件
         send_cancel_email.sendmail(mid)
