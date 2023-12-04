@@ -697,3 +697,21 @@ def check_end_date(end_date):
     cur_date = get_cur_date()
     if end_strpdate > cur_date + datetime.timedelta(days=10):
         raise MyValidationError(RetCode.STATUS_ACTIVITY_END_LT_NOW)
+
+
+def check_gitee_name(gitee_name):
+    # 1.check length
+    check_field(gitee_name, 20)
+    # 2.check xss
+    new_conent = copy.deepcopy(gitee_name)
+    new_conent = new_conent.strip()
+    with ParserHandler() as f:
+        f.feed(new_conent)
+        if f.result:
+            logger.error("check xss:{}".format(new_conent))
+            raise MyValidationError(RetCode.STATUS_START_VALID_XSS)
+    # 3.check \r\n
+    reg = match_crlf(gitee_name)
+    if reg:
+        logger.error("check crlf")
+        raise MyValidationError(RetCode.STATUS_START_VALID_CRLF)

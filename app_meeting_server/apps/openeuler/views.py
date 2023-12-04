@@ -34,7 +34,7 @@ from app_meeting_server.utils.common import get_cur_date, decrypt_openid, clear_
 from app_meeting_server.utils.ret_api import MyValidationError, ret_json, ret_access_json
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
     check_user_ids, check_activity_params, check_meetings_params, check_schedules_string, check_date, check_type, \
-    check_refresh_token, check_int
+    check_refresh_token, check_int, check_gitee_name
 from app_meeting_server.utils.ret_code import RetCode
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -429,6 +429,9 @@ class UserView(GenericAPIView, UpdateModelMixin):
             return ret
 
     def update(self, request, *args, **kwargs):
+        gitee_name = request.data.get("gitee_name")
+        if gitee_name:
+            check_gitee_name(gitee_name)
         super(UserView, self).update(request, *args, **kwargs)
         return ret_access_json(request.user)
 

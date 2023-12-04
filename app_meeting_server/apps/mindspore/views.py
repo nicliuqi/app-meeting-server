@@ -37,7 +37,7 @@ from app_meeting_server.utils.ret_api import MyValidationError, ret_access_json,
 from app_meeting_server.utils.check_params import check_group_id_and_user_ids, \
     check_user_ids, check_activity_more_params, check_refresh_token, check_meetings_more_params, \
     check_publish, check_type, check_date, check_int, check_schedules_more_string, check_end_date, \
-    check_invalid_content, check_field
+    check_invalid_content, check_field, check_gitee_name
 from app_meeting_server.utils.ret_code import RetCode
 
 logger = logging.getLogger('log')
@@ -227,6 +227,9 @@ class UpdateUserInfoView(GenericAPIView, UpdateModelMixin):
             return ret
 
     def update(self, request, *args, **kwargs):
+        gitee_name = request.data.get("gitee_name")
+        if gitee_name:
+            check_gitee_name(gitee_name)
         super(UpdateUserInfoView, self).update(request, *args, **kwargs)
         return ret_access_json(request.user)
 
