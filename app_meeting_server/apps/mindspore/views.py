@@ -846,7 +846,6 @@ class CancelMeetingView(GenericAPIView, UpdateModelMixin):
                         logger.info('meeting {} cancel message sent to {}.'.format(mid, nickname))
                 # 删除收藏
                 collection.delete()
-        logger.info('{} has canceled the meeting which mid was {}'.format(self.request.user.gitee_name, mid))
         return ret_access_json(request.user)
 
 

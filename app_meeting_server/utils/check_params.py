@@ -9,10 +9,10 @@ import copy
 import logging
 from django.db import models
 from django.conf import settings
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 from django.utils.translation import ugettext_lazy as _
 from app_meeting_server.utils.common import make_refresh_signature, get_cur_date, format_strptime
+from app_meeting_server.utils.my_refresh import MyRefreshToken
 from app_meeting_server.utils.regular_match import match_email, match_url, match_crlf
 from app_meeting_server.utils.ret_api import MyValidationError, capture_myvalidation_exception
 from app_meeting_server.utils.ret_code import RetCode
@@ -78,7 +78,7 @@ def check_refresh_token(refresh):
         logger.error("receive empty refresh")
         raise AuthenticationFailed(_('lack of refresh'))
     try:
-        RefreshToken(refresh, verify=True)
+        MyRefreshToken(refresh, verify=True)
     except Exception as e:
         logger.error("invalid refresh_token:{}".format(e))
         raise AuthenticationFailed(_("Token is invalid or expired"))
