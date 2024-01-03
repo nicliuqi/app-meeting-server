@@ -11,3 +11,7 @@ pytz==2023.3
 pyyaml==6.0.1
 requests==2.31.0
 uwsgi==2.0.22
+pycryptodome==3.10.1
+yarl
+httpx
+Pillow
