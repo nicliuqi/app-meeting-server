@@ -1,4 +1,4 @@
-from app_meeting_server.utils.models import BaseUser, BaseMeeting, BaseActivity
+from app_meeting_server.utils.models import BaseUser, BaseMeeting, BaseActivity, Video as commonVideo
 from django.db import models
 
 
@@ -63,18 +63,8 @@ class Collect(models.Model):
         verbose_name_plural = verbose_name
 
 
-class Video(models.Model):
+class Video(commonVideo):
     """会议记录表"""
-    mid = models.CharField(verbose_name='会议id', max_length=12)
-    topic = models.CharField(verbose_name='会议名称', max_length=128)
-    community = models.CharField(verbose_name='社区', max_length=40, null=True, blank=True)
-    group_name = models.CharField(verbose_name='所属sig组', max_length=50)
-    agenda = models.TextField(verbose_name='会议简介', blank=True, null=True)
-    attenders = models.TextField(verbose_name='参会人', blank=True, null=True)
-    start = models.CharField(verbose_name='记录开始时间', max_length=30, blank=True, null=True)
-    end = models.CharField(verbose_name='记录结束时间', max_length=30, blank=True, null=True)
-    total_size = models.IntegerField(verbose_name='总文件大小', blank=True, null=True)
-    download_url = models.CharField(verbose_name='下载地址', max_length=255, blank=True, null=True)
 
     class Meta:
         db_table = "meetings_video"

@@ -130,3 +130,22 @@ class BaseActivity(models.Model):
 
     class Meta:
         abstract = True
+
+
+class Video(models.Model):
+    """会议记录表"""
+    mid = models.CharField(verbose_name='会议id', max_length=12)
+    topic = models.CharField(verbose_name='会议名称', max_length=50)
+    community = models.CharField(verbose_name='社区', max_length=40, null=True, blank=True)
+    group_name = models.CharField(verbose_name='所属sig组', max_length=50)
+    agenda = models.TextField(verbose_name='会议简介', null=True, blank=True)
+    attenders = models.TextField(verbose_name='参会人', null=True, blank=True)
+    start = models.CharField(verbose_name='记录开始时间', max_length=30, null=True, blank=True)
+    end = models.CharField(verbose_name='记录结束时间', max_length=30, null=True, blank=True)
+    total_size = models.IntegerField(verbose_name='总文件大小', null=True, blank=True)
+    download_url = models.CharField(verbose_name='下载地址', max_length=255, null=True, blank=True)
+    replay_url = models.CharField(verbose_name='回放地址', max_length=255, null=True, blank=True)
+    create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True, null=True, blank=True)
+
+    class Meta:
+        abstract = True

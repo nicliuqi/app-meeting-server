@@ -400,6 +400,89 @@ def check_meetings_params(request, group_model):
 
 
 @capture_myvalidation_exception
+def check_meetings_less_params(request, group_model):
+    data = request.data
+    now_time = datetime.datetime.now()
+    topic = data.get('topic')
+    platform = data.get('platform', 'zoom')
+    sponsor = data.get('sponsor')
+    date = data.get('date')
+    start = data.get('start')
+    end = data.get('end')
+    group_name = data.get('group_name')
+    emaillist = data.get('emaillist', '')
+    community = data.get('community', 'opengauss')
+    summary = data.get('agenda')
+    record = data.get('record')
+    etherpad = data.get('etherpad')
+    # 1.check topic
+    check_field(topic, 128)
+    check_invalid_content(topic)
+    # 2.check platform
+    if not isinstance(platform, str):
+        logger.error("Field platform/{} must be string type".format(platform))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    else:
+        host_dict = settings.OPENGAUSS_MEETING_HOSTS.get(platform.lower())
+        if not host_dict or not isinstance(host_dict, dict):
+            logger.error("Could not match any meeting host")
+            raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    # 3.check sponsor
+    check_field(sponsor, 20)
+    check_invalid_content(sponsor)
+    # 4.check start,end,date
+    try:
+        check_duration(start, end, date, now_time, is_meetings=True)
+    except ValueError:
+        logger.error('Invalid start time or end time')
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    # 5. check group
+    groups_obj = group_model.objects.filter(name=group_name)
+    if groups_obj.count() == 0:
+        logger.error('Invalid group name: {}'.format(group_name))
+        raise MyValidationError(RetCode.STATUS_SIG_GROUP_NOT_EXIST)
+    # 6. check etherpad
+    if not etherpad:
+        etherpad = '{}/p/{}-meetings'.format(settings.ETHERPAD_PREFIX, group_name)
+    check_field(etherpad, 64)
+    check_link(etherpad)
+    if not etherpad.startswith(settings.ETHERPAD_PREFIX):
+        logger.error('Invalid etherpad address {}'.format(str(etherpad)))
+        raise MyValidationError(RetCode.STATUS_MEETING_INVALID_ETHERPAD)
+    # 7.check community
+    if community != settings.COMMUNITY.lower():
+        logger.error('The field community must be the same as configure')
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    # 8.check agenda
+    if summary:
+        check_field(summary, 4096)
+        check_invalid_content(summary, check_crlf=False)
+    # 9.check record:
+    if record not in ["cloud", ""]:
+        logger.error('The invalid cloud:{}'.format(str(record)))
+        raise MyValidationError(RetCode.STATUS_PARAMETER_ERROR)
+    # 10.check_email_list
+    if emaillist:
+        check_email_list(emaillist)
+    validated_data = {
+        'platform': platform,
+        'host_dict': host_dict,
+        'date': date,
+        'start': start,
+        'end': end,
+        'topic': topic,
+        'sponsor': sponsor,
+        'group_name': group_name,
+        'etherpad': etherpad,
+        'community': community,
+        'emaillist': emaillist,
+        'summary': summary,
+        'record': record
+    }
+    return validated_data
+
+
+@capture_myvalidation_exception
 def check_meetings_more_params(request, group_model, city_model):
     now_time = datetime.datetime.now()
     data = request.data

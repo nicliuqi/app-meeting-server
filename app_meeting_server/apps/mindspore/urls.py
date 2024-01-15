@@ -43,6 +43,7 @@ urlpatterns = [
     path('cityuser/action/new/', CityUserAddView.as_view()),      # 批量新增城市组成员
     path('cityuser/action/del/', CityUserDelView.as_view()),      # 批量移除城市组成员
     path('usercity/<int:pk>/', UserCityView.as_view()),           # 查询用户的城市组关系
+    path('participants/<int:mid>/', ParticipantsView.as_view()),  # 查询参会者
 
     # meeting
     path('meetings/', CreateMeetingView.as_view()),               # 预定会议

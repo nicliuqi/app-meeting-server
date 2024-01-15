@@ -49,6 +49,8 @@ urlpatterns = [
     path('collect/<int:pk>/', CollectDelView.as_view()),                # 取消收藏
     path('collections/', MyCollectionsView.as_view()),                  # 我收藏的会议
     path('sigmeetingsdata/<str:gn>/', SigMeetingsDataView.as_view()),   # 分页官网网页SIG会议数据
+    path('allmeetings/', AllMeetingsView.as_view()),                    # 查询所有会议
+    path('participants/<int:mid>/', ParticipantsView.as_view()),        # 查询参会者
 
     # activity
     path('activity/', ActivityView.as_view()),                                        # 1.创建活动并申请发布

@@ -15,7 +15,7 @@ from app_meeting_server.utils.my_pagination import MyPagination
 from openeuler.models import User, Group, Meeting, GroupUser, Collect, Video, Record, \
     Activity, ActivityCollect
 from app_meeting_server.utils.permissions import MaintainerPermission, MeetigsAdminPermission, \
-    ActivityAdminPermission, SponsorPermission, QueryPermission, AdminPermission, MaintainerAndAdminPermission
+    ActivityAdminPermission, SponsorPermission, QueryPermission, MaintainerAndAdminPermission
 from openeuler.serializers import LoginSerializer, GroupsSerializer, MeetingSerializer, \
     UsersSerializer, UserSerializer, GroupUserAddSerializer, UsersInGroupSerializer, \
     UserGroupSerializer, MeetingListSerializer, GroupUserDelSerializer, UserInfoSerializer, \
@@ -776,6 +776,15 @@ class MeetingsView(GenericAPIView, CreateModelMixin):
         )
         logger.info('created a {} meeting which mid is {}.'.format(platform, mid))
         logger.info('meeting info: {},{}-{},{}'.format(date, start, end, topic))
+        if record == 'cloud':
+            Video.objects.create(
+                mid=mid,
+                topic=topic,
+                community=community,
+                group_name=group_name,
+                agenda=summary
+            )
+            logger.info('meeting {} was created with auto recording.'.format(mid))
         # 4.发送email
         m = {
             'mid': mid,
