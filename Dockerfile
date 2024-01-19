@@ -16,6 +16,9 @@ COPY --chown=meetingserver ./requirements.txt /home/meetingserver/app-meeting-se
 # 2.install
 RUN yum install -y shadow wget git openssl openssl-devel tzdata python3-devel mariadb-devel python3-pip libXext libjpeg xorg-x11-fonts-75dpi xorg-x11-fonts-Type1 gcc
 RUN pip3 install -r /home/meetingserver/app-meeting-server/requirements.txt && rm -rf /home/meetingserver/app-meeting-server/requirements.txt
+RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox-0.12.6-1.centos8.x86_64.rpm && \
+    rpm -i wkhtmltox-0.12.6-1.centos8.x86_64.rpm && \
+    rm -f wkhtmltox-0.12.6-1.centos8.x86_64.rpm
 
 # 3.clean
 RUN groupadd -g ${gid} ${group}

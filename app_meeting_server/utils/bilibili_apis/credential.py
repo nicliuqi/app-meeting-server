@@ -9,9 +9,9 @@ import time
 import uuid
 import binascii
 
-from Cryptodome.Hash import SHA256
-from Cryptodome.PublicKey import RSA
-from Cryptodome.Cipher import PKCS1_OAEP
+from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
 
 from .utils.credential import Credential as _Credential
 from .utils.network import Api, get_api, get_session

@@ -3,10 +3,9 @@ import logging
 import json
 import os
 import requests
-import stat
 import time
 from django.conf import settings
-from app_meeting_server.utils.file_stream import write_content, download_big_file
+from app_meeting_server.utils.file_stream import download_big_file
 
 logger = logging.getLogger('log')
 
@@ -57,8 +56,13 @@ def createMeeting(date, start, end, topic, host, record):
             'isAutoMute': True,
             'isHardTerminalAutoMute': True,
             'isGuestFreePwd': True,
-            'allowGuestStartConf': True
-        }
+            'allowGuestStartConf': True,
+            'vmrIDType': 1,
+            'prolongLength': 15,
+            'enableWaitingRoom': False
+        },
+        'vmrFlag': 1,
+        'vmrID': host
     }
     if record == 'cloud':
         data['isAutoRecord'] = 1
@@ -71,7 +75,7 @@ def createMeeting(date, start, end, topic, host, record):
     resp_dict['mid'] = response.json()[0]['conferenceID']
     resp_dict['start_url'] = response.json()[0]['chairJoinUri']
     resp_dict['join_url'] = response.json()[0]['guestJoinUri']
-    resp_dict['host_id'] = response.json()[0]['userUUID']
+    resp_dict['host_id'] = host
     return response.status_code, resp_dict
 
 
