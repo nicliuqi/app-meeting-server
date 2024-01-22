@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 import yaml
 from openeuler.models import Group
@@ -26,7 +27,7 @@ class Command(BaseCommand):
         for sig in content:
             sig_name = sig['group_name']
             maillist = sig['maillist']
-            etherpad = settings.ETHERPAD_PREFIX + '%s-meetings' % sig_name
+            etherpad = os.path.join(settings.ETHERPAD_PREFIX, 'p', '%s-meetings' % sig_name)
             if not Group.objects.filter(group_name=sig_name):
                 Group.objects.create(group_name=sig_name, maillist=maillist, etherpad=etherpad)
                 logger.info('Create group %s' % sig_name)
