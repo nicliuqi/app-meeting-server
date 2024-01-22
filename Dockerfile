@@ -10,7 +10,7 @@ COPY --chown=meetingserver ./app_meeting_server /home/meetingserver/app-meeting-
 COPY --chown=meetingserver ./manage.py /home/meetingserver/app-meeting-server
 COPY --chown=meetingserver ./docker-entrypoint.sh /home/meetingserver/app-meeting-server
 COPY --chown=meetingserver ./deploy /home/meetingserver/app-meeting-server/deploy
-COPY --chown=meetingserver ./deploy/fonts/simsun.ttc /usr/share/fonts
+COPY --chown=meetingserver ./deploy/fonts/simsun.ttc /usr/share/fonts/simsun.ttc
 COPY --chown=meetingserver ./requirements.txt /home/meetingserver/app-meeting-server
 
 # 2.install
