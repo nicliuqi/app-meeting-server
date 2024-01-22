@@ -18,6 +18,9 @@ class ObsClientImp:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.obs_client.close()
 
+    def get_object(self, bucket_name, object_key):
+        return self.obs_client.getObject(bucket_name, object_key)
+
     def list_objects(self, bucket_name):
         objs = []
         mark = None

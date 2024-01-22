@@ -397,6 +397,12 @@ def prepare_videos(meeting, platform):
 
 
 def handle_recording(mid):
+    video_object = get_obs_video_object(mid)
+    oci = ObsClientImp(settings.ACCESS_KEY_ID, settings.SECRET_ACCESS_KEY, settings.OBS_ENDPOINT)
+    get_object_res = oci.get_object(settings.OBS_BUCKETNAME, video_object)
+    if get_object_res.status == 200:
+        logger.info('meeting {}: {} has been uploaded to OBS, skip'.format(mid, video_object))
+        return
     logger.info('\nStart to handle recordings of meeting which mid is {}'.format(mid))
     # 1. get recordings of target meeting and download
     meeting = Meeting.objects.get(mid=mid)
@@ -434,9 +440,7 @@ def handle_recording(mid):
     if not Record.objects.filter(mid=mid, platform='bilibili'):
         Record.objects.create(mid=mid, platform='bilibili')
     # 5. upload video and cover to OBS
-    video_object = get_obs_video_object(mid)
     metadata = generate_video_metadata(mid, video_object, video_path)
-    oci = ObsClientImp(settings.ACCESS_KEY_ID, settings.SECRET_ACCESS_KEY, settings.OBS_ENDPOINT)
     upload_video_res = oci.upload_file(settings.OBS_BUCKETNAME, video_object, video_path, metadata)
     if not isinstance(upload_video_res, dict) or 'status' not in upload_video_res.keys():
         logger.error('Unexpected upload video result to OBS: {}'.format(upload_video_res))
