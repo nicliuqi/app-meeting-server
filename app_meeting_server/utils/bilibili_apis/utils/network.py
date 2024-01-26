@@ -26,7 +26,8 @@ from .sync import sync
 from .. import settings
 
 from .credential import Credential
-from ..exceptions import ApiException, ResponseCodeException
+from ..exceptions.ApiException import ApiException
+from ..exceptions.ResponseCodeException import ResponseCodeException
 
 __httpx_session_pool: Dict[asyncio.AbstractEventLoop, httpx.AsyncClient] = {}
 __aiohttp_session_pool: Dict[asyncio.AbstractEventLoop, aiohttp.ClientSession] = {}
