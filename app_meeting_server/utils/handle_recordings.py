@@ -324,8 +324,8 @@ def get_welink_recordings_download_url_and_download(meeting, recordings):
             if record_url['fileType'].lower() in ['hd', 'aux']:
                 waiting_download_recordings.append(record_url)
     target_filename = get_video_path(mid)
-    token = waiting_download_recordings[0]['token']
-    download_url = waiting_download_recordings[0]['url']
+    token = waiting_download_recordings[-1]['token']
+    download_url = waiting_download_recordings[-1]['url']
     downloadHWCloudRecording(token, target_filename, download_url)
     return target_filename
 
