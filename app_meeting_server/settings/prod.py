@@ -333,7 +333,8 @@ if FOR_OPENEULER:
             DEFAULT_CONF.get('NEW_HOST_4'): DEFAULT_CONF.get('HOST_4_ACCOUNT')
         },
         'welink': {
-            DEFAULT_CONF.get('WELINK_HOST_1'): DEFAULT_CONF.get('WELINK_HOST_1')
+            DEFAULT_CONF.get('WELINK_HOST_1'): DEFAULT_CONF.get('WELINK_HOST_1'),
+            DEFAULT_CONF.get('WELINK_HOST_2'): DEFAULT_CONF.get('WELINK_HOST_2')
         },
         'tencent': {
             DEFAULT_CONF.get('TENCENT_ACCOUNT_1'): DEFAULT_CONF.get('TENCENT_ACCOUNT_1'),
@@ -359,6 +360,10 @@ if FOR_OPENEULER:
         DEFAULT_CONF.get('WELINK_HOST_1'): {
             'account': DEFAULT_CONF.get('WELINK_HOST_1_ACCOUNT'),
             'pwd': DEFAULT_CONF.get('WELINK_HOST_1_PWD')
+        },
+        DEFAULT_CONF.get('WELINK_HOST_2'): {
+            'account': DEFAULT_CONF.get('WELINK_HOST_2_ACCOUNT'),
+            'pwd': DEFAULT_CONF.get('WELINK_HOST_2_PWD')
         }
     }
     ZOOM_TOKEN_OBJECT = DEFAULT_CONF.get('ZOOM_TOKEN_OBJECT')
