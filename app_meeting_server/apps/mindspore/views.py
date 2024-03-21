@@ -402,7 +402,7 @@ class ParticipantsView(GenericAPIView):
         if status == 200:
             return JsonResponse(res)
         resp = JsonResponse(res)
-        resp.status_code = 400
+        resp.status_code = status
         return resp
 
 

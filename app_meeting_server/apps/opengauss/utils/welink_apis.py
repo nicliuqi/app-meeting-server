@@ -45,7 +45,7 @@ def getParticipants(mid):
     host_id = meeting.host_id
     access_token = createProxyToken(host_id)
     if not access_token:
-        return 400, {}
+        return 401, {'message': 'UnAuthorized'}
     headers = {
         'X-Access-Token': access_token
     }
