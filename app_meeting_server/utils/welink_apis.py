@@ -99,12 +99,15 @@ def cancelMeeting(mid, host_id):
     return response.status_code
 
 
-def listHisMeetings(host_id):
+def listHisMeetings(meeting):
     """获取历史会议列表"""
-    access_token = createProxyToken(host_id)
-    tn = int(time.time())
-    endDate = tn * 1000
-    startDate = (tn - 3600 * 24) * 1000
+    access_token = createProxyToken(meeting.host_id)
+    start_time = ' '.join([meeting.date, meeting.start])
+    end_time = ' '.join([meeting.date, meeting.end])
+    startDate = int(time.mktime((datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M') - datetime.timedelta(days=7)).
+                                timetuple())) * 1000
+    endDate = int(time.mktime((datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M') + datetime.timedelta(days=7)).
+                              timetuple())) * 1000
     uri = '/v1/mmc/management/conferences/history'
     headers = {
         'X-Access-Token': access_token
