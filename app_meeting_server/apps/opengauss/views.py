@@ -590,5 +590,5 @@ class ParticipantsView(GenericAPIView, RetrieveModelMixin):
             return JsonResponse(res)
         else:
             resp = JsonResponse(res)
-            resp.status_code = 400
+            resp.status_code = status
             return resp
