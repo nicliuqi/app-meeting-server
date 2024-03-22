@@ -930,7 +930,7 @@ class ParticipantsView(GenericAPIView, RetrieveModelMixin):
 
     def get(self, request, *args, **kwargs):
         mid = kwargs.get('mid')
-        if mid not in Meeting.objects.filter(is_delete=0).values_list('mid', flat=True):
+        if str(mid) not in Meeting.objects.filter(is_delete=0).values_list('mid', flat=True):
             logger.error('Meeting {} does not exist'.format(mid))
             raise MyValidationError(RetCode.INFORMATION_CHANGE_ERROR)
         status, res = drivers.getParticipants(mid)
