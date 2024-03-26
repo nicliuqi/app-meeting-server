@@ -92,7 +92,7 @@ def getParticipants(mid):
     if r.status_code == 200:
         total_records = r.json()['total_records']
         participants = r.json()['participants']
-        resp = {'total_records': total_records, 'participants': participants}
+        resp = {'total_records': total_records, 'participants': [{'name': x['name']} for x in participants]}
         return r.status_code, resp
     else:
         return r.status_code, r.json()

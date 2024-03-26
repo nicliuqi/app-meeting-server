@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import requests
@@ -36,4 +37,10 @@ def getParticipants(mid):
     url = get_url(uri)
     signature, headers = get_signature('GET', uri, "")
     r = requests.get(url, headers=headers)
+    if r.status_code == 200:
+        res = {
+            'total_records': r.json()['total_count'],
+            'participants': [{'name': base64.b64decode(x['user_name'].encode()).decode()} for x in r.json()['participants']]
+        }
+        return r.status_code, res
     return r.status_code, r.json()
