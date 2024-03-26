@@ -16,6 +16,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from app_meeting_server.utils.check_params import check_meetings_less_params
 from app_meeting_server.utils.common import encrypt_openid as encrypt, decrypt_openid as decrypt
+from app_meeting_server.utils.my_pagination import MyPagination
 from app_meeting_server.utils.permissions import QueryPermission
 from opengauss.utils.auth import CustomAuthentication
 from opengauss.utils.send_email import sendmail
@@ -567,13 +568,11 @@ class AllMeetingsView(GenericAPIView, ListModelMixin):
     serializer_class = AllMeetingsSerializer
     queryset = Meeting.objects.all()
     filter_backends = [SearchFilter]
-    search_fields = ['group_name', 'sponsor', 'date']
+    search_fields = ['is_delete', 'group_name', 'sponsor', 'date', 'start', 'end']
     permission_classes = (QueryPermission,)
+    pagination_class = MyPagination
 
     def get(self, request, *args, **kwargs):
-        is_delete = self.request.GET.get('delete')
-        if is_delete and is_delete in ['0', '1']:
-            self.queryset = self.queryset.filter(is_delete=int(is_delete))
         return self.list(request, *args, **kwargs)
 
 

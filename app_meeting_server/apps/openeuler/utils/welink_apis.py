@@ -35,7 +35,7 @@ def getParticipants(mid):
             if response.status_code == 200:
                 participants['total_records'] += response.json()['count']
                 for participant_info in response.json()['data']:
-                    participants['participants'].append(participant_info)
+                    participants['participants'].append({'name': participant_info['displayName']})
             else:
                 status = response.status_code
                 participants = response.json()
