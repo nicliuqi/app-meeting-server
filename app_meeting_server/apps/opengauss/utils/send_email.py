@@ -67,6 +67,8 @@ def sendmail(meeting, record=None):
 
     # 构造邮件
     msg = MIMEMultipart()
+    portal_zh = settings.PORTAL_ZH
+    portal_en = settings.PORTAL_EN
 
     # 添加邮件主体
     body_of_email = None
@@ -75,25 +77,29 @@ def sendmail(meeting, record=None):
         body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
             replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}'). \
             replace('{{etherpad}}', '{4}').replace('{{platform}}', '{5}'). \
-            format(sig_name, start_time, join_url, topic, etherpad, platform)
+            replace('{{portal_zh}}', '{6}').replace('{{portal_en}}', '{7}').\
+            format(sig_name, start_time, join_url, topic, etherpad, platform, portal_zh, portal_en)
     elif summary and not record:
         body = read_content(settings.TEMPLATE_SUMMARY_NOT_RECORDING)
         body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
             replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}'). \
             replace('{{etherpad}}', '{5}').replace('{{platform}}', '{6}'). \
-            format(sig_name, start_time, join_url, topic, summary, etherpad, platform)
+            replace('{{portal_zh}}', '{7}').replace('{{portal_en}}', '{8}').\
+            format(sig_name, start_time, join_url, topic, summary, etherpad, platform, portal_zh, portal_en)
     elif not summary and record:
         body = read_content(settings.TEMPLATE_NOT_SUMMARY_RECORDING)
         body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
             replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}'). \
             replace('{{etherpad}}', '{4}').replace('{{platform}}', '{5}'). \
-            format(sig_name, start_time, join_url, topic, etherpad, platform)
+            replace('{{portal_zh}}', '{6}').replace('{{portal_en}}', '{7}').\
+            format(sig_name, start_time, join_url, topic, etherpad, platform, portal_zh, portal_en)
     elif summary and record:
         body = read_content(settings.TEMPLATE_SUMMARY_RECORDING)
         body_of_email = body.replace('{{sig_name}}', '{0}').replace('{{start_time}}', '{1}'). \
             replace('{{join_url}}', '{2}').replace('{{topic}}', '{3}').replace('{{summary}}', '{4}'). \
             replace('{{etherpad}}', '{5}').replace('{{platform}}', '{6}'). \
-            format(sig_name, start_time, join_url, topic, summary, etherpad, platform)
+            replace('{{portal_zh}}', '{7}').replace('{{portal_en}}', '{8').\
+            format(sig_name, start_time, join_url, topic, summary, etherpad, platform, portal_zh, portal_en)
     content = MIMEText(body_of_email, 'plain', 'utf-8')
     msg.attach(content)
 
