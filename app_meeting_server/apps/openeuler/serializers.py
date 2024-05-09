@@ -41,6 +41,7 @@ class LoginSerializer(serializers.ModelSerializer):
                 logger.warning('Failed to get openid.')
                 raise MyValidationError(RetCode.STATUS_USER_GET_OPENID_FAILED)
             openid = r['openid']
+            logger.info('union id: ', r.get('unionid'))
             encrypt_openid_str = encrypt_openid(openid)
             user = User.objects.filter(openid=encrypt_openid_str).first()
             # if user not exist, and need to create
